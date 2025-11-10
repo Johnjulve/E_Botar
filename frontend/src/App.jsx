@@ -1,39 +1,29 @@
+/**
+ * Main App Component
+ * Root component with providers and layout
+ */
+
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Home from './pages/Home';
-import NotFound from './pages/Notfound';
-import ProtectedRoute from './components/ProtectedRoute';
+import { BrowserRouter } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import { Navbar, Footer } from './components/layout';
+import AppRoutes from './routes/AppRoutes';
+import './assets/styles/global.css';
 
-function logout() {
-  localStorage.clear();
-  return <Navigate to="/login" />;
-}
-
-function RegisterAndLogout() {
-  // Clear any auth tokens before showing register page
-  localStorage.clear();
-  return <Register />;
-}
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              <Home />
-            </ProtectedRoute>
-          }
-        />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<RegisterAndLogout />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+      <AuthProvider>
+        <div className="app-shell d-flex flex-column">
+          <Navbar />
+          <main className="main-content flex-grow-1">
+            <AppRoutes />
+          </main>
+          <Footer />
+        </div>
+      </AuthProvider>
     </BrowserRouter>
-  )
+  );
 }
 
-export default App
+export default App;

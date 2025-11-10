@@ -2,25 +2,22 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from .models import VoteReceipt, AnonVote, Ballot, VoteChoice
 from apps.candidates.serializers import CandidateListSerializer
-from apps.elections.serializers import SchoolPositionSerializer
+from apps.elections.serializers import SchoolPositionSerializer, SchoolElectionListSerializer
 
 
 class VoteReceiptSerializer(serializers.ModelSerializer):
     """Serializer for vote receipts"""
     user_name = serializers.CharField(source='user.get_full_name', read_only=True)
-    election_title = serializers.CharField(source='election.title', read_only=True)
-    masked_receipt = serializers.CharField(source='get_masked_receipt', read_only=True)
+    election = SchoolElectionListSerializer(read_only=True)
+    masked_receipt_code = serializers.CharField(source='get_masked_receipt', read_only=True)
     
     class Meta:
         model = VoteReceipt
         fields = [
-            'id', 'user', 'user_name', 'election', 'election_title',
-            'receipt_code', 'masked_receipt', 'created_at'
+            'id', 'user', 'user_name', 'election',
+            'receipt_code', 'masked_receipt_code', 'created_at'
         ]
         read_only_fields = ['id', 'receipt_code', 'created_at']
-        extra_kwargs = {
-            'receipt_code': {'write_only': True}  # Don't expose full code in API
-        }
 
 
 class VoteReceiptVerifySerializer(serializers.Serializer):
@@ -90,11 +87,11 @@ class BallotSubmissionSerializer(serializers.Serializer):
         except SchoolElection.DoesNotExist:
             raise serializers.ValidationError({'election_id': 'Election not found'})
         
-        if not election.is_active_now():
+        user = self.context['request'].user
+        if not election.is_active_now() and not user.is_staff:
             raise serializers.ValidationError({'election_id': 'This election is not currently active'})
         
         # Check if user has already voted
-        user = self.context['request'].user
         if Ballot.objects.filter(user=user, election=election).exists():
             raise serializers.ValidationError('You have already submitted a ballot for this election')
         

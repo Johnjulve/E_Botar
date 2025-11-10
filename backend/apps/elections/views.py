@@ -165,3 +165,16 @@ class SchoolElectionViewSet(viewsets.ModelViewSet):
                 {'detail': 'Position not found in this election'},
                 status=status.HTTP_404_NOT_FOUND
             )
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
+    def reject_pending_applications(self, request, pk=None):
+        """Manually trigger auto-rejection of pending applications for this election"""
+        election = self.get_object()
+        rejected_count = election.auto_reject_pending_applications()
+        
+        return Response({
+            'message': f'Successfully auto-rejected {rejected_count} pending application(s)',
+            'rejected_count': rejected_count,
+            'election_id': election.id,
+            'election_title': election.title
+        }, status=status.HTTP_200_OK)

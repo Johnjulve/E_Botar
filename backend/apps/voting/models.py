@@ -9,12 +9,6 @@ import hashlib
 
 
 class VoteReceipt(models.Model):
-    """Minimal record proving a user has voted in an election.
-    
-    This model stores only the essential information needed to verify that a user
-    has voted, without storing the actual vote choices. This provides privacy
-    while maintaining auditability.
-    """
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='vote_receipts')
     election = models.ForeignKey(SchoolElection, on_delete=models.CASCADE, related_name='receipts')
     receipt_code = models.CharField(max_length=64, unique=True, db_index=True)
@@ -61,11 +55,6 @@ class VoteReceipt(models.Model):
 
 
 class AnonVote(models.Model):
-    """Anonymized vote record for tallying results.
-    
-    This model stores vote choices without linking them to specific users,
-    enabling privacy-preserving vote counting and result generation.
-    """
     election = models.ForeignKey(SchoolElection, on_delete=models.CASCADE, related_name='anon_votes')
     position = models.ForeignKey(SchoolPosition, on_delete=models.CASCADE, related_name='anon_votes')
     candidate = models.ForeignKey(Candidate, on_delete=models.CASCADE, related_name='anon_votes')

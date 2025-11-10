@@ -35,7 +35,7 @@ class BallotViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = BallotSerializer
     
     def get_permissions(self):
-        if self.action in ['my_ballot', 'submit']:
+        if self.action in ['list', 'retrieve', 'my_ballot', 'submit']:
             return [IsAuthenticated()]
         return [IsAdminUser()]
     
@@ -156,7 +156,7 @@ class VoteReceiptViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = VoteReceiptSerializer
     
     def get_permissions(self):
-        if self.action in ['my_receipts', 'verify']:
+        if self.action in ['list', 'retrieve', 'my_receipts', 'verify']:
             return [IsAuthenticated()]
         return [IsAdminUser()]
     
@@ -225,16 +225,12 @@ class ResultsViewSet(viewsets.ViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
         
-        # Check if election has ended (for non-staff)
-        if not request.user.is_staff and not election.is_finished():
-            return Response(
-                {'detail': 'Results are not yet available'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        # Get vote statistics
-        total_votes = AnonVote.objects.filter(election=election).count()
+        # Real-time results are now available to everyone
+        # Winners will be highlighted only after election ends
+        election_ended = election.is_finished()
+
         total_voters = VoteReceipt.objects.filter(election=election).count()
+        total_ballots = Ballot.objects.filter(election=election).count()
         
         # Get results by position
         positions_data = []
@@ -249,29 +245,36 @@ class ResultsViewSet(viewsets.ViewSet):
                 vote_count=Count('id')
             ).order_by('-vote_count')
             
+            # Calculate total votes for this position
+            position_total_votes = sum(v['vote_count'] for v in position_votes)
+            
             candidates_data = []
-            for vote_data in position_votes:
+            for idx, vote_data in enumerate(position_votes):
                 candidate = Candidate.objects.get(id=vote_data['candidate'])
                 candidates_data.append({
                     'candidate_id': candidate.id,
                     'candidate_name': candidate.user.get_full_name(),
                     'party': candidate.party.name if candidate.party else None,
                     'vote_count': vote_data['vote_count'],
-                    'percentage': round((vote_data['vote_count'] / len(position_votes) * 100), 2) if position_votes else 0
+                    'percentage': round((vote_data['vote_count'] / position_total_votes * 100), 2) if position_total_votes > 0 else 0,
+                    'is_winner': election_ended and idx == 0 and vote_data['vote_count'] > 0,  # Winner is 1st place when election ends
+                    'rank': idx + 1  # 1-based ranking
                 })
             
             positions_data.append({
                 'position_id': position.id,
                 'position_name': position.name,
-                'total_votes': sum(c['vote_count'] for c in candidates_data),
+                'total_votes': position_total_votes,
                 'candidates': candidates_data
             })
         
         return Response({
             'election_id': election.id,
             'election_title': election.title,
-            'total_votes': total_votes,
-            'total_voters': total_voters,
+            'election_ended': election_ended,
+            'is_active': election.is_active_now(),
+            'total_voters': total_voters,  # Number of unique voters
+            'total_ballots': total_ballots,  # Should be same as total_voters
             'positions': positions_data
         })
     

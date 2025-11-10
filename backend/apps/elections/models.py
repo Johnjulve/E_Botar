@@ -95,6 +95,29 @@ class SchoolElection(models.Model):
         now = timezone.now()
         return now > self.end_date
     
+    def auto_reject_pending_applications(self):
+        """Auto-reject all pending applications when election starts"""
+        from apps.candidates.models import CandidateApplication
+        
+        pending_applications = CandidateApplication.objects.filter(
+            election=self,
+            status='pending'
+        )
+        
+        rejected_count = 0
+        for application in pending_applications:
+            application.status = 'rejected'
+            application.reviewed_at = timezone.now()
+            application.review_notes = (
+                "Application automatically rejected due to election commencement. "
+                "Applications must be reviewed and approved before the election start date. "
+                "Please apply earlier in future elections to allow sufficient time for review."
+            )
+            application.save()
+            rejected_count += 1
+        
+        return rejected_count
+    
     class Meta:
         ordering = ['-start_date']
         verbose_name = 'School Election'

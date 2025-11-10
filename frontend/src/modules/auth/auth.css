@@ -1,0 +1,63 @@
+/**
+ * Auth Module Styles
+ * Specific styling for authentication pages
+ */
+
+/* Override form label color for better contrast */
+.auth-form .form-label {
+  color: var(--text-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+/* Required field indicator */
+.text-danger {
+  color: var(--danger-color);
+}
+
+/* Auth page background */
+.auth-page-bg {
+  background: linear-gradient(135deg, var(--brand-green) 0%, var(--brand-green-dark) 100%);
+  min-height: 100vh;
+}
+
+/* Auth card styling */
+.auth-card {
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+}
+
+/* Form helper text */
+.form-text.small {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+/* Link styling in auth pages */
+.auth-link {
+  color: var(--brand-green);
+  text-decoration: none;
+  font-weight: var(--font-weight-semibold);
+  transition: color var(--transition-fast);
+}
+
+.auth-link:hover {
+  color: var(--brand-green-dark);
+  text-decoration: underline;
+}
+
+/* Auth icon styling */
+.auth-icon {
+  color: var(--brand-green);
+  font-size: 3rem;
+  margin-bottom: var(--spacing-lg);
+}
+
+/* Success message styling */
+.auth-success-message {
+  background-color: rgb(16 185 129 / 0.1);
+  border-left: 4px solid var(--success-color);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-md);
+  color: var(--success-hover);
+}
+

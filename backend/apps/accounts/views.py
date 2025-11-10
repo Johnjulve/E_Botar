@@ -21,25 +21,66 @@ def health_check(request):
     })
 
 
-@api_view(['GET'])
+@api_view(['GET', 'PATCH', 'PUT'])
 @permission_classes([IsAuthenticated])
 def current_user(request):
-    """Get current authenticated user's profile"""
-    user_serializer = UserSerializer(request.user)
-    try:
-        profile = request.user.profile
+    """Get or update current authenticated user's profile"""
+    if request.method == 'GET':
+        user_serializer = UserSerializer(request.user)
+        try:
+            profile = request.user.profile
+            profile_serializer = UserProfileSerializer(profile)
+            return Response({
+                'user': user_serializer.data,
+                'profile': profile_serializer.data
+            })
+        except UserProfile.DoesNotExist:
+            # Create profile if it doesn't exist
+            profile = UserProfile.objects.create(user=request.user)
+            profile_serializer = UserProfileSerializer(profile)
+            return Response({
+                'user': user_serializer.data,
+                'profile': profile_serializer.data
+            })
+    
+    elif request.method in ['PATCH', 'PUT']:
+        # Update user and profile data
+        user = request.user
+        profile = user.profile
+        
+        # Update user fields (first_name, last_name, email)
+        user_data = {}
+        if 'first_name' in request.data:
+            user_data['first_name'] = request.data['first_name']
+        if 'last_name' in request.data:
+            user_data['last_name'] = request.data['last_name']
+        
+        if user_data:
+            user_serializer = UserSerializer(user, data=user_data, partial=True)
+            if user_serializer.is_valid():
+                user_serializer.save()
+        
+        # Update profile fields
+        profile_data = {}
+        profile_fields = ['phone_number', 'student_id', 'year_level', 'department', 'course']
+        for field in profile_fields:
+            if field in request.data:
+                profile_data[field] = request.data[field]
+        
+        if profile_data:
+            profile_serializer = UserProfileSerializer(profile, data=profile_data, partial=True)
+            if profile_serializer.is_valid():
+                profile_serializer.save()
+            else:
+                return Response(profile_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Return updated data
+        user_serializer = UserSerializer(user)
         profile_serializer = UserProfileSerializer(profile)
         return Response({
             'user': user_serializer.data,
-            'profile': profile_serializer.data
-        })
-    except UserProfile.DoesNotExist:
-        # Create profile if it doesn't exist
-        profile = UserProfile.objects.create(user=request.user)
-        profile_serializer = UserProfileSerializer(profile)
-        return Response({
-            'user': user_serializer.data,
-            'profile': profile_serializer.data
+            'profile': profile_serializer.data,
+            'message': 'Profile updated successfully'
         })
 
 

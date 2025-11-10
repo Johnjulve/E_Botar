@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Party, SchoolPosition, SchoolElection, ElectionPosition
+from apps.voting.models import VoteReceipt
 
 
 class PartySerializer(serializers.ModelSerializer):
@@ -41,42 +42,16 @@ class ElectionPositionSerializer(serializers.ModelSerializer):
 class SchoolElectionListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for election listings"""
     status = serializers.SerializerMethodField()
+    is_active_now = serializers.SerializerMethodField()
     created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True, allow_null=True)
+    total_votes = serializers.SerializerMethodField()
     
     class Meta:
         model = SchoolElection
         fields = [
             'id', 'title', 'start_year', 'end_year', 'description',
-            'start_date', 'end_date', 'is_active', 'status',
-            'created_by', 'created_by_name', 'created_at', 'updated_at'
-        ]
-        read_only_fields = ['created_at', 'updated_at', 'title']
-    
-    def get_status(self, obj):
-        """Return human-readable status"""
-        if obj.is_active_now():
-            return 'ongoing'
-        elif obj.is_upcoming():
-            return 'upcoming'
-        elif obj.is_finished():
-            return 'finished'
-        return 'inactive'
-
-
-class SchoolElectionDetailSerializer(serializers.ModelSerializer):
-    """Detailed serializer with positions included"""
-    status = serializers.SerializerMethodField()
-    created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True, allow_null=True)
-    election_positions = ElectionPositionSerializer(many=True, read_only=True)
-    total_positions = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = SchoolElection
-        fields = [
-            'id', 'title', 'start_year', 'end_year', 'description',
-            'start_date', 'end_date', 'is_active', 'status',
-            'created_by', 'created_by_name', 
-            'election_positions', 'total_positions',
+            'start_date', 'end_date', 'is_active', 'status', 'is_active_now',
+            'created_by', 'created_by_name', 'total_votes',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['created_at', 'updated_at', 'title']
@@ -91,9 +66,56 @@ class SchoolElectionDetailSerializer(serializers.ModelSerializer):
             return 'finished'
         return 'inactive'
     
+    def get_is_active_now(self, obj):
+        """Return boolean indicating if election is currently active"""
+        return obj.is_active_now()
+    
+    def get_total_votes(self, obj):
+        """Count of unique voters in this election"""
+        return VoteReceipt.objects.filter(election=obj).count()
+
+
+class SchoolElectionDetailSerializer(serializers.ModelSerializer):
+    """Detailed serializer with positions included"""
+    status = serializers.SerializerMethodField()
+    is_active_now = serializers.SerializerMethodField()
+    created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True, allow_null=True)
+    election_positions = ElectionPositionSerializer(many=True, read_only=True)
+    total_positions = serializers.SerializerMethodField()
+    total_votes = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = SchoolElection
+        fields = [
+            'id', 'title', 'start_year', 'end_year', 'description',
+            'start_date', 'end_date', 'is_active', 'status', 'is_active_now',
+            'created_by', 'created_by_name', 
+            'election_positions', 'total_positions', 'total_votes',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['created_at', 'updated_at', 'title']
+    
+    def get_status(self, obj):
+        """Return human-readable status"""
+        if obj.is_active_now():
+            return 'ongoing'
+        elif obj.is_upcoming():
+            return 'upcoming'
+        elif obj.is_finished():
+            return 'finished'
+        return 'inactive'
+    
+    def get_is_active_now(self, obj):
+        """Return boolean indicating if election is currently active"""
+        return obj.is_active_now()
+    
     def get_total_positions(self, obj):
         """Count of positions in this election"""
         return obj.election_positions.count()
+    
+    def get_total_votes(self, obj):
+        """Count of unique voters in this election"""
+        return VoteReceipt.objects.filter(election=obj).count()
 
 
 class SchoolElectionCreateUpdateSerializer(serializers.ModelSerializer):
