@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Profile Management Features**:
+  - Profile picture upload functionality with image preview
+  - File validation (type and 5MB size limit)
+  - Avatar remove functionality
+  - Username display on profile page (non-editable)
+  - Conditional email editing (only if not set)
+  
+### Changed
+- **UI/UX Improvements**:
+  - Redesigned profile page with modern, clean layout
+  - Redesigned profile edit page with simple form design
+  - Redesigned logout button in sidebar with red color scheme
+  - Fixed sidebar icon visibility when collapsed
+  - Removed white background from brand logo (transparent PNG support)
+  - Profile and edit pages now use custom CSS (profile.css)
+  - All profile sections use card-based layout with proper spacing
+  
+- **My Applications Page**:
+  - Fixed alignment issues in application cards
+  - Improved responsive behavior for mobile devices
+  - Better text wrapping for long titles and descriptions
+  - Fixed status badge positioning
+  - Fixed action button layout and sizing
+
+### Fixed
+- Username field made non-editable in profile edit
+- Email field made conditional (editable only if empty)
+- Sidebar collapsed state now properly shows icons
+- Brand logo no longer has white background box
+- Application card header alignment on mobile
+- Button wrapping issues in application cards
+
 ---
 
 ## [0.5.0] - 2025-11-11
