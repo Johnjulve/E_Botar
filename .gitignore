@@ -235,3 +235,6 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+Phase_Implementation.md
+ADMIN_DASHBOARD_SPEC.md

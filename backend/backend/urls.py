@@ -1,13 +1,23 @@
 from django.contrib import admin
 from django.urls import path, include
-from apps.api.views import UserCreateView
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path("api/user/register/", UserCreateView.as_view(), name="register"),
-    path("api/token/", TokenObtainPairView.as_view(), name="get_token"),
-    path("api/token/refresh/", TokenRefreshView.as_view(), name="refresh_token"),
+    # Accounts & Authentication API
+    path("api/auth/", include("apps.accounts.urls")),
+    # Elections API
+    path("api/elections/", include("apps.elections.urls")),
+    # Candidates API
+    path("api/candidates/", include("apps.candidates.urls")),
+    # Voting API
+    path("api/voting/", include("apps.voting.urls")),
+    # DRF browsable API auth
     path("api-auth/", include("rest_framework.urls")),
 ]
+
+# Serve media files in development
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
  
