@@ -60,6 +60,39 @@ cover/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
+media/
+staticfiles/
+static/
+*.sqlite3
+
+# Django secrets & env
+.env*
+*.env
+!.env.example
+
+# Frontend build artifacts (duplicated here in case frontend/.gitignore missed)
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/.eslintcache
+frontend/.turbo/
+frontend/coverage/
+frontend/.parcel-cache/
+frontend/storybook-static/
+
+# Ignore local editor configs globally (except curated examples)
+.vscode/
+!.vscode/extensions.json
+
+# OS / misc
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Python virtual env (already listed but ensure root env folder ignored)
+backend/env/
+env/
+venv/
 
 # Flask stuff:
 instance/
@@ -135,11 +168,8 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
 .envrc
 .venv
-env/
-venv/
 ENV/
 env.bak/
 venv.bak/

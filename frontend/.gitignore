@@ -11,6 +11,12 @@ node_modules
 dist
 dist-ssr
 *.local
+.env*
+.eslintcache
+.vite/
+coverage/
+.parcel-cache/
+storybook-static/
 
 # Editor directories and files
 .vscode/*
