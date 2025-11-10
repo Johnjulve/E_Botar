@@ -31,6 +31,7 @@ import ResultsDetailsPage from '../modules/results/pages/ResultsDetailsPage';
 
 // Profile Pages
 import ProfilePage from '../modules/profile/pages/ProfilePage';
+import ProfileEditPage from '../modules/profile/pages/ProfileEditPage';
 import DashboardPage from '../modules/profile/pages/DashboardPage';
 
 // Admin Pages
@@ -113,6 +114,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <ProfilePage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/profile/edit" 
+        element={
+          <ProtectedRoute>
+            <ProfileEditPage />
           </ProtectedRoute>
         } 
       />

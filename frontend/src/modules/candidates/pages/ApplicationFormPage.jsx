@@ -6,9 +6,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Container } from '../../../components/layout';
-import { Card, Button, Alert, LoadingSpinner } from '../../../components/common';
+import { LoadingSpinner } from '../../../components/common';
 import { candidateService, electionService } from '../../../services';
 import { isValidFileSize, isValidFileType } from '../../../utils/validators';
+import './applications.css';
 
 const ApplicationFormPage = () => {
   const navigate = useNavigate();
@@ -145,44 +146,63 @@ const ApplicationFormPage = () => {
 
   if (success) {
     return (
-      <Container>
-        <Card className="text-center">
-          <i className="fas fa-check-circle text-success" style={{ fontSize: '4rem' }}></i>
-          <h2 className="mt-3 mb-3">Application Submitted!</h2>
-          <p className="text-muted">Your candidate application has been submitted for review.</p>
-          <p className="text-muted">Redirecting to your applications...</p>
-        </Card>
-      </Container>
+      <div className="application-form-page">
+        <Container>
+          <div className="success-state">
+            <div className="success-icon">
+              <svg width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+            </div>
+            <h2>Application Submitted!</h2>
+            <p>Your candidate application has been submitted for review.</p>
+            <p>Redirecting to your applications...</p>
+          </div>
+        </Container>
+      </div>
     );
   }
 
   return (
-    <Container>
-      <div className="row justify-content-center">
-        <div className="col-lg-8">
-          <Card>
-            <h2 className="mb-4">
-              <i className="fas fa-file-alt me-2 text-primary"></i>
-              Candidate Application
-            </h2>
+    <div className="application-form-page">
+      <Container>
+        <div className="form-container">
+          <div className="form-card">
+            <h2>Candidate Application</h2>
 
-            {error && <Alert variant="danger" dismissible onClose={() => setError('')}>{error}</Alert>}
+            {error && (
+              <div className="alert-message error">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="12" y1="8" x2="12" y2="12"/>
+                  <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <span>{error}</span>
+                <button onClick={() => setError('')} className="alert-close">×</button>
+              </div>
+            )}
 
             {elections.length === 0 ? (
-              <Alert variant="info">
-                <i className="fas fa-info-circle me-2"></i>
-                No upcoming elections available for applications at this time.
-              </Alert>
+              <div className="alert-message info">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="12" y1="16" x2="12" y2="12"/>
+                  <line x1="12" y1="8" x2="12.01" y2="8"/>
+                </svg>
+                <span>No upcoming elections available for applications at this time.</span>
+              </div>
             ) : (
               <form onSubmit={handleSubmit}>
                 {/* Election Selection */}
-                <div className="mb-3">
-                  <label className="form-label fw-semibold">
-                    Election <span className="text-danger">*</span>
+                <div className="form-group">
+                  <label htmlFor="election" className="form-label">
+                    Election <span className="required">*</span>
                   </label>
                   <select
+                    id="election"
                     name="election"
-                    className={`form-select ${errors.election ? 'is-invalid' : ''}`}
+                    className={`form-select ${errors.election ? 'error' : ''}`}
                     value={formData.election}
                     onChange={handleChange}
                     disabled={submitting}
@@ -194,17 +214,18 @@ const ApplicationFormPage = () => {
                       </option>
                     ))}
                   </select>
-                  {errors.election && <div className="invalid-feedback">{errors.election}</div>}
+                  {errors.election && <span className="form-error">{errors.election}</span>}
                 </div>
 
                 {/* Position Selection */}
-                <div className="mb-3">
-                  <label className="form-label fw-semibold">
-                    Position <span className="text-danger">*</span>
+                <div className="form-group">
+                  <label htmlFor="position" className="form-label">
+                    Position <span className="required">*</span>
                   </label>
                   <select
+                    id="position"
                     name="position"
-                    className={`form-select ${errors.position ? 'is-invalid' : ''}`}
+                    className={`form-select ${errors.position ? 'error' : ''}`}
                     value={formData.position}
                     onChange={handleChange}
                     disabled={!formData.election || submitting}
@@ -216,18 +237,19 @@ const ApplicationFormPage = () => {
                       </option>
                     ))}
                   </select>
-                  {errors.position && <div className="invalid-feedback">{errors.position}</div>}
+                  {errors.position && <span className="form-error">{errors.position}</span>}
                   {!formData.election && (
-                    <small className="text-muted">Please select an election first</small>
+                    <span className="form-help">Please select an election first</span>
                   )}
                 </div>
 
-                {/* Party Selection (Optional) */}
-                <div className="mb-3">
-                  <label className="form-label fw-semibold">
-                    Party <span className="text-muted">(Optional)</span>
+                {/* Party Selection */}
+                <div className="form-group">
+                  <label htmlFor="party" className="form-label">
+                    Party <span className="optional">(Optional)</span>
                   </label>
                   <select
+                    id="party"
                     name="party"
                     className="form-select"
                     value={formData.party}
@@ -244,69 +266,82 @@ const ApplicationFormPage = () => {
                 </div>
 
                 {/* Campaign Manifesto */}
-                <div className="mb-3">
-                  <label className="form-label fw-semibold">
-                    Campaign Manifesto <span className="text-danger">*</span>
+                <div className="form-group">
+                  <label htmlFor="manifesto" className="form-label">
+                    Campaign Manifesto <span className="required">*</span>
                   </label>
                   <textarea
+                    id="manifesto"
                     name="manifesto"
-                    className={`form-control ${errors.manifesto ? 'is-invalid' : ''}`}
-                    rows="8"
+                    className={`form-textarea ${errors.manifesto ? 'error' : ''}`}
+                    rows="10"
                     value={formData.manifesto}
                     onChange={handleChange}
                     placeholder="Share your vision, goals, and plans for the position you're running for..."
                     disabled={submitting}
                   />
-                  {errors.manifesto && <div className="invalid-feedback">{errors.manifesto}</div>}
-                  <small className="text-muted">
+                  {errors.manifesto && <span className="form-error">{errors.manifesto}</span>}
+                  <span className="character-count">
                     {formData.manifesto.length} / 100 minimum characters
-                  </small>
+                  </span>
                 </div>
 
                 {/* Photo Upload */}
-                <div className="mb-4">
-                  <label className="form-label fw-semibold">
-                    Candidate Photo <span className="text-muted">(Optional)</span>
+                <div className="form-group">
+                  <label htmlFor="photo" className="form-label">
+                    Candidate Photo <span className="optional">(Optional)</span>
                   </label>
                   <input
                     type="file"
-                    className={`form-control ${errors.photo ? 'is-invalid' : ''}`}
+                    id="photo"
+                    className={`form-input ${errors.photo ? 'error' : ''}`}
                     accept="image/jpeg,image/jpg,image/png"
                     onChange={handleFileChange}
                     disabled={submitting}
                   />
-                  {errors.photo && <div className="invalid-feedback">{errors.photo}</div>}
-                  <small className="text-muted">
+                  {errors.photo && <span className="form-error">{errors.photo}</span>}
+                  <span className="form-help">
                     Max file size: 5MB. Accepted formats: JPG, JPEG, PNG
-                  </small>
+                  </span>
                 </div>
 
                 {/* Submit Buttons */}
-                <div className="d-flex gap-2">
-                  <Button
+                <div className="form-actions">
+                  <button
                     type="button"
-                    variant="secondary"
+                    className="btn-cancel"
                     onClick={() => navigate('/candidates')}
                     disabled={submitting}
                   >
                     Cancel
-                  </Button>
-                  <Button
+                  </button>
+                  <button
                     type="submit"
-                    variant="primary"
-                    loading={submitting}
-                    className="flex-grow-1"
+                    className="btn-submit"
+                    disabled={submitting}
                   >
-                    <i className="fas fa-paper-plane me-2"></i>
-                    Submit Application
-                  </Button>
+                    {submitting ? (
+                      <>
+                        <span className="spinner"></span>
+                        Submitting...
+                      </>
+                    ) : (
+                      <>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <line x1="22" y1="2" x2="11" y2="13"/>
+                          <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                        </svg>
+                        Submit Application
+                      </>
+                    )}
+                  </button>
                 </div>
               </form>
             )}
-          </Card>
+          </div>
         </div>
-      </div>
-    </Container>
+      </Container>
+    </div>
   );
 };
 

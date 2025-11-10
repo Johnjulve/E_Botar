@@ -252,53 +252,46 @@ const VotingPage = () => {
         <div className="mb-4">
           {Object.entries(candidatesByPosition).map(([positionId, data]) => (
             <Card key={positionId} className="mb-4">
-              <h4 className="mb-3 text-brand">{data.position.name}</h4>
-              <p className="text-muted small mb-3">Select one candidate for this position</p>
+              <div className="mb-4 pb-3 border-bottom">
+                <h4 className="mb-0" style={{ color: '#1a202c', fontWeight: '600', fontSize: '1.25rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  {data.position.name}
+                </h4>
+                <p className="text-muted small mb-0 mt-1">Select one candidate</p>
+              </div>
               
-              <div className="d-grid gap-3">
+              <div className="d-grid gap-2">
                 {data.candidates.map(candidate => (
                   <div 
                     key={candidate.id}
-                    className={`p-3 border rounded cursor-pointer ${
-                      votes[positionId] === candidate.id ? 'border-success bg-light' : ''
+                    className={`p-3 border rounded ${
+                      votes[positionId] === candidate.id ? 'border-dark border-2' : ''
                     }`}
                     onClick={() => handleVoteChange(positionId, candidate.id)}
-                    style={{ cursor: 'pointer' }}
+                    style={{ 
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      backgroundColor: votes[positionId] === candidate.id ? '#f8f9fa' : 'white'
+                    }}
                   >
-                    <div className="form-check">
+                    <div className="form-check d-flex align-items-center">
                       <input
                         type="radio"
-                        className="form-check-input"
+                        className="form-check-input mt-0"
                         name={`position-${positionId}`}
                         id={`candidate-${candidate.id}`}
                         checked={votes[positionId] === candidate.id}
                         onChange={() => handleVoteChange(positionId, candidate.id)}
+                        style={{ cursor: 'pointer' }}
                       />
-                      <label className="form-check-label w-100" htmlFor={`candidate-${candidate.id}`}>
-                        <div className="d-flex align-items-center">
-                          <div 
-                            className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold me-3"
-                            style={{
-                              width: '50px',
-                              height: '50px',
-                              background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                              flexShrink: 0
-                            }}
-                          >
-                            {candidate.user?.first_name?.[0]?.toUpperCase() || 'C'}
-                          </div>
-                          <div>
-                            <div className="fw-semibold">
-                              {candidate.user?.first_name} {candidate.user?.last_name}
-                            </div>
-                            {candidate.party && (
-                              <div className="small text-muted">{candidate.party.name}</div>
-                            )}
-                            {candidate.manifesto && (
-                              <div className="small text-muted mt-1">{candidate.manifesto.substring(0, 100)}...</div>
-                            )}
-                          </div>
+                      <label className="form-check-label w-100 ms-3" htmlFor={`candidate-${candidate.id}`} style={{ cursor: 'pointer' }}>
+                        <div className="fw-semibold" style={{ fontSize: '1rem', color: '#2d3748' }}>
+                          {candidate.user?.first_name} {candidate.user?.last_name}
                         </div>
+                        {candidate.party && (
+                          <div className="small mt-1" style={{ color: '#718096' }}>
+                            {candidate.party.name}
+                          </div>
+                        )}
                       </label>
                     </div>
                   </div>

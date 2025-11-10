@@ -6,10 +6,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Container } from '../../../components/layout';
-import { Card, Badge, LoadingSpinner } from '../../../components/common';
+import { LoadingSpinner } from '../../../components/common';
 import { authService } from '../../../services';
 import { formatDate } from '../../../utils/formatters';
 import { getInitials } from '../../../utils/helpers';
+import './profile.css';
 
 const ProfilePage = () => {
   const [user, setUser] = useState(null);
@@ -38,161 +39,169 @@ const ProfilePage = () => {
   }
 
   return (
-    <Container>
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h1>
-          <i className="fas fa-user me-2 text-primary"></i>
-          My Profile
-        </h1>
-        <Link to="/profile/edit" className="btn btn-primary">
-          <i className="fas fa-edit me-2"></i>
-          Edit Profile
-        </Link>
-      </div>
+    <div className="profile-page">
+      <Container>
+        {/* Header */}
+        <div className="profile-header">
+          <h1 className="profile-title">My Profile</h1>
+          <Link to="/profile/edit" className="edit-profile-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+            Edit Profile
+          </Link>
+        </div>
 
-      <div className="row g-4">
-        {/* Profile Card */}
-        <div className="col-lg-4">
-          <Card>
-            <div className="text-center">
+        <div className="profile-content">
+          {/* Profile Card */}
+          <div className="profile-card">
+            <div className="profile-avatar-section">
               {profile?.avatar ? (
                 <img
                   src={profile.avatar}
                   alt="Profile"
-                  className="rounded-circle mb-3"
-                  style={{ width: '120px', height: '120px', objectFit: 'cover' }}
+                  className="profile-avatar"
                 />
               ) : (
-                <div 
-                  className="rounded-circle d-inline-flex align-items-center justify-content-center text-white fw-bold mb-3"
-                  style={{
-                    width: '120px',
-                    height: '120px',
-                    background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                    fontSize: '3rem'
-                  }}
-                >
+                <div className="profile-avatar-placeholder">
                   {getInitials(`${user?.first_name} ${user?.last_name}`)}
                 </div>
               )}
               
-              <h3 className="mb-2">
-                {user?.first_name} {user?.last_name}
-              </h3>
-              
-              <div className="mb-3">
-                {user?.is_staff ? (
-                  <Badge variant="danger">Admin</Badge>
-                ) : (
-                  <Badge variant="success">Student</Badge>
+              <div className="profile-name-section">
+                <h2 className="profile-name">
+                  {user?.first_name} {user?.last_name}
+                </h2>
+                {user?.username && (
+                  <p className="profile-username">@{user.username}</p>
                 )}
-                {profile?.is_verified && (
-                  <Badge variant="info" className="ms-2">
-                    <i className="fas fa-check-circle me-1"></i>
-                    Verified
-                  </Badge>
-                )}
-              </div>
-
-              <hr />
-
-              <div className="text-start">
-                <div className="mb-3">
-                  <small className="text-muted d-block">Email</small>
-                  <strong>{user?.email}</strong>
-                </div>
-                <div className="mb-3">
-                  <small className="text-muted d-block">Student ID</small>
-                  <strong>{profile?.student_id || 'N/A'}</strong>
-                </div>
-                <div className="mb-3">
-                  <small className="text-muted d-block">Member Since</small>
-                  <strong>{formatDate(user?.date_joined, 'date')}</strong>
+                <div className="profile-badges">
+                  {user?.is_staff ? (
+                    <span className="profile-badge admin">Admin</span>
+                  ) : (
+                    <span className="profile-badge student">Student</span>
+                  )}
+                  {profile?.is_verified && (
+                    <span className="profile-badge verified">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                      Verified
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
-          </Card>
-        </div>
 
-        {/* Details Card */}
-        <div className="col-lg-8">
-          <Card>
-            <h4 className="mb-3">
-              <i className="fas fa-info-circle me-2 text-primary"></i>
-              Personal Information
-            </h4>
-
-            <div className="row g-3">
-              <div className="col-md-6">
-                <small className="text-muted d-block">First Name</small>
-                <strong>{user?.first_name}</strong>
+            <div className="profile-info-grid">
+              {user?.username && (
+                <div className="info-item">
+                  <span className="info-label">Username</span>
+                  <span className="info-value">@{user.username}</span>
+                </div>
+              )}
+              <div className="info-item">
+                <span className="info-label">Email</span>
+                <span className="info-value">{user?.email}</span>
               </div>
-              <div className="col-md-6">
-                <small className="text-muted d-block">Last Name</small>
-                <strong>{user?.last_name}</strong>
+              <div className="info-item">
+                <span className="info-label">Student ID</span>
+                <span className="info-value">{profile?.student_id || 'N/A'}</span>
               </div>
-              <div className="col-md-6">
-                <small className="text-muted d-block">Email Address</small>
-                <strong>{user?.email}</strong>
-              </div>
-              <div className="col-md-6">
-                <small className="text-muted d-block">Phone Number</small>
-                <strong>{profile?.phone_number || 'Not provided'}</strong>
+              <div className="info-item">
+                <span className="info-label">Member Since</span>
+                <span className="info-value">{formatDate(user?.date_joined, 'date')}</span>
               </div>
             </div>
-          </Card>
+          </div>
 
-          <Card className="mt-4">
-            <h4 className="mb-3">
-              <i className="fas fa-graduation-cap me-2 text-primary"></i>
-              Academic Information
-            </h4>
-
-            <div className="row g-3">
-              <div className="col-md-6">
-                <small className="text-muted d-block">Student ID</small>
-                <strong>{profile?.student_id || 'N/A'}</strong>
+          {/* Academic Information */}
+          <div className="profile-section">
+            <h3 className="section-title">Academic Information</h3>
+            <div className="profile-info-grid">
+              <div className="info-item">
+                <span className="info-label">Student ID</span>
+                <span className="info-value">{profile?.student_id || 'Not specified'}</span>
               </div>
-              <div className="col-md-6">
-                <small className="text-muted d-block">Year Level</small>
-                <strong>{profile?.year_level || 'Not specified'}</strong>
+              <div className="info-item">
+                <span className="info-label">Year Level</span>
+                <span className="info-value">{profile?.year_level || 'Not specified'}</span>
               </div>
-              <div className="col-md-6">
-                <small className="text-muted d-block">Department</small>
-                <strong>{profile?.department?.name || 'Not specified'}</strong>
+              <div className="info-item">
+                <span className="info-label">Department</span>
+                <span className="info-value">{profile?.department?.name || 'Not specified'}</span>
               </div>
-              <div className="col-md-6">
-                <small className="text-muted d-block">Course</small>
-                <strong>{profile?.course?.name || 'Not specified'}</strong>
+              <div className="info-item">
+                <span className="info-label">Course</span>
+                <span className="info-value">{profile?.course?.name || 'Not specified'}</span>
               </div>
             </div>
-          </Card>
+          </div>
+
+          {/* Personal Information */}
+          <div className="profile-section">
+            <h3 className="section-title">Personal Information</h3>
+            <div className="profile-info-grid">
+              <div className="info-item">
+                <span className="info-label">First Name</span>
+                <span className="info-value">{user?.first_name}</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">Last Name</span>
+                <span className="info-value">{user?.last_name}</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">Email Address</span>
+                <span className="info-value">{user?.email}</span>
+              </div>
+            </div>
+          </div>
 
           {/* Quick Actions */}
-          <Card className="mt-4">
-            <h5 className="mb-3">Quick Actions</h5>
-            <div className="d-flex gap-2 flex-wrap">
-              <Link to="/elections" className="btn btn-outline-primary">
-                <i className="fas fa-calendar-alt me-2"></i>
+          <div className="profile-section">
+            <h3 className="section-title">Quick Actions</h3>
+            <div className="quick-actions">
+              <Link to="/elections" className="action-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/>
+                  <line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
                 View Elections
               </Link>
-              <Link to="/my-votes" className="btn btn-outline-success">
-                <i className="fas fa-history me-2"></i>
+              <Link to="/my-votes" className="action-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <polyline points="12 6 12 12 16 14"/>
+                </svg>
                 My Votes
               </Link>
-              <Link to="/my-applications" className="btn btn-outline-info">
-                <i className="fas fa-file-alt me-2"></i>
+              <Link to="/my-applications" className="action-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="16" y1="13" x2="8" y2="13"/>
+                  <line x1="16" y1="17" x2="8" y2="17"/>
+                  <polyline points="10 9 9 9 8 9"/>
+                </svg>
                 My Applications
               </Link>
-              <Link to="/candidates" className="btn btn-outline-warning">
-                <i className="fas fa-users me-2"></i>
+              <Link to="/candidates" className="action-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                  <circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
                 Browse Candidates
               </Link>
             </div>
-          </Card>
+          </div>
         </div>
-      </div>
-    </Container>
+      </Container>
+    </div>
   );
 };
 

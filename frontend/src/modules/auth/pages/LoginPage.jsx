@@ -1,13 +1,13 @@
 /**
  * LoginPage
- * User authentication page
+ * User authentication page - Modern Design
  */
 
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Container, Row, Col, Form } from 'react-bootstrap';
-import { Button, Card, Alert } from '../../../components/common';
 import { useAuth } from '../../../hooks/useAuth';
+import './auth.css';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -85,26 +85,35 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-vh-100 d-flex align-items-center bg-light">
-      <Container>
+    <div className="auth-page d-flex align-items-center">
+      <Container className="auth-container">
         <Row className="justify-content-center">
-          <Col md={6} lg={5}>
-            <div className="text-center mb-4">
-              <i className="fas fa-vote-yea text-brand" style={{ fontSize: '3rem' }}></i>
-              <h1 className="mt-3 mb-1">Welcome to E-Botar</h1>
-              <p className="text-muted">Sign in to your account</p>
+          <Col md={6} lg={5} xl={4}>
+            <div className="auth-header">
+              <h1>Welcome Back</h1>
+              <p>Sign in to continue to E-Botar</p>
             </div>
 
-            <Card>
+            <div className="auth-card">
               {errorMessage && (
-                <Alert variant="danger" dismissible onClose={() => setErrorMessage('')}>
-                  {errorMessage}
-                </Alert>
+                <div className="auth-alert alert-danger" role="alert">
+                  <i className="fas fa-exclamation-circle"></i>
+                  <span>{errorMessage}</span>
+                  <button 
+                    type="button" 
+                    className="btn-close ms-auto" 
+                    onClick={() => setErrorMessage('')}
+                    aria-label="Close"
+                  ></button>
+                </div>
               )}
 
-              <Form onSubmit={handleSubmit}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Username</Form.Label>
+              <Form onSubmit={handleSubmit} className="auth-form">
+                <Form.Group className="form-group">
+                  <Form.Label>
+                    <i className="fas fa-user"></i>
+                    Username
+                  </Form.Label>
                   <Form.Control
                     type="text"
                     name="username"
@@ -114,13 +123,18 @@ const LoginPage = () => {
                     placeholder="Enter your username"
                     disabled={loading}
                   />
-                  <Form.Control.Feedback type="invalid">
-                    {errors.username}
-                  </Form.Control.Feedback>
+                  {errors.username && (
+                    <div className="invalid-feedback d-block">
+                      {errors.username}
+                    </div>
+                  )}
                 </Form.Group>
 
-                <Form.Group className="mb-3">
-                  <Form.Label>Password</Form.Label>
+                <Form.Group className="form-group">
+                  <Form.Label>
+                    <i className="fas fa-lock"></i>
+                    Password
+                  </Form.Label>
                   <Form.Control
                     type="password"
                     name="password"
@@ -130,35 +144,34 @@ const LoginPage = () => {
                     placeholder="Enter your password"
                     disabled={loading}
                   />
-                  <Form.Control.Feedback type="invalid">
-                    {errors.password}
-                  </Form.Control.Feedback>
+                  {errors.password && (
+                    <div className="invalid-feedback d-block">
+                      {errors.password}
+                    </div>
+                  )}
                 </Form.Group>
 
-                <Button
+                <button
                   type="submit"
-                  variant="primary"
-                  fullWidth
-                  loading={loading}
-                  className="mb-3"
+                  className={`auth-submit-btn ${loading ? 'loading' : ''}`}
+                  disabled={loading}
                 >
-                  Sign In
-                </Button>
+                  {loading && <span className="auth-spinner"></span>}
+                  {loading ? 'Signing in...' : 'Sign In'}
+                </button>
 
-                <div className="text-center">
-                  <p className="text-muted mb-0">
-                    Don't have an account?{' '}
-                    <Link to="/register" className="text-brand fw-semibold">
-                      Create one here
-                    </Link>
-                  </p>
+                <div className="auth-link-text">
+                  Don't have an account?{' '}
+                  <Link to="/register" className="auth-link">
+                    Create one here
+                  </Link>
                 </div>
               </Form>
-            </Card>
+            </div>
 
-            <div className="text-center mt-4">
-              <p className="text-muted small">
-                <i className="fas fa-shield-alt me-1"></i>
+            <div className="auth-footer">
+              <p>
+                <i className="fas fa-shield-alt"></i>
                 Secure, Transparent, and Efficient Online Voting
               </p>
             </div>

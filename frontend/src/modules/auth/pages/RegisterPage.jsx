@@ -1,15 +1,14 @@
 /**
  * RegisterPage
- * User registration page
+ * User registration page - Modern Design
  */
 
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Container, Row, Col, Form } from 'react-bootstrap';
-import { Button, Card, Alert } from '../../../components/common';
 import { useAuth } from '../../../hooks/useAuth';
-import { authService } from '../../../services';
 import { validatePassword, isValidEmail } from '../../../utils/validators';
+import './auth.css';
 
 const RegisterPage = () => {
   const navigate = useNavigate();
@@ -18,22 +17,15 @@ const RegisterPage = () => {
   const [formData, setFormData] = useState({
     username: '',
     email: '',
-    first_name: '',
-    last_name: '',
     password: '',
     password_confirm: '',
-    department: '',
-    course: '',
-    year_level: '',
   });
   
-  const [departments, setDepartments] = useState([]);
-  const [courses, setCourses] = useState([]);
-  const [filteredCourses, setFilteredCourses] = useState([]);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [passwordStrength, setPasswordStrength] = useState(0); // 0: none, 1: weak, 2: medium, 3: strong
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -42,50 +34,19 @@ const RegisterPage = () => {
     }
   }, [isAuthenticated, navigate]);
 
-  // Fetch departments and courses
-  useEffect(() => {
-    fetchDepartmentsAndCourses();
-  }, []);
-
-  // Filter courses by department
-  useEffect(() => {
-    if (formData.department) {
-      const filtered = courses.filter(
-        course => course.department === parseInt(formData.department)
-      );
-      setFilteredCourses(filtered);
-      // Reset course if it doesn't belong to selected department
-      if (formData.course) {
-        const courseExists = filtered.find(c => c.id === parseInt(formData.course));
-        if (!courseExists) {
-          setFormData(prev => ({ ...prev, course: '' }));
-        }
-      }
-    } else {
-      setFilteredCourses([]);
-      setFormData(prev => ({ ...prev, course: '' }));
-    }
-  }, [formData.department, courses]);
-
-  const fetchDepartmentsAndCourses = async () => {
-    try {
-      const [deptResponse, courseResponse] = await Promise.all([
-        authService.getDepartments(),
-        authService.getCourses()
-      ]);
-      setDepartments(deptResponse.data);
-      setCourses(courseResponse.data);
-    } catch (error) {
-      console.error('Error fetching departments/courses:', error);
-    }
-  };
-
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
+    
+    // Calculate password strength
+    if (name === 'password') {
+      const strength = calculatePasswordStrength(value);
+      setPasswordStrength(strength);
+    }
+    
     // Clear error for this field
     if (errors[name]) {
       setErrors(prev => ({
@@ -93,6 +54,18 @@ const RegisterPage = () => {
         [name]: ''
       }));
     }
+  };
+
+  const calculatePasswordStrength = (password) => {
+    if (!password) return 0;
+    
+    let strength = 0;
+    if (password.length >= 8) strength++;
+    if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++;
+    if (/\d/.test(password)) strength++;
+    if (/[^a-zA-Z0-9]/.test(password)) strength++;
+    
+    return Math.min(strength, 3);
   };
 
   const validate = () => {
@@ -110,14 +83,6 @@ const RegisterPage = () => {
       newErrors.email = 'Email is required';
     } else if (!isValidEmail(formData.email)) {
       newErrors.email = 'Invalid email format';
-    }
-    
-    // Name validation
-    if (!formData.first_name.trim()) {
-      newErrors.first_name = 'First name is required';
-    }
-    if (!formData.last_name.trim()) {
-      newErrors.last_name = 'Last name is required';
     }
     
     // Password validation
@@ -154,23 +119,21 @@ const RegisterPage = () => {
     setLoading(true);
     
     try {
-      // Prepare data (convert to integer for foreign keys)
+      // Prepare data
       const registrationData = {
-        ...formData,
-        department: formData.department ? parseInt(formData.department) : null,
-        course: formData.course ? parseInt(formData.course) : null,
+        username: formData.username,
+        email: formData.email,
+        password: formData.password,
         password2: formData.password_confirm // Backend expects password2
       };
-      
-      delete registrationData.password_confirm; // Remove frontend field
 
       const result = await register(registrationData);
       
       if (result.success) {
-        setSuccessMessage('Registration successful! Redirecting...');
+        setSuccessMessage('Registration successful! Please complete your profile. Redirecting...');
         setTimeout(() => {
-          navigate('/');
-        }, 1500);
+          navigate('/profile/edit');
+        }, 2000);
       } else {
         setErrorMessage(result.error);
       }
@@ -181,256 +144,184 @@ const RegisterPage = () => {
     }
   };
 
-  const yearLevels = ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year'];
+  const getPasswordStrengthClass = () => {
+    if (passwordStrength === 0) return '';
+    if (passwordStrength === 1) return 'password-strength-weak';
+    if (passwordStrength === 2) return 'password-strength-medium';
+    return 'password-strength-strong';
+  };
+
+  const getPasswordStrengthText = () => {
+    if (passwordStrength === 0) return '';
+    if (passwordStrength === 1) return 'Weak';
+    if (passwordStrength === 2) return 'Medium';
+    return 'Strong';
+  };
 
   return (
-    <div className="min-vh-100 d-flex align-items-center bg-light py-5">
-      <Container>
+    <div className="auth-page d-flex align-items-center">
+      <Container className="auth-container">
         <Row className="justify-content-center">
-          <Col md={8} lg={7}>
-            <div className="text-center mb-4">
-              <i className="fas fa-user-plus text-brand" style={{ fontSize: '3rem' }}></i>
-              <h1 className="mt-3 mb-1">Create Account</h1>
-              <p className="text-muted">Join E-Botar and participate in student elections</p>
+          <Col md={8} lg={7} xl={6}>
+            <div className="auth-header">
+              <h1>Create Your Account</h1>
+              <p>Join E-Botar and participate in student elections</p>
             </div>
 
-            <Card>
+            <div className="auth-card">
               {errorMessage && (
-                <Alert variant="danger" dismissible onClose={() => setErrorMessage('')}>
-                  {errorMessage}
-                </Alert>
+                <div className="auth-alert alert-danger" role="alert">
+                  <i className="fas fa-exclamation-circle"></i>
+                  <span>{errorMessage}</span>
+                  <button 
+                    type="button" 
+                    className="btn-close ms-auto" 
+                    onClick={() => setErrorMessage('')}
+                    aria-label="Close"
+                  ></button>
+                </div>
               )}
               
               {successMessage && (
-                <Alert variant="success">
-                  {successMessage}
-                </Alert>
+                <div className="auth-alert alert-success" role="alert">
+                  <i className="fas fa-check-circle"></i>
+                  <span>{successMessage}</span>
+                </div>
               )}
 
-              <Form onSubmit={handleSubmit}>
-                <Row>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Username <span className="text-danger">*</span></Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="username"
-                        value={formData.username}
-                        onChange={handleChange}
-                        isInvalid={!!errors.username}
-                        placeholder="Choose a username"
-                        disabled={loading}
-                      />
-                      <Form.Control.Feedback type="invalid">
+              <Form onSubmit={handleSubmit} className="auth-form">
+                <div className="auth-two-column">
+                  <Form.Group className="form-group">
+                    <Form.Label>
+                      <i className="fas fa-user"></i>
+                      Username <span className="text-danger">*</span>
+                    </Form.Label>
+                    <Form.Control
+                      type="text"
+                      name="username"
+                      value={formData.username}
+                      onChange={handleChange}
+                      isInvalid={!!errors.username}
+                      placeholder="Choose a username"
+                      disabled={loading}
+                    />
+                    {errors.username && (
+                      <div className="invalid-feedback d-block">
                         {errors.username}
-                      </Form.Control.Feedback>
-                    </Form.Group>
-                  </Col>
+                      </div>
+                    )}
+                  </Form.Group>
 
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Email <span className="text-danger">*</span></Form.Label>
-                      <Form.Control
-                        type="email"
-                        name="email"
-                        value={formData.email}
-                        onChange={handleChange}
-                        isInvalid={!!errors.email}
-                        placeholder="your.email@example.com"
-                        disabled={loading}
-                      />
-                      <Form.Control.Feedback type="invalid">
+                  <Form.Group className="form-group">
+                    <Form.Label>
+                      <i className="fas fa-envelope"></i>
+                      Email <span className="text-danger">*</span>
+                    </Form.Label>
+                    <Form.Control
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      isInvalid={!!errors.email}
+                      placeholder="your.email@example.com"
+                      disabled={loading}
+                    />
+                    {errors.email && (
+                      <div className="invalid-feedback d-block">
                         {errors.email}
-                      </Form.Control.Feedback>
-                    </Form.Group>
-                  </Col>
-                </Row>
+                      </div>
+                    )}
+                    <Form.Text className="text-muted">
+                      <i className="fas fa-lock"></i>
+                      Email cannot be changed after registration
+                    </Form.Text>
+                  </Form.Group>
+                </div>
 
-                <Row>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>First Name <span className="text-danger">*</span></Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="first_name"
-                        value={formData.first_name}
-                        onChange={handleChange}
-                        isInvalid={!!errors.first_name}
-                        placeholder="First name"
-                        disabled={loading}
-                      />
-                      <Form.Control.Feedback type="invalid">
-                        {errors.first_name}
-                      </Form.Control.Feedback>
-                    </Form.Group>
-                  </Col>
-
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Last Name <span className="text-danger">*</span></Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="last_name"
-                        value={formData.last_name}
-                        onChange={handleChange}
-                        isInvalid={!!errors.last_name}
-                        placeholder="Last name"
-                        disabled={loading}
-                      />
-                      <Form.Control.Feedback type="invalid">
-                        {errors.last_name}
-                      </Form.Control.Feedback>
-                    </Form.Group>
-                  </Col>
-                </Row>
-
-                <Row>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Password <span className="text-danger">*</span></Form.Label>
-                      <Form.Control
-                        type="password"
-                        name="password"
-                        value={formData.password}
-                        onChange={handleChange}
-                        isInvalid={!!errors.password}
-                        placeholder="Create a strong password"
-                        disabled={loading}
-                      />
-                      <Form.Control.Feedback type="invalid">
+                <div className="auth-two-column">
+                  <Form.Group className="form-group">
+                    <Form.Label>
+                      <i className="fas fa-key"></i>
+                      Password <span className="text-danger">*</span>
+                    </Form.Label>
+                    <Form.Control
+                      type="password"
+                      name="password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      isInvalid={!!errors.password}
+                      placeholder="Create a strong password"
+                      disabled={loading}
+                    />
+                    {errors.password && (
+                      <div className="invalid-feedback d-block">
                         {errors.password}
-                      </Form.Control.Feedback>
-                      <Form.Text className="text-muted small">
-                        At least 8 characters with uppercase, lowercase, and number
+                      </div>
+                    )}
+                    {formData.password && (
+                      <div className="password-strength mt-2">
+                        <div className={`password-strength-bar ${getPasswordStrengthClass()}`}></div>
+                      </div>
+                    )}
+                    {passwordStrength > 0 && (
+                      <Form.Text className="text-muted">
+                        <i className="fas fa-info-circle"></i>
+                        Password strength: {getPasswordStrengthText()}
                       </Form.Text>
-                    </Form.Group>
-                  </Col>
+                    )}
+                  </Form.Group>
 
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Confirm Password <span className="text-danger">*</span></Form.Label>
-                      <Form.Control
-                        type="password"
-                        name="password_confirm"
-                        value={formData.password_confirm}
-                        onChange={handleChange}
-                        isInvalid={!!errors.password_confirm}
-                        placeholder="Re-enter your password"
-                        disabled={loading}
-                      />
-                      <Form.Control.Feedback type="invalid">
+                  <Form.Group className="form-group">
+                    <Form.Label>
+                      <i className="fas fa-shield-alt"></i>
+                      Confirm Password <span className="text-danger">*</span>
+                    </Form.Label>
+                    <Form.Control
+                      type="password"
+                      name="password_confirm"
+                      value={formData.password_confirm}
+                      onChange={handleChange}
+                      isInvalid={!!errors.password_confirm}
+                      placeholder="Re-enter your password"
+                      disabled={loading}
+                    />
+                    {errors.password_confirm && (
+                      <div className="invalid-feedback d-block">
                         {errors.password_confirm}
-                      </Form.Control.Feedback>
-                    </Form.Group>
-                  </Col>
-                </Row>
+                      </div>
+                    )}
+                  </Form.Group>
+                </div>
 
-                <h6 className="mb-3 text-secondary">Additional Information (Optional)</h6>
+                <div className="auth-info-box">
+                  <i className="fas fa-info-circle"></i>
+                  <span>
+                    You can add your name, department, course and other details in your profile after registration.
+                  </span>
+                </div>
 
-                <Row>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Department</Form.Label>
-                      <Form.Select
-                        name="department"
-                        value={formData.department}
-                        onChange={handleChange}
-                        disabled={loading}
-                      >
-                        <option value="">Select Department</option>
-                        {departments.map(dept => (
-                          <option key={dept.id} value={dept.id}>
-                            {dept.name}
-                          </option>
-                        ))}
-                      </Form.Select>
-                    </Form.Group>
-                  </Col>
-
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Course</Form.Label>
-                      <Form.Select
-                        name="course"
-                        value={formData.course}
-                        onChange={handleChange}
-                        disabled={loading || !formData.department}
-                      >
-                        <option value="">Select Course</option>
-                        {filteredCourses.map(course => (
-                          <option key={course.id} value={course.id}>
-                            {course.name}
-                          </option>
-                        ))}
-                      </Form.Select>
-                      {!formData.department && (
-                        <Form.Text className="text-muted small">
-                          Please select a department first
-                        </Form.Text>
-                      )}
-                    </Form.Group>
-                  </Col>
-                </Row>
-
-                <Row>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Year Level</Form.Label>
-                      <Form.Select
-                        name="year_level"
-                        value={formData.year_level}
-                        onChange={handleChange}
-                        disabled={loading}
-                      >
-                        <option value="">Select Year Level</option>
-                        {yearLevels.map(year => (
-                          <option key={year} value={year}>
-                            {year}
-                          </option>
-                        ))}
-                      </Form.Select>
-                    </Form.Group>
-                  </Col>
-
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Phone Number</Form.Label>
-                      <Form.Control
-                        type="tel"
-                        name="phone_number"
-                        value={formData.phone_number}
-                        onChange={handleChange}
-                        placeholder="(123) 456-7890"
-                        disabled={loading}
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
-
-                <Button
+                <button
                   type="submit"
-                  variant="primary"
-                  fullWidth
-                  loading={loading}
-                  className="mb-3 mt-2"
+                  className={`auth-submit-btn ${loading ? 'loading' : ''}`}
+                  disabled={loading}
                 >
-                  Create Account
-                </Button>
+                  {loading && <span className="auth-spinner"></span>}
+                  {loading ? 'Creating Account...' : 'Create Account'}
+                </button>
 
-                <div className="text-center">
-                  <p className="text-muted mb-0">
-                    Already have an account?{' '}
-                    <Link to="/login" className="text-brand fw-semibold">
-                      Sign in here
-                    </Link>
-                  </p>
+                <div className="auth-link-text">
+                  Already have an account?{' '}
+                  <Link to="/login" className="auth-link">
+                    Sign in here
+                  </Link>
                 </div>
               </Form>
-            </Card>
+            </div>
 
-            <div className="text-center mt-4">
-              <p className="text-muted small">
-                By creating an account, you agree to our Terms of Service and Privacy Policy
+            <div className="auth-footer">
+              <p>
+                <i className="fas fa-file-contract"></i>
+                By creating an account, you agree to our Terms of Service
               </p>
             </div>
           </Col>

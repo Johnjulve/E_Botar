@@ -20,7 +20,7 @@
 .page-title-icon {
   width: 48px;
   height: 48px;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: #2d3748;
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -54,16 +54,17 @@
   align-items: center;
   gap: 0.5rem;
   color: #6b7280;
+  transition: all 0.2s ease;
 }
 
 .filter-tab:hover {
-  border-color: #0b6e3b;
-  color: #0b6e3b;
+  border-color: #2d3748;
+  color: #2d3748;
 }
 
 .filter-tab.active {
-  background: linear-gradient(135deg, #0b6e3b 0%, #075a30 100%);
-  border-color: #0b6e3b;
+  background: #2d3748;
+  border-color: #2d3748;
   color: white;
 }
 
@@ -91,8 +92,8 @@
 }
 
 .election-card:hover {
-  border-color: #0b6e3b;
-  box-shadow: 0 4px 12px rgba(11, 110, 59, 0.1);
+  border-color: #2d3748;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .election-header {
@@ -122,17 +123,17 @@
 }
 
 .status-badge.active {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: #10b981;
   color: white;
 }
 
 .status-badge.upcoming {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  background: #3b82f6;
   color: white;
 }
 
 .status-badge.finished {
-  background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+  background: #6b7280;
   color: white;
 }
 
@@ -192,7 +193,7 @@
 
 .view-details-btn {
   padding: 0.625rem 1.25rem;
-  background: linear-gradient(135deg, #0b6e3b 0%, #075a30 100%);
+  background: linear-gradient(135deg, #0b6e3b 0%, #075a30 100%) !important;
   color: white;
   border-radius: 10px;
   font-weight: 600;
@@ -204,7 +205,7 @@
 }
 
 .view-details-btn:hover {
-  background: linear-gradient(135deg, #075a30 0%, #054020 100%);
+  background: linear-gradient(135deg, #075a30 0%, #054020 100%) !important;
   color: white;
 }
 

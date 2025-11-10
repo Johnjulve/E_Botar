@@ -23,7 +23,6 @@ const EditProfilePage = () => {
     first_name: '',
     last_name: '',
     email: '',
-    phone_number: '',
     student_id: '',
     year_level: '',
     department: '',
@@ -55,7 +54,6 @@ const EditProfilePage = () => {
         first_name: userData.user?.first_name || '',
         last_name: userData.user?.last_name || '',
         email: userData.user?.email || '',
-        phone_number: userData.profile?.phone_number || '',
         student_id: userData.profile?.student_id || '',
         year_level: userData.profile?.year_level || '',
         department: userData.profile?.department?.id || '',
@@ -181,18 +179,6 @@ const EditProfilePage = () => {
                 disabled
               />
               <small className="text-muted">Email cannot be changed</small>
-            </div>
-            
-            <div className="col-md-6">
-              <label className="form-label">Phone Number</label>
-              <input
-                type="tel"
-                name="phone_number"
-                className="form-control"
-                value={formData.phone_number}
-                onChange={handleChange}
-                placeholder="e.g., 09123456789"
-              />
             </div>
           </div>
         </Card>

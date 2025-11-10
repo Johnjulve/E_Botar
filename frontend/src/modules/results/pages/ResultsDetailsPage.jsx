@@ -1,14 +1,15 @@
-﻿/**
+/**
  * ResultsDetailsPage
- * Display election results with vote counts and percentages
+ * Modern redesigned election results with enhanced visualization
  */
 
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Container } from '../../../components/layout';
-import { Card, Badge, LoadingSpinner, EmptyState, Button } from '../../../components/common';
+import { LoadingSpinner, EmptyState } from '../../../components/common';
 import { electionService, votingService } from '../../../services';
 import { formatNumber, formatPercentage } from '../../../utils/formatters';
+import './results.css';
 
 const ResultsDetailsPage = () => {
   const { id } = useParams();
@@ -100,187 +101,212 @@ const ResultsDetailsPage = () => {
     );
   }
 
-  const getWinnerBadge = (index) => {
-    const badges = [
-      { icon: 'fas fa-trophy', color: '#ffd700', text: '1st Place' },
-      { icon: 'fas fa-medal', color: '#c0c0c0', text: '2nd Place' },
-      { icon: 'fas fa-award', color: '#cd7f32', text: '3rd Place' }
-    ];
-    return badges[index] || null;
-  };
-
   return (
-    <Container>
-      {/* Header */}
-      <div className="d-flex justify-content-between align-items-start mb-4">
-        <div>
-          <h1 className="mb-2">
-            <i className="fas fa-chart-bar me-2 text-primary"></i>
-            Election Results
-            {isActive && (
-              <Badge variant="success" className="ms-2">
-                <i className="fas fa-circle me-1" style={{ fontSize: '0.5rem' }}></i>
-                Live
-              </Badge>
-            )}
-          </h1>
-          <h4 className="text-muted">{election.title}</h4>
-          {isActive && (
-            <div className="text-muted small mt-2">
-              <i className="fas fa-sync-alt me-1"></i>
-              Auto-refreshing every 10 seconds
-              <button 
-                onClick={() => setAutoRefresh(!autoRefresh)} 
-                className="btn btn-sm btn-link ms-2"
-                style={{ textDecoration: 'none' }}
-              >
-                {autoRefresh ? 'Pause' : 'Resume'}
-              </button>
-            </div>
-          )}
-          {electionEnded && (
-            <div className="alert alert-info mt-2">
-              <i className="fas fa-flag-checkered me-2"></i>
-              Election has ended. Winners are highlighted below.
-            </div>
-          )}
-        </div>
-        <Link to="/elections" className="btn btn-outline-secondary">
-          <i className="fas fa-arrow-left me-2"></i>
-          Back to Elections
-        </Link>
-      </div>
-
-      {/* Statistics Overview */}
-      {statistics && (
-        <Card className="mb-4">
-          <h5 className="mb-3">
-            <i className="fas fa-chart-pie me-2 text-info"></i>
-            Overview Statistics
-          </h5>
-          <div className="row g-3">
-            <div className="col-md-3 col-6">
-              <div className="text-center">
-                <div className="fs-2 fw-bold text-primary">{statistics.total_voters || 0}</div>
-                <div className="text-muted small">Total Voters</div>
-              </div>
-            </div>
-            <div className="col-md-3 col-6">
-              <div className="text-center">
-                <div className="fs-2 fw-bold text-success">{statistics.total_votes || 0}</div>
-                <div className="text-muted small">Total Votes Cast</div>
-              </div>
-            </div>
-            <div className="col-md-3 col-6">
-              <div className="text-center">
-                <div className="fs-2 fw-bold text-info">{statistics.total_positions || 0}</div>
-                <div className="text-muted small">Positions</div>
-              </div>
-            </div>
-            <div className="col-md-3 col-6">
-              <div className="text-center">
-                <div className="fs-2 fw-bold text-warning">
-                  {formatPercentage(statistics.turnout_percentage || 0, 1)}
+    <div className="results-page">
+      <Container>
+        {/* Header Section */}
+        <div className="results-header">
+          <div className="results-header-content">
+            <div className="results-header-top">
+              <Link to="/elections" className="back-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="19" y1="12" x2="5" y2="12"/>
+                  <polyline points="12 19 5 12 12 5"/>
+                </svg>
+                <span>Back to Elections</span>
+              </Link>
+              
+              {isActive && (
+                <div className="live-badge">
+                  <span className="live-indicator"></span>
+                  <span>LIVE</span>
                 </div>
-                <div className="text-muted small">Voter Turnout</div>
+              )}
+              
+              {electionEnded && (
+                <div className="ended-badge">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="9 11 12 14 22 4"/>
+                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                  </svg>
+                  <span>COMPLETED</span>
+                </div>
+              )}
+            </div>
+            
+            <h1 className="results-title">{election.title}</h1>
+            <p className="results-subtitle">Election Results</p>
+            
+            {isActive && (
+              <div className="auto-refresh-control">
+                <svg className={autoRefresh ? 'spinning' : ''} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="23 4 23 10 17 10"/>
+                  <polyline points="1 20 1 14 7 14"/>
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                </svg>
+                <span>Auto-refreshing every 10 seconds</span>
+                <button 
+                  onClick={() => setAutoRefresh(!autoRefresh)} 
+                  className="refresh-toggle"
+                >
+                  {autoRefresh ? 'Pause' : 'Resume'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Statistics Cards */}
+        {statistics && (
+          <div className="stats-grid">
+            <div className="stat-card voters">
+              <div className="stat-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                  <circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+              </div>
+              <div className="stat-content">
+                <div className="stat-value">{formatNumber(statistics.total_voters || 0)}</div>
+                <div className="stat-label">Total Voters</div>
+              </div>
+            </div>
+            
+            <div className="stat-card votes">
+              <div className="stat-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 11l3 3L22 4"/>
+                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                </svg>
+              </div>
+              <div className="stat-content">
+                <div className="stat-value">{formatNumber(statistics.total_votes || 0)}</div>
+                <div className="stat-label">Ballots Cast</div>
+              </div>
+            </div>
+            
+            <div className="stat-card positions">
+              <div className="stat-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="7" height="7"/>
+                  <rect x="14" y="3" width="7" height="7"/>
+                  <rect x="14" y="14" width="7" height="7"/>
+                  <rect x="3" y="14" width="7" height="7"/>
+                </svg>
+              </div>
+              <div className="stat-content">
+                <div className="stat-value">{statistics.total_positions || 0}</div>
+                <div className="stat-label">Positions</div>
+              </div>
+            </div>
+            
+            <div className="stat-card turnout">
+              <div className="stat-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="20" x2="18" y2="10"/>
+                  <line x1="12" y1="20" x2="12" y2="4"/>
+                  <line x1="6" y1="20" x2="6" y2="14"/>
+                </svg>
+              </div>
+              <div className="stat-content">
+                <div className="stat-value">{formatPercentage(statistics.turnout_percentage || 0, 1)}</div>
+                <div className="stat-label">Voter Turnout</div>
               </div>
             </div>
           </div>
-        </Card>
-      )}
+        )}
 
-      {/* Results by Position */}
-      {results.length > 0 ? (
-        <div className="mb-4">
-          {results.map((positionResult, index) => (
-            <Card key={index} className="mb-4">
-              <h4 className="mb-3 text-brand">{positionResult.position_name}</h4>
-              <div className="text-muted small mb-3">
-                Total Votes: {formatNumber(positionResult.total_votes)}
-              </div>
+        {/* Results by Position */}
+        {results.length > 0 ? (
+          <div className="results-container">
+            {results.map((positionResult, posIndex) => (
+              <div key={posIndex} className="position-section">
+                <div className="position-header">
+                  <h2 className="position-title">{positionResult.position_name}</h2>
+                  <span className="position-votes">{formatNumber(positionResult.total_votes)} total votes</span>
+                </div>
 
-              <div className="d-grid gap-3">
-                {positionResult.candidates.map((candidate, candidateIndex) => {
-                  const winnerBadge = electionEnded && candidate.is_winner ? getWinnerBadge(0) : null;
-                  const percentage = parseFloat(candidate.percentage) || 0;
-                  const isWinner = candidate.is_winner && electionEnded;
-                  
-                  return (
-                    <div 
-                      key={candidateIndex} 
-                      className={`border rounded p-3 ${isWinner ? 'border-warning border-3 bg-light' : ''}`}
-                      style={isWinner ? { boxShadow: '0 0 20px rgba(255, 193, 7, 0.3)' } : {}}
-                    >
-                      <div className="d-flex justify-content-between align-items-start mb-2">
-                        <div className="d-flex align-items-center flex-grow-1">
-                          {isWinner && (
-                            <i 
-                              className="fas fa-trophy me-2"
-                              style={{ color: '#ffd700', fontSize: '1.5rem' }}
-                            ></i>
+                <div className="candidates-list">
+                  {positionResult.candidates.map((candidate, candIndex) => {
+                    const percentage = parseFloat(candidate.percentage) || 0;
+                    const isWinner = candidate.is_winner && electionEnded;
+                    const rank = candIndex + 1;
+                    
+                    return (
+                      <div 
+                        key={candIndex} 
+                        className={`candidate-card ${isWinner ? 'winner' : ''} ${rank === 1 ? 'first' : ''} ${rank === 2 ? 'second' : ''} ${rank === 3 ? 'third' : ''}`}
+                      >
+                        <div className="candidate-rank">
+                          {rank === 1 && (
+                            <svg className="rank-icon gold" width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
+                            </svg>
                           )}
-                          <div className="flex-grow-1">
-                            <div className="fw-bold fs-5">
-                              {candidate.candidate_name}
-                              {isWinner && (
-                                <span className="badge bg-warning text-dark ms-2">
-                                  <i className="fas fa-crown me-1"></i>
-                                  WINNER
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-muted small">{candidate.party || 'Independent'}</div>
+                          {rank === 2 && (
+                            <svg className="rank-icon silver" width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
+                            </svg>
+                          )}
+                          {rank === 3 && (
+                            <svg className="rank-icon bronze" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
+                            </svg>
+                          )}
+                          {rank > 3 && <span className="rank-number">#{rank}</span>}
+                        </div>
+                        
+                        <div className="candidate-info">
+                          <div className="candidate-name">
+                            {candidate.candidate_name}
+                            {isWinner && (
+                              <span className="winner-badge">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="20 6 9 17 4 12"/>
+                                </svg>
+                                WINNER
+                              </span>
+                            )}
+                          </div>
+                          <div className="candidate-party">{candidate.party || 'Independent'}</div>
+                        </div>
+                        
+                        <div className="candidate-stats">
+                          <div className="vote-count">
+                            <span className="count-number">{formatNumber(candidate.vote_count)}</span>
+                            <span className="count-label">votes</span>
+                          </div>
+                          <div className={`vote-percentage ${isWinner ? 'winner-percentage' : ''}`}>
+                            {formatPercentage(percentage, 1)}
+                          </div>
+                        </div>
+                        
+                        <div className="progress-bar-container">
+                          <div 
+                            className={`progress-bar-fill ${isWinner ? 'winner-bar' : rank === 1 ? 'first-bar' : ''}`}
+                            style={{ width: `${percentage}%` }}
+                          >
+                            <span className="progress-shimmer"></span>
                           </div>
                         </div>
                       </div>
-
-                      <div className="d-flex justify-content-between align-items-center mb-2">
-                        <span className="fw-semibold">
-                          {formatNumber(candidate.vote_count)} votes
-                        </span>
-                        <span className={`fw-bold ${isWinner ? 'text-warning' : 'text-success'}`}>
-                          {formatPercentage(percentage, 1)}
-                        </span>
-                      </div>
-
-                      {/* Progress Bar */}
-                      <div className="progress" style={{ height: '10px' }}>
-                        <div
-                          className={`progress-bar ${isWinner ? 'bg-warning' : candidateIndex === 0 ? 'bg-success' : 'bg-secondary'}`}
-                          role="progressbar"
-                          style={{ width: `${percentage}%` }}
-                          aria-valuenow={percentage}
-                          aria-valuemin="0"
-                          aria-valuemax="100"
-                        ></div>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <EmptyState
-          icon="fas fa-inbox"
-          title="No Results Available"
-          message="Results will be available after the election ends and votes are tallied."
-        />
-      )}
-
-      {/* Actions */}
-      <div className="d-flex gap-2 justify-content-center">
-        <Link to={`/statistics/${id}`} className="btn btn-info">
-          <i className="fas fa-chart-line me-2"></i>
-          View Statistics
-        </Link>
-        <Link to={`/elections/${id}`} className="btn btn-primary">
-          <i className="fas fa-info-circle me-2"></i>
-          Election Details
-        </Link>
-      </div>
-    </Container>
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            icon="fas fa-inbox"
+            title="No Results Available"
+            message="Results will be available after the election ends and votes are tallied."
+          />
+        )}
+      </Container>
+    </div>
   );
 };
 

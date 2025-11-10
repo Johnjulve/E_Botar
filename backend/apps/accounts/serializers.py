@@ -39,7 +39,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = UserProfile
         fields = [
             'id', 'user', 'student_id', 'department', 'department_name', 
-            'course', 'course_name', 'year_level', 'phone_number', 
+            'course', 'course_name', 'year_level',
             'avatar', 'is_verified', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'student_id', 'created_at', 'updated_at']

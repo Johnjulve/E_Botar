@@ -66,7 +66,6 @@ class UserProfile(models.Model):
     department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True, related_name='students')
     course = models.ForeignKey(Course, on_delete=models.SET_NULL, null=True, blank=True, related_name='students')
     year_level = models.CharField(max_length=20, blank=True)
-    phone_number = models.CharField(max_length=15, blank=True)
     avatar = models.ImageField(upload_to='profile_photos/', blank=True, null=True)
     is_verified = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)

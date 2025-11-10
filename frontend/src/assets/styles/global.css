@@ -30,14 +30,19 @@ body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
   min-height: 100vh;
+  margin: 0;
 }
 
 #root {
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .app-shell {
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .topbar {
@@ -50,12 +55,19 @@ body {
   box-shadow: var(--shadow-lg);
 }
 
+.topbar .container {
+  padding-left: 0 var(--spacing-md);
+}
+
+.topbar .brand {
+  padding-left: var(--spacing-md);
+}
+
 .brand-logo {
   width: 52px;
   height: 52px;
   border-radius: 8px;
   object-fit: contain;
-  background: white;
   padding: 4px;
 }
 
@@ -104,7 +116,7 @@ body {
 }
 
 .main-content {
-  min-height: calc(100vh - 200px);
+  flex: 1;
   padding: 2rem 0;
   margin-left: 0;
 }
@@ -242,7 +254,7 @@ body {
   background: linear-gradient(135deg, var(--brand-green) 0%, var(--brand-green-dark) 100%);
   color: white;
   padding: 3rem 0 2rem;
-  margin-top: 4rem;
+  margin-top: auto;
   position: relative;
   overflow: hidden;
 }
@@ -406,7 +418,7 @@ body {
   justify-content: center;
 }
 
-.desktop-sidebar.collapsed .side-item span {
+.desktop-sidebar.collapsed .side-item > span:not(.d-inline-flex) {
   display: none !important;
 }
 
@@ -474,6 +486,41 @@ body {
   gap: 12px;
 }
 
+/* Logout Button Special Styling */
+.desktop-sidebar .side-item-button[type="button"] {
+  background: #a54343!important;
+  color: white !important;
+  border-radius: 12px;
+  padding: 16px 18px !important;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.desktop-sidebar .side-item-button[type="button"] svg {
+  color: white !important;
+}
+
+.desktop-sidebar .side-item-button[type="button"]:hover {
+  background: #7e1818 !important;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+}
+
+.desktop-sidebar.collapsed .side-item-button[type="button"] {
+  width: 56px;
+  min-width: 56px;
+  padding: 14px !important;
+  justify-content: center;
+}
+
+.desktop-sidebar.collapsed .side-item-button[type="button"] span:not(.menu-icon):not(:has(svg)) {
+  display: none !important;
+}
+
+.desktop-sidebar.collapsed .side-item-button[type="button"] .menu-icon,
+.desktop-sidebar.collapsed .side-item-button[type="button"] svg {
+  display: inline-flex !important;
+}
+
 .desktop-sidebar .side-item-collapsible {
   background: rgba(255, 255, 255, 0.35);
   border-radius: 12px;
@@ -492,6 +539,14 @@ body {
   min-width: 56px;
   padding: 14px;
   justify-content: center;
+}
+
+.desktop-sidebar.collapsed .side-item-collapsible > span:not(.d-inline-flex) span {
+  display: none !important;
+}
+
+.desktop-sidebar.collapsed .side-item-collapsible .menu-icon {
+  display: inline-flex !important;
 }
 
 .desktop-sidebar .side-item-collapsible.active,
@@ -705,6 +760,23 @@ body {
   opacity: 0.5;
   cursor: not-allowed;
   pointer-events: none;
+}
+
+/* Mobile Logout Button Styling */
+.offcanvas .list-group-item.side-item-button {
+  background: #a54343!important;
+  color: white !important;
+  font-weight: 700;
+  border: none !important;
+}
+
+.offcanvas .list-group-item.side-item-button svg {
+  color: white !important;
+}
+
+.offcanvas .list-group-item.side-item-button:hover {
+  background: #a54343 !important;
+  color: white !important;
 }
 
 .offcanvas .list-group-item.side-item-collapsible {
@@ -1237,18 +1309,19 @@ a:hover {
 
 /* Footer */
 .footer {
-  background-color: var(--gray-800);
-  color: var(--gray-300);
-  padding: var(--spacing-2xl) 0;
+  background: linear-gradient(135deg, var(--brand-green) 0%, var(--brand-green-dark) 100%);
+  color: white;
+  padding: 2.5rem 0 1.5rem;
   margin-top: auto;
+  position: relative;
 }
 
 .footer a {
-  color: var(--gray-400);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .footer a:hover {
-  color: var(--white);
+  color: var(--brand-yellow);
 }
 
 /* Utility Classes */
@@ -1335,7 +1408,6 @@ a:hover {
 /* Empty State */
 .empty-state {
   text-align: center;
-  padding: var(--spacing-2xl);
   color: var(--text-secondary);
 }
 
