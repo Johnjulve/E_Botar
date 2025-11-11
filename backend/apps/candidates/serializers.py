@@ -1,7 +1,11 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from .models import Candidate, CandidateApplication
-from apps.elections.serializers import SchoolPositionSerializer, PartySerializer
+from apps.elections.serializers import (
+    SchoolPositionSerializer, 
+    PartySerializer, 
+    SchoolElectionListSerializer
+)
 
 
 class CandidateUserSerializer(serializers.ModelSerializer):
@@ -19,12 +23,12 @@ class CandidateListSerializer(serializers.ModelSerializer):
     user = CandidateUserSerializer(read_only=True)
     position = SchoolPositionSerializer(read_only=True)
     party = PartySerializer(read_only=True)
-    election_title = serializers.CharField(source='election.title', read_only=True)
+    election = SchoolElectionListSerializer(read_only=True)
     
     class Meta:
         model = Candidate
         fields = [
-            'id', 'user', 'position', 'election', 'election_title',
+            'id', 'user', 'position', 'election',
             'party', 'manifesto', 'photo', 'is_active', 
             'created_at', 'updated_at'
         ]
@@ -36,13 +40,13 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
     user = CandidateUserSerializer(read_only=True)
     position = SchoolPositionSerializer(read_only=True)
     party = PartySerializer(read_only=True)
-    election_title = serializers.CharField(source='election.title', read_only=True)
+    election = SchoolElectionListSerializer(read_only=True)
     application_id = serializers.IntegerField(source='approved_application.id', read_only=True, allow_null=True)
     
     class Meta:
         model = Candidate
         fields = [
-            'id', 'user', 'position', 'election', 'election_title',
+            'id', 'user', 'position', 'election',
             'party', 'manifesto', 'photo', 'is_active', 
             'approved_application', 'application_id',
             'created_at', 'updated_at'
@@ -55,14 +59,14 @@ class CandidateApplicationListSerializer(serializers.ModelSerializer):
     user = CandidateUserSerializer(read_only=True)
     position_name = serializers.CharField(source='position.name', read_only=True)
     party_name = serializers.CharField(source='party.name', read_only=True, allow_null=True)
-    election_title = serializers.CharField(source='election.title', read_only=True)
+    election = SchoolElectionListSerializer(read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     
     class Meta:
         model = CandidateApplication
         fields = [
             'id', 'user', 'position', 'position_name', 
-            'election', 'election_title', 'party', 'party_name',
+            'election', 'party', 'party_name',
             'status', 'status_display', 'submitted_at'
         ]
         read_only_fields = ['submitted_at']
@@ -73,7 +77,7 @@ class CandidateApplicationDetailSerializer(serializers.ModelSerializer):
     user = CandidateUserSerializer(read_only=True)
     position = SchoolPositionSerializer(read_only=True)
     party = PartySerializer(read_only=True)
-    election_title = serializers.CharField(source='election.title', read_only=True)
+    election = SchoolElectionListSerializer(read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     reviewed_by_name = serializers.CharField(source='reviewed_by.get_full_name', read_only=True, allow_null=True)
     has_candidate = serializers.SerializerMethodField()
@@ -81,7 +85,7 @@ class CandidateApplicationDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = CandidateApplication
         fields = [
-            'id', 'user', 'position', 'election', 'election_title',
+            'id', 'user', 'position', 'election',
             'party', 'manifesto', 'photo', 'supporting_documents',
             'status', 'status_display', 'submitted_at',
             'reviewed_at', 'reviewed_by', 'reviewed_by_name', 

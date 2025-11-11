@@ -3,6 +3,7 @@ from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from django.core.exceptions import ValidationError as DjangoValidationError
+from apps.common.models import ActivityLog
 from .models import Candidate, CandidateApplication
 from .serializers import (
     CandidateListSerializer, CandidateDetailSerializer,
@@ -139,9 +140,43 @@ class CandidateApplicationViewSet(viewsets.ModelViewSet):
         action_type = serializer.validated_data['action']
         review_notes = serializer.validated_data.get('review_notes', '')
         
+        # Get client IP
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip_address = x_forwarded_for.split(',')[0]
+        else:
+            ip_address = request.META.get('REMOTE_ADDR')
+        
         try:
             if action_type == 'approve':
                 candidate = application.approve(request.user)
+                
+                # Get student ID from application user's profile
+                applicant_profile = getattr(application.user, 'userprofile', None)
+                student_id = getattr(applicant_profile, 'student_id', None) if applicant_profile else None
+                applicant_identifier = student_id if student_id else application.user.username
+                
+                # Log the approval
+                ActivityLog.objects.create(
+                    user=request.user,
+                    action='update',
+                    resource_type='CandidateApplication',
+                    resource_id=application.id,
+                    description=f"Admin {request.user.username} approved candidate application for {applicant_identifier} ({application.user.get_full_name()}) - {application.position.name} in {application.election.title}",
+                    ip_address=ip_address,
+                    metadata={
+                        'application_id': application.id,
+                        'candidate_id': candidate.id if candidate else None,
+                        'applicant_student_id': student_id,
+                        'applicant_username': application.user.username,
+                        'applicant_name': application.user.get_full_name(),
+                        'position': application.position.name,
+                        'election': application.election.title,
+                        'action': 'approved',
+                        'admin_username': request.user.username
+                    }
+                )
+                
                 return Response({
                     'message': 'Application approved successfully',
                     'application_id': application.id,
@@ -149,7 +184,34 @@ class CandidateApplicationViewSet(viewsets.ModelViewSet):
                 }, status=status.HTTP_200_OK)
             
             elif action_type == 'reject':
+                # Get student ID before rejection
+                applicant_profile = getattr(application.user, 'userprofile', None)
+                student_id = getattr(applicant_profile, 'student_id', None) if applicant_profile else None
+                applicant_identifier = student_id if student_id else application.user.username
+                
                 application.reject(request.user, review_notes)
+                
+                # Log the rejection
+                ActivityLog.objects.create(
+                    user=request.user,
+                    action='update',
+                    resource_type='CandidateApplication',
+                    resource_id=application.id,
+                    description=f"Admin {request.user.username} rejected candidate application for {applicant_identifier} ({application.user.get_full_name()}) - {application.position.name} in {application.election.title}",
+                    ip_address=ip_address,
+                    metadata={
+                        'application_id': application.id,
+                        'applicant_student_id': student_id,
+                        'applicant_username': application.user.username,
+                        'applicant_name': application.user.get_full_name(),
+                        'position': application.position.name,
+                        'election': application.election.title,
+                        'action': 'rejected',
+                        'review_notes': review_notes,
+                        'admin_username': request.user.username
+                    }
+                )
+                
                 return Response({
                     'message': 'Application rejected',
                     'application_id': application.id
@@ -180,6 +242,13 @@ class CandidateApplicationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
+        # Get client IP
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip_address = x_forwarded_for.split(',')[0]
+        else:
+            ip_address = request.META.get('REMOTE_ADDR')
+        
         applications = self.get_queryset().filter(id__in=application_ids, status='pending')
         results = {'success': [], 'failed': []}
         
@@ -187,12 +256,67 @@ class CandidateApplicationViewSet(viewsets.ModelViewSet):
             try:
                 if action_type == 'approve':
                     candidate = application.approve(request.user)
+                    
+                    # Get student ID
+                    applicant_profile = getattr(application.user, 'userprofile', None)
+                    student_id = getattr(applicant_profile, 'student_id', None) if applicant_profile else None
+                    applicant_identifier = student_id if student_id else application.user.username
+                    
+                    # Log each approval
+                    ActivityLog.objects.create(
+                        user=request.user,
+                        action='update',
+                        resource_type='CandidateApplication',
+                        resource_id=application.id,
+                        description=f"Admin {request.user.username} bulk approved candidate application for {applicant_identifier} ({application.user.get_full_name()}) - {application.position.name} in {application.election.title}",
+                        ip_address=ip_address,
+                        metadata={
+                            'application_id': application.id,
+                            'candidate_id': candidate.id if candidate else None,
+                            'applicant_student_id': student_id,
+                            'applicant_username': application.user.username,
+                            'applicant_name': application.user.get_full_name(),
+                            'position': application.position.name,
+                            'election': application.election.title,
+                            'action': 'bulk_approved',
+                            'admin_username': request.user.username
+                        }
+                    )
+                    
                     results['success'].append({
                         'application_id': application.id,
                         'candidate_id': candidate.id if candidate else None
                     })
+                    
                 elif action_type == 'reject':
+                    # Get student ID before rejection
+                    applicant_profile = getattr(application.user, 'userprofile', None)
+                    student_id = getattr(applicant_profile, 'student_id', None) if applicant_profile else None
+                    applicant_identifier = student_id if student_id else application.user.username
+                    
                     application.reject(request.user, review_notes)
+                    
+                    # Log each rejection
+                    ActivityLog.objects.create(
+                        user=request.user,
+                        action='update',
+                        resource_type='CandidateApplication',
+                        resource_id=application.id,
+                        description=f"Admin {request.user.username} bulk rejected candidate application for {applicant_identifier} ({application.user.get_full_name()}) - {application.position.name} in {application.election.title}",
+                        ip_address=ip_address,
+                        metadata={
+                            'application_id': application.id,
+                            'applicant_student_id': student_id,
+                            'applicant_username': application.user.username,
+                            'applicant_name': application.user.get_full_name(),
+                            'position': application.position.name,
+                            'election': application.election.title,
+                            'action': 'bulk_rejected',
+                            'review_notes': review_notes,
+                            'admin_username': request.user.username
+                        }
+                    )
+                    
                     results['success'].append({'application_id': application.id})
             
             except DjangoValidationError as e:

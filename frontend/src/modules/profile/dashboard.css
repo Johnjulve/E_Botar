@@ -199,24 +199,38 @@
 }
 
 .candidates-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  margin-top: 0.75rem;
+  justify-content: center;
 }
 
 .candidate-item {
   background: white;
   border: 2px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 1.25rem;
+  border-radius: 14px;
+  padding: 1.5rem;
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 1rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  text-align: center;
+  width: 220px;
+  flex-shrink: 0;
+}
+
+.candidate-item:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+  transform: translateY(-2px);
 }
 
 .candidate-photo {
-  width: 56px;
-  height: 56px;
+  width: 70px;
+  height: 70px;
   border-radius: 50%;
   background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   display: flex;
@@ -224,30 +238,38 @@
   justify-content: center;
   font-weight: 800;
   color: white;
-  font-size: 1.5rem;
+  font-size: 1.75rem;
   flex-shrink: 0;
-  border: 3px solid #dbeafe;
+  border: 4px solid #dbeafe;
+  box-shadow: 0 4px 10px rgba(59, 130, 246, 0.2);
 }
 
 .candidate-info {
-  flex: 1;
-  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
 }
 
 .candidate-fullname {
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-size: 1rem;
+  font-weight: 700;
   color: #111827;
-  margin-bottom: 0.25rem;
+  line-height: 1.3;
+  text-align: center;
+  width: 100%;
 }
 
 .candidate-party {
   font-size: 0.8rem;
   color: #6b7280;
   background: #f3f4f6;
-  padding: 0.25rem 0.75rem;
-  border-radius: 6px;
-  display: inline-block;
+  padding: 0.35rem 0.85rem;
+  border-radius: 8px;
+  font-weight: 500;
+  text-align: center;
+  white-space: nowrap;
 }
 
 /* Election Dates */
@@ -323,48 +345,59 @@
   text-decoration: none;
   border: 2px solid transparent;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.btn-primary {
-  background: linear-gradient(135deg, #0b6e3b 0%, #075a30 100%);
-  color: white;
+.btn-custom.btn-primary {
+  background: linear-gradient(135deg, #0b6e3b 0%, #075a30 100%) !important;
+  color: white !important;
 }
 
-.btn-primary:hover {
-  background: linear-gradient(135deg, #075a30 0%, #054020 100%);
-  color: white;
+.btn-custom.btn-primary:hover {
+  background: linear-gradient(135deg, #075a30 0%, #054020 100%) !important;
+  color: white !important;
 }
 
-.btn-secondary {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  color: white;
+.btn-custom.btn-secondary {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+  color: white !important;
 }
 
-.btn-secondary:hover {
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-  color: white;
+.btn-custom.btn-secondary:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+  color: white !important;
 }
 
-.btn-outline {
-  background: white;
-  color: #0b6e3b;
-  border-color: #0b6e3b;
+.btn-custom.btn-info {
+  background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%) !important;
+  color: white !important;
 }
 
-.btn-outline:hover {
-  background: #f0fdf4;
-  color: #075a30;
-  border-color: #075a30;
+.btn-custom.btn-info:hover {
+  background: linear-gradient(135deg, #4b5563 0%, #374151 100%) !important;
+  color: white !important;
 }
 
-.btn-admin {
-  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
-  color: white;
+.btn-custom.btn-outline {
+  background: white !important;
+  color: #0b6e3b !important;
+  border-color: #0b6e3b !important;
 }
 
-.btn-admin:hover {
-  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
-  color: white;
+.btn-custom.btn-outline:hover {
+  background: #f0fdf4 !important;
+  color: #075a30 !important;
+  border-color: #075a30 !important;
+}
+
+.btn-custom.btn-admin {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%) !important;
+  color: white !important;
+}
+
+.btn-custom.btn-admin:hover {
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%) !important;
+  color: white !important;
 }
 
 /* Responsive Design */

@@ -57,9 +57,9 @@ const ProfilePage = () => {
           {/* Profile Card */}
           <div className="profile-card">
             <div className="profile-avatar-section">
-              {profile?.avatar ? (
+              {(profile?.avatar_url || profile?.avatar) ? (
                 <img
-                  src={profile.avatar}
+                  src={profile.avatar_url || profile.avatar}
                   alt="Profile"
                   className="profile-avatar"
                 />

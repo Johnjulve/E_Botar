@@ -229,7 +229,9 @@ const ResultsDetailsPage = () => {
                 </div>
 
                 <div className="candidates-list">
-                  {positionResult.candidates.map((candidate, candIndex) => {
+                  {positionResult.candidates
+                    .filter(candidate => !electionEnded || candidate.is_winner) // Show only winners if election ended
+                    .map((candidate, candIndex) => {
                     const percentage = parseFloat(candidate.percentage) || 0;
                     const isWinner = candidate.is_winner && electionEnded;
                     const rank = candIndex + 1;
@@ -239,29 +241,32 @@ const ResultsDetailsPage = () => {
                         key={candIndex} 
                         className={`candidate-card ${isWinner ? 'winner' : ''} ${rank === 1 ? 'first' : ''} ${rank === 2 ? 'second' : ''} ${rank === 3 ? 'third' : ''}`}
                       >
-                        <div className="candidate-rank">
-                          {rank === 1 && (
-                            <svg className="rank-icon gold" width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
-                            </svg>
-                          )}
-                          {rank === 2 && (
-                            <svg className="rank-icon silver" width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
-                            </svg>
-                          )}
-                          {rank === 3 && (
-                            <svg className="rank-icon bronze" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
-                            </svg>
-                          )}
-                          {rank > 3 && <span className="rank-number">#{rank}</span>}
-                        </div>
+                        {/* Remove crown/rank icons for finished elections */}
+                        {!electionEnded && (
+                          <div className="candidate-rank">
+                            {rank === 1 && (
+                              <svg className="rank-icon gold" width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
+                              </svg>
+                            )}
+                            {rank === 2 && (
+                              <svg className="rank-icon silver" width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
+                              </svg>
+                            )}
+                            {rank === 3 && (
+                              <svg className="rank-icon bronze" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
+                              </svg>
+                            )}
+                            {rank > 3 && <span className="rank-number">#{rank}</span>}
+                          </div>
+                        )}
                         
                         <div className="candidate-info">
                           <div className="candidate-name">
                             {candidate.candidate_name}
-                            {isWinner && (
+                            {!electionEnded && isWinner && (
                               <span className="winner-badge">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                                   <polyline points="20 6 9 17 4 12"/>

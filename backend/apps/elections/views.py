@@ -3,6 +3,7 @@ from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from django.utils import timezone
+from apps.common.models import ActivityLog
 from .models import Party, SchoolPosition, SchoolElection, ElectionPosition
 from .serializers import (
     PartySerializer, SchoolPositionSerializer,
@@ -81,7 +82,93 @@ class SchoolElectionViewSet(viewsets.ModelViewSet):
         return SchoolElectionListSerializer
     
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        election = serializer.save(created_by=self.request.user)
+        
+        # Get client IP
+        x_forwarded_for = self.request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip_address = x_forwarded_for.split(',')[0]
+        else:
+            ip_address = self.request.META.get('REMOTE_ADDR')
+        
+        # Log the activity
+        ActivityLog.objects.create(
+            user=self.request.user,
+            action='create',
+            resource_type='Election',
+            resource_id=election.id,
+            description=f"Admin {self.request.user.username} created election '{election.title}'",
+            ip_address=ip_address,
+            metadata={
+                'election_id': election.id,
+                'election_title': election.title,
+                'start_date': str(election.start_date),
+                'end_date': str(election.end_date),
+                'admin_username': self.request.user.username
+            }
+        )
+    
+    def perform_update(self, serializer):
+        election = self.get_object()
+        old_title = election.title
+        old_start = str(election.start_date)
+        old_end = str(election.end_date)
+        
+        updated_election = serializer.save()
+        
+        # Get client IP
+        x_forwarded_for = self.request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip_address = x_forwarded_for.split(',')[0]
+        else:
+            ip_address = self.request.META.get('REMOTE_ADDR')
+        
+        # Log the activity
+        ActivityLog.objects.create(
+            user=self.request.user,
+            action='update',
+            resource_type='Election',
+            resource_id=updated_election.id,
+            description=f"Admin {self.request.user.username} updated election '{updated_election.title}'",
+            ip_address=ip_address,
+            metadata={
+                'election_id': updated_election.id,
+                'election_title': updated_election.title,
+                'old_title': old_title,
+                'old_start_date': old_start,
+                'old_end_date': old_end,
+                'new_start_date': str(updated_election.start_date),
+                'new_end_date': str(updated_election.end_date),
+                'admin_username': self.request.user.username
+            }
+        )
+    
+    def perform_destroy(self, instance):
+        # Get client IP
+        x_forwarded_for = self.request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip_address = x_forwarded_for.split(',')[0]
+        else:
+            ip_address = self.request.META.get('REMOTE_ADDR')
+        
+        # Log the activity before deletion
+        ActivityLog.objects.create(
+            user=self.request.user,
+            action='delete',
+            resource_type='Election',
+            resource_id=instance.id,
+            description=f"Admin {self.request.user.username} deleted election '{instance.title}'",
+            ip_address=ip_address,
+            metadata={
+                'election_id': instance.id,
+                'election_title': instance.title,
+                'start_date': str(instance.start_date),
+                'end_date': str(instance.end_date),
+                'admin_username': self.request.user.username
+            }
+        )
+        
+        instance.delete()
     
     @action(detail=False, methods=['get'])
     def active(self, request):

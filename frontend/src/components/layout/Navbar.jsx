@@ -194,7 +194,6 @@ const Navbar = () => {
 
     if (isAuthenticated) {
       sections.push(
-        { key: 'profile', label: 'Profile', to: '/profile', icon: 'user' },
         { key: 'logout', label: 'Logout', to: '#logout', icon: 'logout', action: handleLogout }
       );
     } else {
@@ -356,8 +355,8 @@ const Navbar = () => {
     if (!isAuthenticated) return '';
 
     const nameParts = [
-      user?.first_name?.trim(),
-      user?.last_name?.trim(),
+      user?.user?.first_name?.trim(),
+      user?.user?.last_name?.trim(),
     ].filter(Boolean);
 
     if (nameParts.length > 0) {
@@ -368,12 +367,12 @@ const Navbar = () => {
         .slice(0, 2);
     }
 
-    if (user?.username) {
-      return user.username.slice(0, 2).toUpperCase();
+    if (user?.user?.username) {
+      return user.user.username.slice(0, 2).toUpperCase();
     }
 
-    if (user?.email) {
-      return user.email.slice(0, 2).toUpperCase();
+    if (user?.user?.email) {
+      return user.user.email.slice(0, 2).toUpperCase();
     }
 
     return 'ME';
@@ -382,9 +381,9 @@ const Navbar = () => {
   const userInitials = buildInitials();
 
   const userFullName = isAuthenticated
-    ? `${user?.first_name || ''} ${user?.last_name || ''}`.trim() ||
-      user?.username ||
-      user?.email ||
+    ? `${user?.user?.first_name || ''} ${user?.user?.last_name || ''}`.trim() ||
+      user?.user?.username ||
+      user?.user?.email ||
       'My Account'
     : '';
 
@@ -450,12 +449,20 @@ const Navbar = () => {
             className="user-pill text-decoration-none"
           >
             <div className="avatar">
-              {userInitials}
+              {user?.profile?.avatar_url ? (
+                <img 
+                  src={user.profile.avatar_url} 
+                  alt={userFullName}
+                  className="avatar-image"
+                />
+              ) : (
+                userInitials
+              )}
             </div>
             {!sidebarCollapsed && (
               <div className="user-pill-text">
                 <span className="name">{userFullName}</span>
-                <span className="email">{user?.email}</span>
+                <span className="email">{user?.user?.email}</span>
               </div>
             )}
           </Link>
@@ -485,11 +492,19 @@ const Navbar = () => {
               onClick={() => setShowMenu(false)}
             >
               <div className="avatar">
-                {userInitials}
+                {user?.profile?.avatar_url ? (
+                  <img 
+                    src={user.profile.avatar_url} 
+                    alt={userFullName}
+                    className="avatar-image"
+                  />
+                ) : (
+                  userInitials
+                )}
               </div>
               <div className="user-pill-text">
                 <span className="name">{userFullName}</span>
-                <span className="email">{user?.email}</span>
+                <span className="email">{user?.user?.email}</span>
               </div>
             </Link>
           )}

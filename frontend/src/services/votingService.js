@@ -37,6 +37,13 @@ export const votingService = {
     });
   },
 
+  // Get votes by receipt code (requires authentication)
+  getVotesByReceipt: (receiptCode) => {
+    return api.post('/voting/receipts/get_votes/', {
+      receipt_code: receiptCode
+    });
+  },
+
   // === Vote Status ===
   
   // Check if user has voted in election

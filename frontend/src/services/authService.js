@@ -28,7 +28,14 @@ export const authService = {
 
   // Update user profile
   updateProfile: (profileData) => {
-    return api.patch('/auth/me/', profileData);
+    // If profileData is FormData, set proper content-type
+    const config = {};
+    if (profileData instanceof FormData) {
+      config.headers = {
+        'Content-Type': 'multipart/form-data',
+      };
+    }
+    return api.patch('/auth/me/', profileData, config);
   },
 
   // Get all departments
@@ -54,6 +61,18 @@ export const authService = {
   // Get specific user profile
   getUserProfile: (profileId) => {
     return api.get(`/auth/profiles/${profileId}/`);
+  },
+
+  // Toggle user active status (admin only)
+  toggleUserActive: (profileId) => {
+    return api.post(`/auth/profiles/${profileId}/toggle_active/`);
+  },
+
+  // Reset user password (admin only)
+  resetUserPassword: (profileId, newPassword) => {
+    return api.post(`/auth/profiles/${profileId}/reset_password/`, {
+      new_password: newPassword
+    });
   },
 
   // Logout helper (clears local storage)

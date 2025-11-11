@@ -16,6 +16,7 @@ from .serializers import (
 )
 from apps.elections.models import SchoolElection, SchoolPosition
 from apps.candidates.models import Candidate
+from apps.common.models import ActivityLog
 
 
 @api_view(['GET'])
@@ -120,6 +121,26 @@ class BallotViewSet(viewsets.ReadOnlyModelViewSet):
                     # Anonymize immediately
                     choice.anonymize()
                 
+                # Log the vote activity
+                student_id = getattr(user.profile, 'student_id', None) if hasattr(user, 'profile') else None
+                voter_identifier = student_id if student_id else user.username
+                
+                ActivityLog.objects.create(
+                    user=user,
+                    action='vote',
+                    resource_type='Election',
+                    resource_id=election.id,
+                    description=f"Student {voter_identifier} cast vote in election '{election.title}'",
+                    ip_address=self.get_client_ip(request),
+                    metadata={
+                        'election_id': election.id,
+                        'election_title': election.title,
+                        'student_id': student_id,
+                        'receipt_code': receipt.get_masked_receipt(),
+                        'positions_voted': len(votes)
+                    }
+                )
+                
                 # Return ballot with receipt
                 ballot_serializer = BallotSerializer(ballot)
                 return Response({
@@ -156,7 +177,7 @@ class VoteReceiptViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = VoteReceiptSerializer
     
     def get_permissions(self):
-        if self.action in ['list', 'retrieve', 'my_receipts', 'verify']:
+        if self.action in ['list', 'retrieve', 'my_receipts', 'verify', 'get_votes']:
             return [IsAuthenticated()]
         return [IsAdminUser()]
     
@@ -201,6 +222,66 @@ class VoteReceiptViewSet(viewsets.ReadOnlyModelViewSet):
             'valid': False,
             'message': 'Invalid receipt code'
         }, status=status.HTTP_404_NOT_FOUND)
+    
+    @action(detail=False, methods=['post'])
+    def get_votes(self, request):
+        """Get votes associated with a receipt code (requires receipt code for privacy)"""
+        receipt_code = request.data.get('receipt_code')
+        
+        if not receipt_code:
+            return Response(
+                {'detail': 'receipt_code is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            receipt = VoteReceipt.objects.get(receipt_code=receipt_code)
+            
+            # Verify the receipt belongs to the requesting user
+            if receipt.user != request.user:
+                return Response(
+                    {'detail': 'This receipt does not belong to you'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            # Get the ballot and votes
+            try:
+                ballot = receipt.ballot
+                choices = ballot.choices.select_related(
+                    'position', 
+                    'candidate', 
+                    'candidate__user', 
+                    'candidate__party'
+                ).all()
+                
+                votes_data = [{
+                    'position_id': choice.position.id,
+                    'position_name': choice.position.name,
+                    'candidate_id': choice.candidate.id,
+                    'candidate_name': choice.candidate.user.get_full_name(),
+                    'candidate_photo': choice.candidate.photo.url if choice.candidate.photo else None,
+                    'party_name': choice.candidate.party.name if choice.candidate.party else 'Independent',
+                } for choice in choices]
+                
+                return Response({
+                    'valid': True,
+                    'election': {
+                        'id': receipt.election.id,
+                        'title': receipt.election.title,
+                    },
+                    'voted_at': receipt.created_at,
+                    'votes': votes_data
+                })
+            except Exception as e:
+                return Response(
+                    {'detail': 'No votes found for this receipt'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+        except VoteReceipt.DoesNotExist:
+            return Response(
+                {'detail': 'Invalid receipt code'},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
 
 class ResultsViewSet(viewsets.ViewSet):

@@ -8,11 +8,13 @@ import { useNavigate } from 'react-router-dom';
 import { Container } from '../../../components/layout';
 import { LoadingSpinner } from '../../../components/common';
 import { authService } from '../../../services';
+import { useAuth } from '../../../hooks/useAuth';
 import { getInitials } from '../../../utils/helpers';
 import './profile.css';
 
 const ProfileEditPage = () => {
   const navigate = useNavigate();
+  const { updateUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -60,8 +62,10 @@ const ProfileEditPage = () => {
       // Store user data for avatar display
       setCurrentUser(user);
       
-      // Set avatar preview if exists
-      if (profile?.avatar) {
+      // Set avatar preview if exists (prefer avatar_url which has full path)
+      if (profile?.avatar_url) {
+        setAvatarPreview(profile.avatar_url);
+      } else if (profile?.avatar) {
         setAvatarPreview(profile.avatar);
       }
 
@@ -161,29 +165,65 @@ const ProfileEditPage = () => {
       // Create FormData for file upload
       const submitData = new FormData();
       
-      // Append form fields
-      Object.keys(formData).forEach(key => {
-        if (formData[key]) {
-          submitData.append(key, formData[key]);
-        }
-      });
+      // Append user fields
+      if (formData.first_name) submitData.append('first_name', formData.first_name);
+      if (formData.last_name) submitData.append('last_name', formData.last_name);
+      if (formData.email && !hasExistingEmail) submitData.append('email', formData.email);
+      
+      // Append profile fields
+      if (formData.student_id) submitData.append('student_id', formData.student_id);
+      if (formData.year_level) submitData.append('year_level', formData.year_level);
+      
+      // Append department and course as IDs (ensure they're numbers)
+      if (formData.department) {
+        submitData.append('department', formData.department);
+      }
+      if (formData.course) {
+        submitData.append('course', formData.course);
+      }
       
       // Append avatar file if exists
       if (avatarFile) {
         submitData.append('avatar', avatarFile);
       } else if (avatarPreview === null) {
-        // If avatar was removed, send empty value
+        // If avatar was removed, send removal flag
         submitData.append('remove_avatar', 'true');
       }
       
-      await authService.updateProfile(submitData);
-      setSuccess('Profile updated successfully!');
-      setTimeout(() => {
-        navigate('/profile');
-      }, 1500);
+      // Update profile and refresh auth context
+      const result = await updateUser(submitData);
+      
+      if (result.success) {
+        setSuccess('Profile updated successfully!');
+        setTimeout(() => {
+          navigate('/profile');
+        }, 1500);
+      } else {
+        setError(result.error || 'Failed to update profile');
+      }
     } catch (error) {
       console.error('Error updating profile:', error);
-      setError(error.response?.data?.message || 'Failed to update profile');
+      
+      // Display detailed error messages
+      if (error.response?.data) {
+        const errorData = error.response.data;
+        if (typeof errorData === 'object') {
+          // Combine all error messages
+          const errorMessages = Object.entries(errorData)
+            .map(([field, messages]) => {
+              if (Array.isArray(messages)) {
+                return `${field}: ${messages.join(', ')}`;
+              }
+              return `${field}: ${messages}`;
+            })
+            .join('\n');
+          setError(errorMessages || 'Failed to update profile');
+        } else {
+          setError(error.response?.data?.message || 'Failed to update profile');
+        }
+      } else {
+        setError('Failed to update profile. Please try again.');
+      }
     } finally {
       setSaving(false);
     }

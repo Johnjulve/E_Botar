@@ -69,7 +69,7 @@ const SystemLogsPage = () => {
         {
           id: 2,
           type: 'info',
-          message: 'Election "Student Council 2025" was created',
+          message: 'Election "SY 2025-2026" was created',
           timestamp: new Date(Date.now() - 3600000).toISOString(),
           user: 'Admin User'
         },

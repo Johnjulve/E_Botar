@@ -69,6 +69,17 @@ const Icon = ({ name, size = 20, className = '' }) => {
         <circle cx="16" cy="12" r="3"/>
       </svg>
     ),
+    key: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+      </svg>
+    ),
+    copy: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+      </svg>
+    ),
   };
 
   return icons[name] || null;
@@ -82,6 +93,9 @@ const UserManagementPage = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [generatedPassword, setGeneratedPassword] = useState('');
+  const [passwordCopied, setPasswordCopied] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
@@ -112,19 +126,19 @@ const UserManagementPage = () => {
     
     // Apply type filter
     if (filter === 'admin') {
-      filtered = filtered.filter(u => u.is_staff || u.is_superuser);
+      filtered = filtered.filter(u => u.user?.is_staff || u.user?.is_superuser);
     } else if (filter === 'student') {
-      filtered = filtered.filter(u => !u.is_staff && !u.is_superuser);
+      filtered = filtered.filter(u => !u.user?.is_staff && !u.user?.is_superuser);
     } else if (filter === 'verified') {
-      filtered = filtered.filter(u => u.email_verified || u.is_active);
+      filtered = filtered.filter(u => u.is_verified || u.user?.is_active);
     }
     
     // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(u => 
-        `${u.first_name} ${u.last_name}`.toLowerCase().includes(query) ||
-        u.email.toLowerCase().includes(query) ||
+        `${u.user?.first_name || ''} ${u.user?.last_name || ''}`.toLowerCase().includes(query) ||
+        (u.user?.email || '').toLowerCase().includes(query) ||
         (u.student_id && u.student_id.toLowerCase().includes(query))
       );
     }
@@ -132,30 +146,108 @@ const UserManagementPage = () => {
     setFilteredUsers(filtered);
   };
 
-  const handleToggleActive = async (user) => {
-    // TODO: Implement toggle active status
-    console.log('Toggle active for user:', user.id);
+  // Generate random password: 8 characters with lower, upper, and numbers
+  const generatePassword = () => {
+    const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+    const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const numbers = '0123456789';
+    
+    let password = '';
+    
+    // Ensure at least one of each type
+    password += lowercase[Math.floor(Math.random() * lowercase.length)];
+    password += uppercase[Math.floor(Math.random() * uppercase.length)];
+    password += numbers[Math.floor(Math.random() * numbers.length)];
+    
+    // Fill the rest randomly (total 8 chars)
+    const allChars = lowercase + uppercase + numbers;
+    for (let i = 3; i < 8; i++) {
+      password += allChars[Math.floor(Math.random() * allChars.length)];
+    }
+    
+    // Shuffle the password
+    return password.split('').sort(() => Math.random() - 0.5).join('');
   };
 
-  const handleMakeAdmin = async (user) => {
-    // TODO: Implement make admin
-    console.log('Make admin:', user.id);
+  const handleToggleActive = async (user) => {
+    try {
+      const response = await authService.toggleUserActive(user.id);
+      
+      // Update the user in the local state immediately
+      setUsers(prevUsers => prevUsers.map(u => 
+        u.id === user.id 
+          ? { 
+              ...u, 
+              user: { 
+                ...u.user, 
+                is_active: !u.user.is_active 
+              } 
+            }
+          : u
+      ));
+      
+      console.log(response.data.message);
+    } catch (error) {
+      console.error('Error toggling user status:', error);
+      alert('Failed to toggle user status. Please try again.');
+    }
+  };
+
+  const handleResetPassword = (user) => {
+    setSelectedUser(user);
+    const newPassword = generatePassword();
+    setGeneratedPassword(newPassword);
+    setPasswordCopied(false);
+    setShowPasswordModal(true);
+  };
+
+  const handleCopyPassword = () => {
+    navigator.clipboard.writeText(generatedPassword);
+    setPasswordCopied(true);
+    setTimeout(() => setPasswordCopied(false), 2000);
+  };
+
+  const handleConfirmPasswordReset = async () => {
+    try {
+      const response = await authService.resetUserPassword(selectedUser.id, generatedPassword);
+      
+      console.log('Password reset successfully');
+      alert(`Password reset successfully for ${selectedUser.user?.first_name} ${selectedUser.user?.last_name}. Make sure to share the password securely.`);
+      
+      // Close modal
+      setShowPasswordModal(false);
+      setSelectedUser(null);
+      setGeneratedPassword('');
+      setPasswordCopied(false);
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      alert('Failed to reset password. Please try again.');
+    }
   };
 
   const handleDeleteUser = async () => {
-    // TODO: Implement delete user
-    console.log('Delete user:', selectedUser?.id);
-    setShowDeleteModal(false);
-    setSelectedUser(null);
+    try {
+      // TODO: Implement API call to delete user
+      console.log('Delete user:', selectedUser?.id);
+      
+      setShowDeleteModal(false);
+      setSelectedUser(null);
+      
+      // Refresh users after deletion
+      await fetchUsers();
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      alert('Failed to delete user. Please try again.');
+    }
   };
 
   if (loading) {
     return <LoadingSpinner fullScreen text="Loading users..." />;
   }
 
-  const adminCount = users.filter(u => u.is_staff || u.is_superuser).length;
-  const studentCount = users.filter(u => !u.is_staff && !u.is_superuser).length;
-  const verifiedCount = users.filter(u => u.email_verified || u.is_active).length;
+  const adminCount = users.filter(u => u.user?.is_staff || u.user?.is_superuser).length;
+  const studentCount = users.filter(u => !u.user?.is_staff && !u.user?.is_superuser).length;
+  const verifiedCount = users.filter(u => u.is_verified || u.user?.is_active).length;
 
   return (
     <Container>
@@ -328,14 +420,14 @@ const UserManagementPage = () => {
                           fontSize: '0.9rem',
                           flexShrink: 0
                         }}>
-                          {getInitials(`${user.first_name} ${user.last_name}`)}
+                          {getInitials(`${user.user?.first_name || ''} ${user.user?.last_name || ''}`)}
                         </div>
                         <div>
                           <div style={{ fontWeight: 600, color: '#1f2937' }}>
-                            {user.first_name} {user.last_name}
+                            {user.user?.first_name} {user.user?.last_name}
                           </div>
                           <div style={{ fontSize: '0.85rem', color: '#6b7280' }}>
-                            {user.student_id || user.username}
+                            {user.student_id || user.user?.username}
                           </div>
                         </div>
                       </div>
@@ -343,7 +435,7 @@ const UserManagementPage = () => {
                     
                     {/* Contact */}
                     <td style={{ padding: '1rem' }}>
-                      <div style={{ color: '#374151' }}>{user.email}</div>
+                      <div style={{ color: '#374151' }}>{user.user?.email || 'No email'}</div>
                       {user.phone_number && (
                         <div style={{ fontSize: '0.85rem', color: '#6b7280', marginTop: '0.25rem' }}>
                           {user.phone_number}
@@ -353,12 +445,12 @@ const UserManagementPage = () => {
                     
                     {/* Academic Info */}
                     <td style={{ padding: '1rem' }}>
-                      {user.course ? (
+                      {user.course?.name ? (
                         <>
-                          <div style={{ color: '#374151' }}>{user.course}</div>
+                          <div style={{ color: '#374151' }}>{user.course.name}</div>
                           {user.year_level && (
                             <div style={{ fontSize: '0.85rem', color: '#6b7280', marginTop: '0.25rem' }}>
-                              Year {user.year_level}
+                              {user.year_level}
                             </div>
                           )}
                         </>
@@ -369,7 +461,7 @@ const UserManagementPage = () => {
                     
                     {/* Role */}
                     <td style={{ padding: '1rem' }}>
-                      {user.is_staff || user.is_superuser ? (
+                      {user.user?.is_staff || user.user?.is_superuser ? (
                         <span style={{
                           display: 'inline-flex',
                           alignItems: 'center',
@@ -404,7 +496,7 @@ const UserManagementPage = () => {
                     
                     {/* Status */}
                     <td style={{ padding: '1rem', textAlign: 'center' }}>
-                      {user.is_active ? (
+                      {user.user?.is_active ? (
                         <span style={{
                           display: 'inline-flex',
                           alignItems: 'center',
@@ -439,7 +531,7 @@ const UserManagementPage = () => {
                     
                     {/* Joined */}
                     <td style={{ padding: '1rem', textAlign: 'center', color: '#6b7280', fontSize: '0.85rem' }}>
-                      {formatDate(user.date_joined, 'date')}
+                      {formatDate(user.user?.date_joined || user.created_at, 'date')}
                     </td>
                     
                     {/* Actions */}
@@ -453,35 +545,51 @@ const UserManagementPage = () => {
                             border: '1px solid #d1d5db',
                             borderRadius: '0.375rem',
                             cursor: 'pointer',
-                            color: user.is_active ? '#ef4444' : '#22c55e',
+                            color: user.user?.is_active ? '#ef4444' : '#22c55e',
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center'
+                            justifyContent: 'center',
+                            transition: 'all 0.15s'
                           }}
-                          title={user.is_active ? 'Deactivate' : 'Activate'}
+                          title={user.user?.is_active ? 'Deactivate User' : 'Activate User'}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = user.user?.is_active ? '#fef2f2' : '#f0fdf4';
+                            e.currentTarget.style.borderColor = user.user?.is_active ? '#ef4444' : '#22c55e';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'transparent';
+                            e.currentTarget.style.borderColor = '#d1d5db';
+                          }}
                         >
-                          <Icon name={user.is_active ? 'toggleRight' : 'toggleLeft'} size={18} />
+                          <Icon name={user.user?.is_active ? 'toggleRight' : 'toggleLeft'} size={18} />
                         </button>
                         
-                        {!(user.is_staff || user.is_superuser) && (
-                          <button
-                            onClick={() => handleMakeAdmin(user)}
-                            style={{
-                              padding: '0.5rem',
-                              background: 'transparent',
-                              border: '1px solid #d1d5db',
-                              borderRadius: '0.375rem',
-                              cursor: 'pointer',
-                              color: '#eab308',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center'
-                            }}
-                            title="Make Admin"
-                          >
-                            <Icon name="shield" size={18} />
-                          </button>
-                        )}
+                        <button
+                          onClick={() => handleResetPassword(user)}
+                          style={{
+                            padding: '0.5rem',
+                            background: 'transparent',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '0.375rem',
+                            cursor: 'pointer',
+                            color: '#2563eb',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.15s'
+                          }}
+                          title="Reset Password"
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = '#eff6ff';
+                            e.currentTarget.style.borderColor = '#2563eb';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'transparent';
+                            e.currentTarget.style.borderColor = '#d1d5db';
+                          }}
+                        >
+                          <Icon name="key" size={18} />
+                        </button>
                         
                         <button
                           onClick={() => {
@@ -497,9 +605,18 @@ const UserManagementPage = () => {
                             color: '#ef4444',
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center'
+                            justifyContent: 'center',
+                            transition: 'all 0.15s'
                           }}
                           title="Delete User"
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = '#fef2f2';
+                            e.currentTarget.style.borderColor = '#ef4444';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'transparent';
+                            e.currentTarget.style.borderColor = '#d1d5db';
+                          }}
                         >
                           <Icon name="trash" size={18} />
                         </button>
@@ -533,6 +650,130 @@ const UserManagementPage = () => {
         </div>
       )}
 
+      {/* Password Reset Modal */}
+      {showPasswordModal && (
+        <Modal
+          show={showPasswordModal}
+          onClose={() => {
+            setShowPasswordModal(false);
+            setSelectedUser(null);
+            setGeneratedPassword('');
+            setPasswordCopied(false);
+          }}
+          title="Reset Password"
+        >
+          <div>
+            <p style={{ marginBottom: '1rem' }}>
+              Reset password for <strong>{selectedUser?.user?.first_name} {selectedUser?.user?.last_name}</strong>
+            </p>
+            
+            <div style={{
+              background: '#f0f9ff',
+              border: '1px solid #bfdbfe',
+              borderRadius: '0.5rem',
+              padding: '1rem',
+              marginBottom: '1rem'
+            }}>
+              <p style={{
+                margin: '0 0 0.5rem',
+                fontSize: '0.9rem',
+                fontWeight: 600,
+                color: '#1e40af'
+              }}>
+                Generated Password:
+              </p>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem'
+              }}>
+                <code style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  background: 'white',
+                  border: '1px solid #93c5fd',
+                  borderRadius: '0.375rem',
+                  fontSize: '1.1rem',
+                  fontWeight: 600,
+                  letterSpacing: '0.05em',
+                  color: '#1e40af',
+                  fontFamily: 'monospace'
+                }}>
+                  {generatedPassword}
+                </code>
+                <button
+                  onClick={handleCopyPassword}
+                  style={{
+                    padding: '0.75rem',
+                    background: passwordCopied ? '#22c55e' : '#2563eb',
+                    border: 'none',
+                    borderRadius: '0.375rem',
+                    color: 'white',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    fontWeight: 500,
+                    transition: 'all 0.15s'
+                  }}
+                  title="Copy to clipboard"
+                >
+                  <Icon name={passwordCopied ? 'checkCircle' : 'copy'} size={18} />
+                  {passwordCopied ? 'Copied!' : 'Copy'}
+                </button>
+              </div>
+            </div>
+
+            <div style={{
+              background: '#fef3c7',
+              border: '1px solid #fbbf24',
+              borderRadius: '0.5rem',
+              padding: '0.75rem',
+              marginBottom: '1rem'
+            }}>
+              <p style={{
+                margin: 0,
+                fontSize: '0.85rem',
+                color: '#92400e'
+              }}>
+                <strong>⚠️ Important:</strong> Make sure to copy this password and share it securely with the user. 
+                This password will only be shown once and follows the format:
+              </p>
+              <ul style={{
+                margin: '0.5rem 0 0 1.25rem',
+                fontSize: '0.85rem',
+                color: '#92400e'
+              }}>
+                <li>8 characters long</li>
+                <li>Contains lowercase letters (a-z)</li>
+                <li>Contains uppercase letters (A-Z)</li>
+                <li>Contains numbers (0-9)</li>
+              </ul>
+            </div>
+          </div>
+          
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+            <Button 
+              variant="secondary" 
+              onClick={() => {
+                setShowPasswordModal(false);
+                setSelectedUser(null);
+                setGeneratedPassword('');
+                setPasswordCopied(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="primary" 
+              onClick={handleConfirmPasswordReset}
+            >
+              Confirm Reset
+            </Button>
+          </div>
+        </Modal>
+      )}
+
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
         <Modal
@@ -543,7 +784,7 @@ const UserManagementPage = () => {
           }}
           title="Delete User"
         >
-          <p>Are you sure you want to delete <strong>{selectedUser?.first_name} {selectedUser?.last_name}</strong>?</p>
+          <p>Are you sure you want to delete <strong>{selectedUser?.user?.first_name} {selectedUser?.user?.last_name}</strong>?</p>
           <p style={{ color: '#ef4444', marginTop: '1rem' }}>This action cannot be undone.</p>
           
           <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>

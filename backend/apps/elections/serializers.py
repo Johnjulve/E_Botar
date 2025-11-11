@@ -43,6 +43,8 @@ class SchoolElectionListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for election listings"""
     status = serializers.SerializerMethodField()
     is_active_now = serializers.SerializerMethodField()
+    is_upcoming = serializers.SerializerMethodField()
+    is_finished = serializers.SerializerMethodField()
     created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True, allow_null=True)
     total_votes = serializers.SerializerMethodField()
     
@@ -50,7 +52,8 @@ class SchoolElectionListSerializer(serializers.ModelSerializer):
         model = SchoolElection
         fields = [
             'id', 'title', 'start_year', 'end_year', 'description',
-            'start_date', 'end_date', 'is_active', 'status', 'is_active_now',
+            'start_date', 'end_date', 'is_active', 'status', 
+            'is_active_now', 'is_upcoming', 'is_finished',
             'created_by', 'created_by_name', 'total_votes',
             'created_at', 'updated_at'
         ]
@@ -69,6 +72,14 @@ class SchoolElectionListSerializer(serializers.ModelSerializer):
     def get_is_active_now(self, obj):
         """Return boolean indicating if election is currently active"""
         return obj.is_active_now()
+    
+    def get_is_upcoming(self, obj):
+        """Return boolean indicating if election is upcoming"""
+        return obj.is_upcoming()
+    
+    def get_is_finished(self, obj):
+        """Return boolean indicating if election has finished"""
+        return obj.is_finished()
     
     def get_total_votes(self, obj):
         """Count of unique voters in this election"""
@@ -127,6 +138,20 @@ class SchoolElectionCreateUpdateSerializer(serializers.ModelSerializer):
         help_text="List of position IDs to associate with this election"
     )
     
+    start_year = serializers.IntegerField(
+        required=True,
+        min_value=2000,
+        max_value=2100,
+        help_text="Start year for SY format (e.g., 2025 for SY 2025-2026)"
+    )
+    
+    end_year = serializers.IntegerField(
+        required=True,
+        min_value=2000,
+        max_value=2100,
+        help_text="End year for SY format (e.g., 2026 for SY 2025-2026)"
+    )
+    
     class Meta:
         model = SchoolElection
         fields = [
@@ -134,6 +159,19 @@ class SchoolElectionCreateUpdateSerializer(serializers.ModelSerializer):
             'start_date', 'end_date', 'is_active', 'position_ids'
         ]
         read_only_fields = ['title']
+    
+    def validate(self, data):
+        """Validate that end_year is exactly start_year + 1"""
+        start_year = data.get('start_year')
+        end_year = data.get('end_year')
+        
+        if start_year and end_year:
+            if end_year != start_year + 1:
+                raise serializers.ValidationError({
+                    'end_year': f'End year must be {start_year + 1} (one year after start year)'
+                })
+        
+        return data
     
     def create(self, validated_data):
         position_ids = validated_data.pop('position_ids', [])
