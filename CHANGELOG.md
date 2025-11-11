@@ -9,6 +9,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.2] - 2025-11-11
+### Added
+- **Activity Logging System**:
+  - Comprehensive activity logging for all critical actions
+  - Vote submission logging with student ID and masked receipt
+  - User management actions (activate/deactivate, password reset)
+  - Election CRUD operations (create, update, delete)
+  - Candidate application review (approve, reject, bulk operations)
+  - IP address tracking for security audit
+  - Student ID preference in all logs (fallback to username)
+
+### Changed
+- **UI/UX Improvements**:
+  - Profile picture now displays in navigation circular button
+  - Removed duplicate "Profile" menu item from sidebar
+  - Profile button shows full name instead of "My Account"
+  - Increased profile picture size (48px desktop, 44px mobile)
+  - Enhanced avatar styling with 3px border and shadow
+  - Bigger brand logo (64px) with increased topbar height (88px)
+  - Fixed topbar and sidebar alignment (sidebar now starts at 88px)
+  - Profile picture shows in both expanded and collapsed sidebar states
+
+- **Backend API**:
+  - Fixed 403 error on `/api/voting/results/statistics/` endpoint
+  - Statistics endpoint now allows public access (AllowAny)
+  - Real-time statistics available to all users
+  - User profile context properly updated after profile edits
+
+### Fixed
+- Profile picture not showing in navigation button
+- User data structure in AuthContext (nested user/profile objects)
+- Full name display in sidebar (was showing "My Account")
+- Topbar and sidebar height mismatch
+- ProfileEditPage now updates AuthContext after successful save
+- Avatar display in both desktop sidebar and mobile offcanvas
+
+---
+
 ## [0.5.1] - 2025-11-11
 ### Added
 - **Profile Management Features**:

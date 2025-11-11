@@ -503,7 +503,7 @@ class ResultsViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
     
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], permission_classes=[AllowAny])
     def statistics(self, request):
         """Get election statistics and analytics"""
         election_id = request.query_params.get('election_id')
@@ -521,12 +521,8 @@ class ResultsViewSet(viewsets.ViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
         
-        # Check permissions
-        if not request.user.is_staff and not election.is_finished():
-            return Response(
-                {'detail': 'Statistics are not yet available'},
-                status=status.HTTP_403_FORBIDDEN
-            )
+        # Allow statistics for everyone (similar to election_results)
+        # Statistics are available in real-time
         
         # Compute statistics
         total_voters = VoteReceipt.objects.filter(election=election).count()
