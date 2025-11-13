@@ -3,34 +3,41 @@
    Login & Register Pages Styling
    ============================================ */
 
-/* Animated Background Elements */
-.auth-page::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  right: -50%;
-  width: 100%;
-  height: 100%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
-  animation: float 20s ease-in-out infinite;
+/* Auth Page Container */
+.auth-page {
+  position: relative;
+  min-height: auto;
+  background: transparent;
+  overflow: visible;
+  padding: 3rem 0;
 }
 
+@keyframes float {
+  0%, 100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  33% {
+    transform: translate(30px, -30px) rotate(120deg);
+  }
+  66% {
+    transform: translate(-20px, 20px) rotate(240deg);
+  }
+}
+
+/* Animated Background Elements - Disabled */
+.auth-page::before,
 .auth-page::after {
-  content: '';
-  position: absolute;
-  bottom: -50%;
-  left: -50%;
-  width: 100%;
-  height: 100%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.08) 0%, transparent 70%);
-  animation: float 25s ease-in-out infinite reverse;
+  display: none;
 }
 
 /* Auth Container */
 .auth-container {
   position: relative;
   z-index: 10;
-  padding: 2rem 1rem;
+  padding: 3rem 1rem;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 /* Auth Card */
@@ -62,22 +69,22 @@
 .auth-icon {
   width: 80px;
   height: 80px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #0b6e3b 0%, #075a30 100%);
   border-radius: 20px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 1.5rem;
-  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 10px 30px rgba(11, 110, 59, 0.4);
   animation: iconPulse 3s ease-in-out infinite;
 }
 
 @keyframes iconPulse {
   0%, 100% {
-    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 10px 30px rgba(11, 110, 59, 0.4);
   }
   50% {
-    box-shadow: 0 10px 40px rgba(102, 126, 234, 0.6);
+    box-shadow: 0 10px 40px rgba(11, 110, 59, 0.6);
   }
 }
 
@@ -116,7 +123,7 @@
 }
 
 .auth-form .form-label i {
-  color: #667eea;
+  color: #0b6e3b;
   font-size: 0.9rem;
 }
 
@@ -130,8 +137,8 @@
 }
 
 .auth-form .form-control:focus {
-  border-color: #667eea;
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+  border-color: #0b6e3b;
+  box-shadow: 0 0 0 4px rgba(11, 110, 59, 0.1);
   background: white;
   outline: none;
 }
@@ -221,14 +228,15 @@
   font-size: 1.1rem;
   font-weight: 600;
   border-radius: 12px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #f4cc5c 0%, #e6b93e 100%);
   border: none;
-  color: white;
+  color: #1f2937;
   cursor: pointer;
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
   margin-top: 1rem;
+  font-weight: 700;
 }
 
 .auth-submit-btn::before {
@@ -248,7 +256,7 @@
 
 .auth-submit-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 10px 30px rgba(244, 204, 92, 0.5);
 }
 
 .auth-submit-btn:active {
@@ -274,7 +282,7 @@
 }
 
 .auth-link {
-  color: #667eea;
+  color: #f4cc5c;
   font-weight: 600;
   text-decoration: none;
   transition: all 0.2s ease;
@@ -288,7 +296,7 @@
   left: 0;
   width: 0;
   height: 2px;
-  background: #667eea;
+  background: #f4cc5c;
   transition: width 0.3s ease;
 }
 
@@ -297,7 +305,7 @@
 }
 
 .auth-link:hover {
-  color: #764ba2;
+  color: #e6b93e;
 }
 
 /* Footer */
@@ -398,6 +406,11 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
+  .auth-page {
+    min-height: auto;
+    padding: 2rem 0;
+  }
+
   .auth-card {
     padding: 2rem 1.5rem;
     border-radius: 20px;
@@ -423,6 +436,10 @@
 }
 
 @media (max-width: 576px) {
+  .auth-page {
+    padding: 1.5rem 0;
+  }
+
   .auth-card {
     padding: 1.5rem 1rem;
   }
@@ -505,11 +522,11 @@
 
 /* Accessibility */
 .auth-form .form-control:focus-visible {
-  outline: 3px solid rgba(102, 126, 234, 0.3);
+  outline: 3px solid rgba(11, 110, 59, 0.3);
   outline-offset: 2px;
 }
 
 .auth-submit-btn:focus-visible {
-  outline: 3px solid rgba(255, 255, 255, 0.5);
+  outline: 3px solid rgba(244, 204, 92, 0.5);
   outline-offset: 3px;
 }

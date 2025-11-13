@@ -1,5 +1,25 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
+/* Disable all animations and transitions for a more professional look */
+*, *::before, *::after {
+  animation-duration: 0s !important;
+  animation-delay: 0s !important;
+  transition-duration: 0s !important;
+  transition-delay: 0s !important;
+}
+
+/* Remove all underlines from links and buttons */
+a, button, .btn, .nav-link {
+  text-decoration: none !important;
+}
+
+a:hover, a:focus, a:active,
+button:hover, button:focus, button:active,
+.btn:hover, .btn:focus, .btn:active,
+.nav-link:hover, .nav-link:focus, .nav-link:active {
+  text-decoration: none !important;
+}
+
 :root {
   --primary-color: #2563eb;
   --primary-dark: #1d4ed8;
@@ -31,6 +51,8 @@ body {
   background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
   min-height: 100vh;
   margin: 0;
+  padding: 0;
+  overflow-x: hidden;
 }
 
 #root {
@@ -118,9 +140,20 @@ body {
 }
 
 .main-content {
-  flex: 1;
+  flex: 1 0 auto;
   padding: 2rem 0;
   margin-left: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.main-content > * {
+  width: 100%;
+  max-width: 1400px;
+  padding-left: 1rem;
+  padding-right: 1rem;
 }
 
 .card {
@@ -257,8 +290,10 @@ body {
   color: white;
   padding: 3rem 0 2rem;
   margin-top: auto;
+  flex-shrink: 0;
   position: relative;
   overflow: hidden;
+  width: 100%;
 }
 
 .footer::before {
@@ -945,20 +980,24 @@ body {
 
   .main-content {
     margin-left: 300px;
-    transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    width: calc(100% - 300px);
+    transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .app-shell[data-sidebar-collapsed="true"] .main-content {
     margin-left: 80px;
+    width: calc(100% - 80px);
   }
 
   .footer {
     margin-left: 300px;
-    transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    width: calc(100% - 300px);
+    transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .app-shell[data-sidebar-collapsed="true"] .footer {
     margin-left: 80px;
+    width: calc(100% - 80px);
   }
 }
 

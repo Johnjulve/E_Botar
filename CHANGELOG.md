@@ -9,6 +9,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.3] - 2025-11-13
+### Changed
+- **UI/UX Improvements**:
+  - Updated auth pages (login/register) to use E-Botar brand colors (green and yellow)
+  - Changed auth page background from purple gradient to green gradient (#0b6e3b to #075a30)
+  - Submit buttons now use yellow gradient (#f4cc5c to #e6b93e) with dark text
+  - Auth page links changed to yellow theme color
+  - Updated all form focus states to use green theme color
+  - Auth pages now display within normal layout with navbar and footer visible
+  - Removed full-screen auth page layout for consistency with site design
+
+- **Layout & Spacing**:
+  - Fixed content alignment issues with sidebar
+  - Centered all page content properly with sidebar spacing
+  - Main content now uses flexbox centering with max-width constraint (1400px)
+  - Fixed footer positioning to stay at bottom of page
+  - Adjusted main-content width to account for sidebar (calc(100% - 300px))
+  - Content no longer pushed to the right when sidebar is visible
+
+- **Election Pages Theme Update**:
+  - Updated page title icon to green gradient
+  - Filter tabs now use green for active state and hover
+  - Election card hover border changed to green
+  - Status badges updated: Active (green), Upcoming (yellow), Finished (gray)
+  - Info card icon changed from blue to green
+  - Info item icons: Start (green), End (emerald), Votes (yellow), Candidates (purple)
+  - Action buttons updated to theme colors
+  - Candidate avatars changed from blue to green gradient
+
+- **Performance & Polish**:
+  - Disabled all CSS animations and transitions sitewide for professional appearance
+  - Removed all animation keyframes (float, pulse, spin, shimmer, etc.)
+  - Instant UI interactions instead of animated effects
+  - Removed text underlines from all links and buttons (hover, focus, active states)
+  - Cleaner, more business-like interface
+
+### Fixed
+- Auth pages no longer cover entire viewport
+- Content properly centered accounting for left sidebar
+- Footer sticks to bottom on all pages
+- Login and register pages maintain consistent layout with other pages
+- Auth container properly centered with equal spacing
+
+---
+
 ## [0.5.2] - 2025-11-11
 ### Added
 - **Activity Logging System**:

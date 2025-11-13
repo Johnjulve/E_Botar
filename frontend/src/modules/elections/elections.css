@@ -20,7 +20,7 @@
 .page-title-icon {
   width: 48px;
   height: 48px;
-  background: #2d3748;
+  background: linear-gradient(135deg, #0b6e3b 0%, #075a30 100%);
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -58,13 +58,13 @@
 }
 
 .filter-tab:hover {
-  border-color: #2d3748;
-  color: #2d3748;
+  border-color: #0b6e3b;
+  color: #0b6e3b;
 }
 
 .filter-tab.active {
-  background: #2d3748;
-  border-color: #2d3748;
+  background: linear-gradient(135deg, #0b6e3b 0%, #075a30 100%);
+  border-color: #0b6e3b;
   color: white;
 }
 
@@ -92,8 +92,8 @@
 }
 
 .election-card:hover {
-  border-color: #2d3748;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: #0b6e3b;
+  box-shadow: 0 4px 12px rgba(11, 110, 59, 0.15);
 }
 
 .election-header {
@@ -123,17 +123,18 @@
 }
 
 .status-badge.active {
-  background: #10b981;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   color: white;
 }
 
 .status-badge.upcoming {
-  background: #3b82f6;
-  color: white;
+  background: linear-gradient(135deg, #f4cc5c 0%, #e6b93e 100%);
+  color: #1f2937;
+  font-weight: 800;
 }
 
 .status-badge.finished {
-  background: #6b7280;
+  background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
   color: white;
 }
 
@@ -270,7 +271,7 @@
 .info-icon {
   width: 40px;
   height: 40px;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  background: linear-gradient(135deg, #0b6e3b 0%, #075a30 100%);
   border-radius: 10px;
   display: flex;
   align-items: center;
@@ -319,7 +320,7 @@
 }
 
 .info-item-icon.start {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  background: linear-gradient(135deg, #0b6e3b 0%, #075a30 100%);
 }
 
 .info-item-icon.end {
@@ -327,7 +328,7 @@
 }
 
 .info-item-icon.votes {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: linear-gradient(135deg, #f4cc5c 0%, #e6b93e 100%);
 }
 
 .info-item-icon.candidates {
@@ -375,25 +376,25 @@
 }
 
 .action-btn-primary {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
   color: white;
 }
 
 .action-btn-primary:hover {
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
   color: white;
 }
 
 .action-btn-success {
-  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   color: white;
-  border: 2px solid #22c55e;
+  border: 2px solid #10b981;
 }
 
 .action-btn-success:hover {
-  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: white;
-  border-color: #16a34a;
+  border-color: #059669;
 }
 
 .action-btn-secondary {
@@ -470,7 +471,7 @@
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  background: linear-gradient(135deg, #0b6e3b 0%, #075a30 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -478,7 +479,7 @@
   color: white;
   font-size: 1.5rem;
   flex-shrink: 0;
-  border: 3px solid #dbeafe;
+  border: 3px solid #d1fae5;
 }
 
 .candidate-details {
