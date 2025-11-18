@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.4] - 2025-11-18
+### Changed
+- **UI/UX Refinements**:
+  - Dashboard candidate party badges now wrap text properly for long party names
+  - Results page header now has consistent border-radius (20px) for visual polish
+  - Election "Ended" badge updated to solid green color (#078612) for better consistency
+  - Removed unnecessary box-shadow from ended badge for cleaner appearance
+
+### Fixed
+- Long political party names no longer overflow in dashboard candidate cards
+- Results header visual alignment and styling consistency
+
+---
+
 ## [0.5.3] - 2025-11-13
 ### Changed
 - **UI/UX Improvements**:

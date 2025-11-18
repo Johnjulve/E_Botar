@@ -16,6 +16,7 @@
   padding: 2.5rem 0;
   margin: -2rem 0 2rem 0;
   box-shadow: 0 4px 20px rgba(11, 110, 59, 0.3);
+  border-radius: 20px
 }
 
 .results-header-content {
@@ -82,14 +83,13 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  background: #078612;
   color: white;
   padding: 0.5rem 1rem;
   border-radius: 20px;
   font-size: 0.85rem;
   font-weight: 700;
   letter-spacing: 0.5px;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
 .results-title {
