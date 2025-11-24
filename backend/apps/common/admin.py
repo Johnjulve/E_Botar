@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import SecurityEvent, ActivityLog, AccessAttempt
+from .models import SecurityEvent, ActivityLog
 
 
 @admin.register(SecurityEvent)
@@ -46,23 +46,4 @@ class ActivityLogAdmin(admin.ModelAdmin):
         return obj.description[:100] + '...' if len(obj.description) > 100 else obj.description
     description_short.short_description = 'Description'
 
-
-@admin.register(AccessAttempt)
-class AccessAttemptAdmin(admin.ModelAdmin):
-    list_display = ['username', 'success_badge', 'ip_address', 'failure_reason', 'timestamp']
-    list_filter = ['success', 'timestamp']
-    search_fields = ['username', 'ip_address']
-    ordering = ['-timestamp']
-    readonly_fields = ['timestamp']
-    
-    def success_badge(self, obj):
-        """Display success status with badge"""
-        if obj.success:
-            return format_html(
-                '<span style="background-color: #28A745; color: white; padding: 3px 10px; border-radius: 3px;">Success</span>'
-            )
-        return format_html(
-            '<span style="background-color: #DC3545; color: white; padding: 3px 10px; border-radius: 3px;">Failed</span>'
-        )
-    success_badge.short_description = 'Status'
 

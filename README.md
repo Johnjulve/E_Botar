@@ -1,6 +1,6 @@
 # E-Botar - Blockchain-Inspired Electronic Voting System
 
-**Version 0.5.4** | A secure, privacy-preserving electronic voting platform for student government elections
+**Version 0.6.0** | A secure, privacy-preserving electronic voting platform for student government elections
 
 [![Django](https://img.shields.io/badge/Django-5.2.8-green.svg)](https://www.djangoproject.com/)
 [![DRF](https://img.shields.io/badge/DRF-3.16.1-red.svg)](https://www.django-rest-framework.org/)
@@ -11,6 +11,7 @@
 
 ## 📖 Table of Contents
 
+- [Release Highlights (0.6.0)](#-release-highlights-060)
 - [Overview](#overview)
 - [Research Foundation](#research-foundation)
 - [Key Features](#key-features)
@@ -23,6 +24,17 @@
 - [Development](#development)
 - [Documentation](#documentation)
 - [Roadmap](#roadmap)
+
+---
+
+## 🚀 Release Highlights (0.6.0)
+
+- **Unified academic programs**: Departments and courses now live under a single Program model with `program_type` and parent-child links, simplifying admin management while keeping API responses backward compatible.
+- **Superuser bootstrap command**: `python manage.py superuser` accepts CLI flags or environment defaults so fresh environments can stand up an admin account in seconds.
+- **Smart caching layer**: `ElectionDataService`, `VotingDataService`, and the shared `@cache_result` decorator wrap expensive election/result queries with configurable timeouts plus targeted invalidation hooks.
+- **Navigation polish**: Collapsed desktop sidebar shows an avatar-only pill, preventing clipped name/email content.
+- **Candidate application resiliency**: The application form consumes the new `election_positions` relation, clears stale selections whenever the election changes, disables the dropdown until positions load, and surfaces helper text when no slots exist.
+- **Application history clarity**: "My Applications" cards and the withdraw modal fall back to `position_name` / `party_name` so position details stay visible even if nested objects are missing.
 
 ---
 
@@ -96,7 +108,7 @@ The system architecture is informed by academic research on:
 - **JWT Authentication**: Stateless token-based authentication for scalability
 - **Student Profiles**: Complete academic information (department, course, year level)
 - **Auto-Generated Student IDs**: Format YYYY-XXXXX (year + random digits)
-- **Department & Course Hierarchy**: Organized academic structure management
+- **Program Hierarchy**: Unified department/course structure with parent-child linkage
 - **Profile Verification**: Admin-controlled verification system
 - **Avatar Support**: Profile photo uploads with validation
 
@@ -200,7 +212,7 @@ E_Botar/
 │   │   └── wsgi.py             # WSGI application
 │   ├── apps/                   # Application modules
 │   │   ├── accounts/           # Authentication & user profiles
-│   │   │   ├── models.py       # User, UserProfile, Department, Course
+│   │   │   ├── models.py       # User, UserProfile, Program
 │   │   │   ├── serializers.py  # JSON serialization
 │   │   │   ├── views.py        # API endpoints
 │   │   │   └── urls.py         # URL routing
@@ -257,13 +269,16 @@ E_Botar/
 User (Django built-in)
 ├── UserProfile (1:1)
 │   ├── student_id (unique, auto-generated)
-│   ├── department → Department (FK)
-│   ├── course → Course (FK)
+│   ├── department → Program (FK, type=department)
+│   ├── course → Program (FK, type=course)
 │   ├── year_level, phone_number, avatar
 │   └── is_verified (admission gate)
 │
-Department
-└── courses → Course (1:Many)
+Program
+├── program_type (department | course)
+├── parent → Program (FK, optional; course → department)
+├── children → Program (reverse FK)
+└── code, description, is_active
 ```
 
 **Election Management** (4 models)
@@ -280,7 +295,7 @@ Party
 └── candidates, applications (reverse FK)
 
 SchoolPosition
-├── name, position_type
+├── name
 ├── display_order
 └── election_positions, candidates (reverse FK)
 ```
@@ -339,7 +354,7 @@ AnonVote
 └── [NO user reference - anonymous tallying]
 ```
 
-**Security & Audit** (3 models)
+**Security & Audit** (2 models)
 ```
 SecurityEvent
 ├── user → User (FK, optional)
@@ -352,13 +367,6 @@ SecurityEvent
 ActivityLog
 ├── user → User (FK, optional)
 ├── action, module, details (JSON)
-├── ip_address, user_agent
-└── timestamp
-
-AccessAttempt
-├── user → User (FK, optional)
-├── username_attempt
-├── success (boolean)
 ├── ip_address, user_agent
 └── timestamp
 ```
@@ -527,27 +535,36 @@ npm run dev
 
 ### Initial Configuration
 
-1. **Create Department & Courses** (via Django Admin):
+1. **Create Programs (Departments & Courses)**:
    - Access: `http://localhost:8000/admin/`
-   - Navigate to Accounts → Departments
-   - Create departments (e.g., "Computer Science")
-   - Add courses under each department
+   - Navigate to Accounts → Programs
+   - Add department-type programs (e.g., "Computer Studies")
+   - Add course-type programs and set their parent department
 
-2. **Create Parties** (optional):
+2. **Create Super Admin (optional shortcut)**:
+   ```powershell
+   cd backend
+   ..\env\Scripts\Activate.ps1
+   python manage.py superuser --username admin --email admin@example.com
+   ```
+   - You can also set `SUPERUSER_USERNAME`, `SUPERUSER_EMAIL`, `SUPERUSER_PASSWORD` env vars
+   - Omit `--password` to be prompted or auto-generate a secure password
+
+3. **Create Parties** (optional):
    - Navigate to Elections → Parties
    - Create political parties with names, colors, logos
 
-3. **Create Positions**:
+4. **Create Positions**:
    - Navigate to Elections → School Positions
    - Create positions (President, Vice President, etc.)
 
-4. **Create Election**:
+5. **Create Election**:
    - Navigate to Elections → School Elections
    - Set start year and end year (auto-generates title)
    - Set start_date and end_date for voting period
    - Add positions to the election
 
-5. **Ready to Use**:
+6. **Ready to Use**:
    - Students can register via API
    - Admins can verify students
    - Candidates can apply (when election is upcoming)

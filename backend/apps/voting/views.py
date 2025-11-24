@@ -17,6 +17,7 @@ from .serializers import (
 from apps.elections.models import SchoolElection, SchoolPosition
 from apps.candidates.models import Candidate
 from apps.common.models import ActivityLog
+from .services import VotingDataService
 
 
 @api_view(['GET'])
@@ -120,6 +121,9 @@ class BallotViewSet(viewsets.ReadOnlyModelViewSet):
                     
                     # Anonymize immediately
                     choice.anonymize()
+                
+                # Invalidate voting cache for this election
+                VotingDataService.invalidate_voting_cache(election.id)
                 
                 # Log the vote activity
                 student_id = getattr(user.profile, 'student_id', None) if hasattr(user, 'profile') else None
@@ -505,7 +509,7 @@ class ResultsViewSet(viewsets.ViewSet):
     
     @action(detail=False, methods=['get'], permission_classes=[AllowAny])
     def statistics(self, request):
-        """Get election statistics and analytics"""
+        """Get election statistics and analytics (cached)"""
         election_id = request.query_params.get('election_id')
         if not election_id:
             return Response(
@@ -521,46 +525,33 @@ class ResultsViewSet(viewsets.ViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
         
-        # Allow statistics for everyone (similar to election_results)
-        # Statistics are available in real-time
+        # Use cached statistics
+        stats = VotingDataService.get_election_statistics(election_id)
         
-        # Compute statistics
-        total_voters = VoteReceipt.objects.filter(election=election).count()
-        total_votes = AnonVote.objects.filter(election=election).count()
-        total_positions = election.election_positions.count()
-        
-        # Voter turnout
-        from apps.accounts.models import UserProfile
-        total_eligible = UserProfile.objects.filter(is_verified=True).count()
-        turnout_percentage = round((total_voters / total_eligible * 100), 2) if total_eligible > 0 else 0
-        
-        # Per-position statistics
+        # Get per-position statistics
         position_stats = []
-        for election_position in election.election_positions.all():
-            position = election_position.position
-            position_votes_count = AnonVote.objects.filter(
+        for vote_data in stats['votes_by_position']:
+            position_id = vote_data['position_id']
+            candidates_count = Candidate.objects.filter(
                 election=election,
-                position=position
+                position_id=position_id,
+                is_active=True
             ).count()
             
             position_stats.append({
-                'position_id': position.id,
-                'position_name': position.name,
-                'total_votes': position_votes_count,
-                'candidates_count': Candidate.objects.filter(
-                    election=election,
-                    position=position,
-                    is_active=True
-                ).count()
+                'position_id': position_id,
+                'position_name': vote_data['position__name'],
+                'total_votes': vote_data['vote_count'],
+                'candidates_count': candidates_count
             })
         
         return Response({
             'election_id': election.id,
             'election_title': election.title,
-            'total_voters': total_voters,
-            'total_votes': total_votes,
-            'total_positions': total_positions,
-            'total_eligible_voters': total_eligible,
-            'turnout_percentage': turnout_percentage,
+            'total_voters': stats['unique_voters'],
+            'total_votes': stats['total_votes_cast'],
+            'total_positions': len(stats['votes_by_position']),
+            'total_eligible_voters': stats['total_registered_voters'],
+            'turnout_percentage': stats['turnout_percentage'],
             'position_statistics': position_stats
         })

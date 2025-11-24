@@ -10,6 +10,7 @@ from .serializers import (
     SchoolElectionListSerializer, SchoolElectionDetailSerializer,
     SchoolElectionCreateUpdateSerializer, ElectionPositionSerializer
 )
+from .services import ElectionDataService
 
 
 @api_view(['GET'])
@@ -34,6 +35,10 @@ class PartyViewSet(viewsets.ModelViewSet):
         return [IsAdminUser()]
     
     def get_queryset(self):
+        # Use cached method for list action
+        if self.action == 'list' and not self.request.user.is_staff:
+            return ElectionDataService.get_all_parties()
+        
         queryset = super().get_queryset()
         # Filter active parties for non-admin users
         if not self.request.user.is_staff and self.action == 'list':
@@ -57,11 +62,6 @@ class SchoolPositionViewSet(viewsets.ModelViewSet):
         if not self.request.user.is_staff and self.action == 'list':
             queryset = queryset.filter(is_active=True)
         
-        # Filter by position type
-        position_type = self.request.query_params.get('type', None)
-        if position_type:
-            queryset = queryset.filter(position_type=position_type)
-        
         return queryset
 
 
@@ -83,6 +83,9 @@ class SchoolElectionViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         election = serializer.save(created_by=self.request.user)
+        
+        # Invalidate election cache
+        ElectionDataService.invalidate_election_cache(election.id)
         
         # Get client IP
         x_forwarded_for = self.request.META.get('HTTP_X_FORWARDED_FOR')
@@ -116,6 +119,9 @@ class SchoolElectionViewSet(viewsets.ModelViewSet):
         
         updated_election = serializer.save()
         
+        # Invalidate election cache
+        ElectionDataService.invalidate_election_cache(updated_election.id)
+        
         # Get client IP
         x_forwarded_for = self.request.META.get('HTTP_X_FORWARDED_FOR')
         if x_forwarded_for:
@@ -144,6 +150,9 @@ class SchoolElectionViewSet(viewsets.ModelViewSet):
         )
     
     def perform_destroy(self, instance):
+        # Invalidate election cache
+        ElectionDataService.invalidate_election_cache(instance.id)
+        
         # Get client IP
         x_forwarded_for = self.request.META.get('HTTP_X_FORWARDED_FOR')
         if x_forwarded_for:
@@ -172,24 +181,15 @@ class SchoolElectionViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'])
     def active(self, request):
-        """Get currently active elections"""
-        now = timezone.now()
-        active_elections = self.queryset.filter(
-            is_active=True,
-            start_date__lte=now,
-            end_date__gte=now
-        )
+        """Get currently active elections (cached)"""
+        active_elections = ElectionDataService.get_all_active_elections()
         serializer = self.get_serializer(active_elections, many=True)
         return Response(serializer.data)
     
     @action(detail=False, methods=['get'])
     def upcoming(self, request):
-        """Get upcoming elections"""
-        now = timezone.now()
-        upcoming_elections = self.queryset.filter(
-            is_active=True,
-            start_date__gt=now
-        )
+        """Get upcoming elections (cached)"""
+        upcoming_elections = ElectionDataService.get_upcoming_elections()
         serializer = self.get_serializer(upcoming_elections, many=True)
         return Response(serializer.data)
     

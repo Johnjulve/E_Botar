@@ -1,24 +1,29 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import UserProfile, Department, Course
+from .models import UserProfile, Program
 
 
 class DepartmentSerializer(serializers.ModelSerializer):
-    """Serializer for Department model"""
+    """Serializer for department-type programs"""
     class Meta:
-        model = Department
+        model = Program
         fields = ['id', 'name', 'code', 'description', 'is_active', 'created_at', 'updated_at']
         read_only_fields = ['created_at', 'updated_at']
 
 
 class CourseSerializer(serializers.ModelSerializer):
-    """Serializer for Course model"""
+    """Serializer for course-type programs"""
+    department = serializers.IntegerField(source='department_id', read_only=True)
     department_name = serializers.CharField(source='department.name', read_only=True)
     
     class Meta:
-        model = Course
-        fields = ['id', 'department', 'department_name', 'name', 'code', 'description', 'is_active', 'created_at', 'updated_at']
-        read_only_fields = ['created_at', 'updated_at']
+        model = Program
+        fields = [
+            'id', 'department', 'department_name',
+            'name', 'code', 'description',
+            'is_active', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['created_at', 'updated_at', 'department', 'department_name']
 
 
 class UserSerializer(serializers.ModelSerializer):

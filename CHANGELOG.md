@@ -7,6 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+
+---
+
+## [0.5.5] - 2025-11-18
+### Added
+- **Caching Optimization System**:
+  - Created `ElectionDataService` with caching for election queries
+  - Created `VotingDataService` with caching for voting results and statistics
+  - Implemented `@cache_result` decorator for function-level caching
+  - Added cache invalidation methods for data consistency
+  - Cached election data with related candidates (60 seconds)
+  - Cached live voting results (30 seconds for real-time updates)
+  - Cached election statistics (30-120 seconds based on update frequency)
+  - Cached user voting status (120 seconds)
+  - Cached position-specific results (60 seconds)
+  - Cached winners data (30 seconds)
+  - Created comprehensive usage examples and integration guide
+
+- **Performance Improvements**:
+  - Optimized database queries with `select_related()` and `prefetch_related()`
+  - Reduced database hits for frequently accessed data
+  - Implemented hash-based cache key generation for consistency
+  - Added configurable cache timeouts for different data types
+
+### Changed
+- **Backend Architecture**:
+  - Introduced service layer pattern for data access
+  - Separated caching logic from view logic
+  - Enhanced query optimization with strategic prefetching
+  - Improved code maintainability and testability
+- **Frontend UX**:
+  - Collapsed desktop sidebar now renders an avatar-only profile pill to avoid clipped user details
+  - Candidate application form clears stale selections and disables the position dropdown until fresh data loads
+  - Application form messaging now surfaces when an election has no available positions
+- **Accounts Data Model**:
+  - Merged `Department` and `Course` into a unified `Program` model with `program_type` and parent-child relations
+  - Updated profile serializers/views/admin to surface programs as departments/courses for API compatibility
+  - Simplified admin workflows to manage academic structures from a single Program interface
+- **Dev Experience**:
+  - Added `python manage.py superuser` command for quick super-admin setup with CLI flags or environment defaults
+
+### Fixed
+- Candidate application form now sources positions via the new `election_positions` relation so choices always render after the database update
+- MyApplications cards and withdraw modal fall back to `position_name` / `party_name` so positions keep showing even when nested objects are absent
+
+### Technical Details
+- Cache timeouts optimized by data volatility:
+  - Live results: 30 seconds (high volatility)
+  - Statistics: 45-60 seconds (moderate volatility)
+  - Election data: 60-120 seconds (low volatility)
+  - Static data: 180-300 seconds (very low volatility)
+- Cache keys use MD5 hashing for consistency and collision avoidance
+- Service methods use `@wraps` to preserve function metadata
+- Ready for Redis integration in production environment
+
 ---
 
 ## [0.5.4] - 2025-11-18

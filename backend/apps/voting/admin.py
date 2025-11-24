@@ -5,7 +5,7 @@ from .models import VoteReceipt, AnonVote, Ballot, VoteChoice
 
 @admin.register(VoteReceipt)
 class VoteReceiptAdmin(admin.ModelAdmin):
-    list_display = ['masked_receipt_display', 'user', 'election', 'created_at', 'ip_address']
+    list_display = ['masked_receipt_display', 'election', 'created_at', 'ip_address']
     list_filter = ['election', 'created_at']
     search_fields = ['user__username', 'user__email', 'receipt_code', 'election__title']
     ordering = ['-created_at']
@@ -13,7 +13,7 @@ class VoteReceiptAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Receipt Info', {
-            'fields': ('user', 'election', 'receipt_code', 'receipt_hash')
+            'fields': ('receipt_code', 'receipt_hash')
         }),
         ('Metadata', {
             'fields': ('created_at', 'ip_address'),
@@ -34,7 +34,7 @@ class VoteChoiceInline(admin.TabularInline):
     can_delete = False
 
 
-@admin.register(Ballot)
+#@admin.register(Ballot)
 class BallotAdmin(admin.ModelAdmin):
     list_display = ['user', 'election', 'submitted_at', 'has_receipt', 'total_choices']
     list_filter = ['election', 'submitted_at']
@@ -68,13 +68,22 @@ class BallotAdmin(admin.ModelAdmin):
     total_choices.short_description = 'Choices'
 
 
-@admin.register(VoteChoice)
+#@admin.register(VoteChoice)
 class VoteChoiceAdmin(admin.ModelAdmin):
-    list_display = ['ballot', 'position', 'candidate', 'anonymized_badge', 'created_at']
+    list_display = ['masked_ballot', 'position', 'candidate', 'anonymized_badge', 'created_at']
     list_filter = ['anonymized', 'position', 'ballot__election', 'created_at']
     search_fields = ['ballot__user__username', 'candidate__user__username', 'position__name']
     ordering = ['-created_at']
     readonly_fields = ['ballot', 'position', 'candidate', 'created_at', 'anonymized']
+    
+    def masked_ballot(self, obj):
+        """Return masked ballot reference to protect voter identity"""
+        if not obj.ballot_id:
+            return 'Hidden'
+        ballot_str = str(obj.ballot_id)
+        masked = ballot_str[-4:].rjust(len(ballot_str), '*')
+        return f"Ballot {masked}"
+    masked_ballot.short_description = 'Ballot'
     
     def anonymized_badge(self, obj):
         """Display anonymization status with badge"""

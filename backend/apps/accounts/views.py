@@ -3,7 +3,7 @@ from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from django.contrib.auth.models import User
-from .models import UserProfile, Department, Course
+from .models import UserProfile, Program
 from apps.common.models import ActivityLog
 from .serializers import (
     UserSerializer, UserProfileSerializer, UserRegistrationSerializer,
@@ -264,19 +264,26 @@ class UserProfileViewSet(viewsets.ModelViewSet):
 
 class DepartmentViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for listing departments"""
-    queryset = Department.objects.filter(is_active=True)
     serializer_class = DepartmentSerializer
     permission_classes = [AllowAny]
+    
+    def get_queryset(self):
+        return Program.objects.filter(
+            program_type=Program.ProgramType.DEPARTMENT,
+            is_active=True
+        )
 
 
 class CourseViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for listing courses"""
-    queryset = Course.objects.filter(is_active=True)
     serializer_class = CourseSerializer
     permission_classes = [AllowAny]
     
     def get_queryset(self):
-        queryset = super().get_queryset()
+        queryset = Program.objects.filter(
+            program_type=Program.ProgramType.COURSE,
+            is_active=True
+        )
         department_id = self.request.query_params.get('department', None)
         if department_id:
             queryset = queryset.filter(department_id=department_id)

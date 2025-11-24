@@ -19,6 +19,16 @@ const MyApplicationsPage = () => {
   const [withdrawing, setWithdrawing] = useState(false);
   const [error, setError] = useState('');
 
+  const getPositionLabel = (application) =>
+    application?.position?.name ||
+    application?.position_name ||
+    'Position unavailable';
+
+  const getPartyLabel = (application) =>
+    application?.party?.name ||
+    application?.party_name ||
+    '';
+
   useEffect(() => {
     fetchMyApplications();
   }, []);
@@ -103,7 +113,7 @@ const MyApplicationsPage = () => {
                 <div key={application.id} className="application-card">
                   <div className="application-card-header">
                     <div className="application-card-title">
-                      <h3>{application.position?.name}</h3>
+                      <h3>{getPositionLabel(application)}</h3>
                       <p>{application.election?.title}</p>
                     </div>
                     <span className={`status-badge ${application.status}`}>
@@ -112,13 +122,13 @@ const MyApplicationsPage = () => {
                   </div>
 
                   <div className="application-info">
-                    {application.party && (
+                    {(application.party || application.party_name) && (
                       <div className="info-row">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
                           <line x1="4" y1="22" x2="4" y2="15"/>
                         </svg>
-                        <span>{application.party.name}</span>
+                        <span>{getPartyLabel(application)}</span>
                       </div>
                     )}
                   </div>
@@ -225,7 +235,7 @@ const MyApplicationsPage = () => {
                 
                 <p>You are about to withdraw your application for:</p>
                 <div className="modal-info-box">
-                  <strong>Position:</strong> {selectedApp?.position?.name}
+                  <strong>Position:</strong> {getPositionLabel(selectedApp)}
                   <br />
                   <strong>Election:</strong> {selectedApp?.election?.title}
                 </div>

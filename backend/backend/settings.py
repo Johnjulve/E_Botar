@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
+from django.core.cache import cache
 import os
 
 load_dotenv() 
@@ -107,6 +108,17 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
+    }
+}
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "unique-ebotar-cache",
+        "TIMEOUT": None,      # use cache.set timeout values (None = never expire)
+        "OPTIONS": {
+            "MAX_ENTRIES": 300,  # tweak if you want more/less entries per process
+        },
     }
 }
 

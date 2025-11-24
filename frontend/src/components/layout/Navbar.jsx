@@ -446,7 +446,7 @@ const Navbar = () => {
         {isAuthenticated && (
           <Link
             to="/profile"
-            className="user-pill text-decoration-none"
+            className={`user-pill text-decoration-none ${sidebarCollapsed ? 'avatar-only' : ''}`}
           >
             <div className="avatar">
               {user?.profile?.avatar_url ? (

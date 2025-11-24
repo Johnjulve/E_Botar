@@ -13,13 +13,12 @@ class PartySerializer(serializers.ModelSerializer):
 
 class SchoolPositionSerializer(serializers.ModelSerializer):
     """Serializer for SchoolPosition model"""
-    position_type_display = serializers.CharField(source='get_position_type_display', read_only=True)
     
     class Meta:
         model = SchoolPosition
         fields = [
-            'id', 'name', 'position_type', 'position_type_display', 
-            'description', 'display_order', 'max_candidates', 'is_active', 
+            'id', 'name',
+            'description', 'display_order', 'max_candidates', 'is_active',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['created_at', 'updated_at']

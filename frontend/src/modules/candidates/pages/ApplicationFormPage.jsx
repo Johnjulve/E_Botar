@@ -30,14 +30,44 @@ const ApplicationFormPage = () => {
   });
   const [errors, setErrors] = useState({});
 
+  const extractPositionsFromElection = (electionData) => {
+    if (!electionData) return [];
+
+    if (Array.isArray(electionData.election_positions)) {
+      return electionData.election_positions
+        .filter((ep) => ep?.position && (ep.is_enabled ?? true))
+        .map((ep) => ({
+          ...ep.position,
+          order: ep.order ?? ep.position?.display_order ?? 0,
+        }))
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    }
+
+    if (Array.isArray(electionData.positions)) {
+      return electionData.positions
+        .map((ep) => ep?.position || ep)
+        .filter(Boolean);
+    }
+
+    return [];
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
 
   useEffect(() => {
-    if (formData.election) {
-      fetchElectionPositions();
+    if (!formData.election) {
+      setPositions([]);
+      if (formData.position) {
+        setFormData((prev) => ({ ...prev, position: '' }));
+      }
+      return;
     }
+
+    setPositions([]);
+    setFormData((prev) => ({ ...prev, position: '' }));
+    fetchElectionPositions(formData.election);
   }, [formData.election]);
 
   const fetchData = async () => {
@@ -57,12 +87,12 @@ const ApplicationFormPage = () => {
     }
   };
 
-  const fetchElectionPositions = async () => {
+  const fetchElectionPositions = async (electionId) => {
     try {
-      const response = await electionService.getById(formData.election);
+      const response = await electionService.getById(electionId);
       const electionData = response.data;
       // Extract positions from election
-      const positionsList = electionData.positions?.map(ep => ep.position) || [];
+      const positionsList = extractPositionsFromElection(electionData);
       setPositions(positionsList);
     } catch (error) {
       console.error('Error fetching positions:', error);
@@ -228,7 +258,7 @@ const ApplicationFormPage = () => {
                     className={`form-select ${errors.position ? 'error' : ''}`}
                     value={formData.position}
                     onChange={handleChange}
-                    disabled={!formData.election || submitting}
+                    disabled={!formData.election || submitting || positions.length === 0}
                   >
                     <option value="">Select Position</option>
                     {positions.map(position => (
@@ -240,6 +270,9 @@ const ApplicationFormPage = () => {
                   {errors.position && <span className="form-error">{errors.position}</span>}
                   {!formData.election && (
                     <span className="form-help">Please select an election first</span>
+                  )}
+                  {formData.election && positions.length === 0 && !errors.position && (
+                    <span className="form-help">No positions available for the selected election.</span>
                   )}
                 </div>
 

@@ -85,26 +85,3 @@ class ActivityLog(models.Model):
         return f"{user_str} - {self.action} {self.resource_type} ({self.created_at})"
 
 
-class AccessAttempt(models.Model):
-    """Model for tracking login/access attempts"""
-    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
-    username = models.CharField(max_length=150, blank=True)
-    success = models.BooleanField(default=False)
-    ip_address = models.GenericIPAddressField()
-    user_agent = models.TextField(blank=True)
-    failure_reason = models.CharField(max_length=255, blank=True)
-    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
-    
-    class Meta:
-        ordering = ['-timestamp']
-        verbose_name = 'Access Attempt'
-        verbose_name_plural = 'Access Attempts'
-        indexes = [
-            models.Index(fields=['ip_address', '-timestamp']),
-            models.Index(fields=['success', '-timestamp']),
-        ]
-    
-    def __str__(self):
-        status = "Success" if self.success else "Failed"
-        return f"{self.username} - {status} from {self.ip_address} ({self.timestamp})"
-
