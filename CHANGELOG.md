@@ -9,6 +9,209 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.6.4] - 2025-11-25
+### Fixed
+- **Staff Access to Admin Panels**: Fixed issue where staff users could not see admin panels they're allowed to access. Staff can now properly access election management and application review interfaces.
+- **Permission System**: Replaced Django's `IsAdminUser` (which checks `is_staff`) with custom permission classes to properly distinguish between staff and admin roles.
+  - Created `IsSuperUser` permission class that checks `is_superuser` for admin-only operations
+  - Created `IsStaffOrSuperUser` permission class for operations accessible to both staff and admins
+  - Updated all views to use appropriate permission classes
+
+- **Frontend Role Detection**: Fixed frontend to check `is_superuser` instead of `is_staff` for admin access, ensuring proper role-based UI rendering.
+
+- **Sensitive Data Exposure**: Fixed issue where staff users could see sensitive fields (`is_staff`, `is_superuser`) of other users. These fields are now properly hidden from non-admin users.
+
+### Changed
+- **Backend Permission Classes**:
+  - All admin-only endpoints now use `IsSuperUser` (requires `is_superuser=True`)
+  - Staff-accessible endpoints use `IsStaffOrSuperUser` (allows both staff and admin)
+  - Updated views in accounts, elections, candidates, and voting modules
+
+- **Frontend Auth Context**:
+  - `isAdmin()` now checks `is_superuser` instead of `is_staff`
+  - Added `isStaff()` function to check staff status
+  - Added `isStaffOrAdmin()` function for staff-accessible features
+
+- **Protected Routes**:
+  - Added `requireStaff` prop to `ProtectedRoute` component
+  - Staff-accessible routes (dashboard, elections, applications) use `requireStaff`
+  - Admin-only routes (user management, system logs) use `requireAdmin`
+
+- **Navbar Menu**:
+  - Shows "Admin" menu for staff and admins
+  - Displays "Staff" label for staff users, "Admin" for superusers
+  - Conditionally shows admin-only menu items (User Management, System Logs) only for superusers
+
+- **User Serializer**:
+  - Users can see their own `is_staff` and `is_superuser` fields (needed for frontend role checks)
+  - Admins can see all users' sensitive fields
+  - Non-admins viewing other users' profiles cannot see sensitive fields
+
+### Technical Details
+- Created `apps/common/permissions.py` with custom permission classes
+- Updated all ViewSets and API views to use new permission classes
+- Frontend routes properly distinguish between staff and admin access
+- API responses now filter sensitive fields based on requester's role
+- Staff users can access: Admin Dashboard, Election Management, Application Review
+- Staff users cannot access: User Management, System Logs, Role Management, Password Reset
+
+---
+
+## [0.6.3] - 2025-11-25
+### Added
+- **Role-Based Access Control System**:
+  - Implemented three-tier role system: Student, Staff, and Admin
+  - Added role computation in UserSerializer based on `is_staff` and `is_superuser` flags
+  - Created `update_role` API endpoint for role management (admin only)
+  - Added role change logging in ActivityLog for audit trail
+  - Role management prevents self-role changes for security
+
+- **User Management Interface Enhancements**:
+  - Added "Change Role" button in user management table actions
+  - Created Role Management Modal with role selection dropdown
+  - Added Staff filter tab and statistics display
+  - Updated role badges to visually distinguish Admin, Staff, and Student roles
+  - Added role permission descriptions in role change modal
+
+### Changed
+- **User Management Page**:
+  - Updated filtering logic to distinguish Admin (`is_superuser`) from Staff (`is_staff` only)
+  - Added Staff count in statistics dashboard
+  - Updated role display to show three distinct roles with color-coded badges
+  - Enhanced user table to include role management functionality
+
+- **Backend Serializers**:
+  - Added `role` computed field to UserSerializer
+  - Role automatically determined: Admin (is_superuser), Staff (is_staff only), Student (neither)
+
+- **API Endpoints**:
+  - Added `POST /api/auth/profiles/{id}/update_role/` endpoint for role management
+  - Endpoint validates role changes and prevents self-modification
+  - Returns updated profile with new role information
+
+### Technical Details
+- Role system uses Django's built-in `is_staff` and `is_superuser` flags
+- Admin role: `is_superuser=True`, `is_staff=True` (full access)
+- Staff role: `is_staff=True`, `is_superuser=False` (limited admin access)
+- Student role: `is_staff=False`, `is_superuser=False` (standard user)
+- All role changes are logged in ActivityLog with metadata
+- Frontend service method `updateUserRole()` added to authService
+
+---
+
+## [0.6.2] - 2025-11-25
+### Changed
+- **Candidate Application Restrictions**:
+  - Enforced one application per user per election (regardless of position)
+  - Changed unique constraint from `(user, position, election)` to `(user, election)`
+  - Users must withdraw their existing application before applying for a different position in the same election
+  - Updated validation logic in both model `clean()` method and serializer to check for existing active applications
+  - Improved error messages to guide users on withdrawing existing applications
+
+- **Frontend Application Form**:
+  - Enhanced error handling to properly display validation errors from backend
+  - Added support for field-specific errors (election field) and non-field errors
+  - Improved error message extraction and display for better user experience
+
+### Fixed
+- Users can no longer submit multiple applications for different positions in the same election
+- Database constraint now properly enforces one application per election at the database level
+- Existing duplicate applications were automatically cleaned up during migration (kept most recent, marked others as withdrawn)
+
+### Technical Details
+- Created migration to clean up existing duplicate applications before applying new constraint
+- Updated `CandidateApplication.clean()` to validate against any active application (pending/approved) in the same election
+- Serializer validation now provides clear error messages when duplicate application is detected
+- Migration process safely handles existing data by preserving the most recent application per user+election combination
+
+---
+
+## [0.6.1] - 2025-11-24
+### Changed
+- **Election Position Model**:
+  - Removed `position_type` field from `SchoolPosition` model
+  - Positions are now identified solely by their name and display order
+  - Simplified position management without predefined type categories
+  - Updated admin, serializers, and views to reflect removal of position_type
+
+- **Program Model Structure**:
+  - Replaced generic `parent` self-reference with explicit `department` foreign key
+  - Course-type programs now directly reference their department via `department` field
+  - Improved query clarity and admin interface for department-course relationships
+  - Updated serializers and views to use `department_id` instead of `parent_id`
+
+- **Registration System**:
+  - Added email domain validation (snsu.edu.ph, ssct.edu.ph)
+  - Fixed password confirmation field name (`password_confirm` instead of `password2`)
+  - Added optional first_name and last_name fields to registration form
+  - Enhanced frontend validation with domain-specific email checks
+  - Improved error messaging for registration failures
+
+- **Admin Privacy**:
+  - Masked ballot identifiers in VoteChoice admin list view
+  - Improved privacy protection for vote tracking in admin interface
+
+### Fixed
+- Registration form now correctly sends `password_confirm` field matching backend expectations
+- Email validation now enforces institution-specific domains on both frontend and backend
+- Course filtering by department now uses correct `department_id` field
+
+---
+
+## [0.6.0] - 2025-11-25
+### Added
+- **Caching Optimization System**:
+  - Created `ElectionDataService` with caching for election queries
+  - Created `VotingDataService` with caching for voting results and statistics
+  - Implemented `@cache_result` decorator for function-level caching
+  - Added cache invalidation methods for data consistency
+  - Cached election data with related candidates (60 seconds)
+  - Cached live voting results (30 seconds for real-time updates)
+  - Cached election statistics (30-120 seconds based on update frequency)
+  - Cached user voting status (120 seconds)
+  - Cached position-specific results (60 seconds)
+  - Cached winners data (30 seconds)
+  - Created comprehensive usage examples and integration guide
+
+- **Performance Improvements**:
+  - Optimized database queries with `select_related()` and `prefetch_related()`
+  - Reduced database hits for frequently accessed data
+  - Implemented hash-based cache key generation for consistency
+  - Added configurable cache timeouts for different data types
+
+### Changed
+- **Backend Architecture**:
+  - Introduced service layer pattern for data access
+  - Separated caching logic from view logic
+  - Enhanced query optimization with strategic prefetching
+  - Improved code maintainability and testability
+- **Frontend UX**:
+  - Collapsed desktop sidebar now renders an avatar-only profile pill to avoid clipped user details
+  - Candidate application form clears stale selections and disables the position dropdown until fresh data loads
+  - Application form messaging now surfaces when an election has no available positions
+- **Accounts Data Model**:
+  - Merged `Department` and `Course` into a unified `Program` model with `program_type` and parent-child relations
+  - Updated profile serializers/views/admin to surface programs as departments/courses for API compatibility
+  - Simplified admin workflows to manage academic structures from a single Program interface
+- **Dev Experience**:
+  - Added `python manage.py superuser` command for quick super-admin setup with CLI flags or environment defaults
+
+### Fixed
+- Candidate application form now sources positions via the new `election_positions` relation so choices always render after the database update
+- MyApplications cards and withdraw modal fall back to `position_name` / `party_name` so positions keep showing even when nested objects are absent
+
+### Technical Details
+- Cache timeouts optimized by data volatility:
+  - Live results: 30 seconds (high volatility)
+  - Statistics: 45-60 seconds (moderate volatility)
+  - Election data: 60-120 seconds (low volatility)
+  - Static data: 180-300 seconds (very low volatility)
+- Cache keys use MD5 hashing for consistency and collision avoidance
+- Service methods use `@wraps` to preserve function metadata
+- Ready for Redis integration in production environment
+
+---
+
 ## [0.5.4] - 2025-11-18
 ### Changed
 - **UI/UX Refinements**:

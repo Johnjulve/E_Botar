@@ -1,7 +1,7 @@
 from django.utils.deprecation import MiddlewareMixin
 from django.contrib.auth.signals import user_logged_in, user_logged_out, user_login_failed
 from django.dispatch import receiver
-from .models import SecurityEvent, ActivityLog, AccessAttempt
+from .models import SecurityEvent, ActivityLog
 import logging
 
 logger = logging.getLogger(__name__)
@@ -88,16 +88,8 @@ def log_user_login(sender, request, user, **kwargs):
             severity='low',
             description=f"User {user.username} logged in successfully",
             ip_address=ip_address,
-            user_agent=request.META.get('HTTP_USER_AGENT', '')[:500]
-        )
-        
-        # Log access attempt
-        AccessAttempt.objects.create(
-            user=user,
-            username=user.username,
-            success=True,
-            ip_address=ip_address,
-            user_agent=request.META.get('HTTP_USER_AGENT', '')[:500]
+            user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
+            metadata={'status': 'success'}
         )
         
         # Log activity
@@ -145,17 +137,11 @@ def log_failed_login(sender, credentials, request, **kwargs):
             description=f"Failed login attempt for username: {username}",
             ip_address=ip_address,
             user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
-            metadata={'username': username}
-        )
-        
-        # Log access attempt
-        AccessAttempt.objects.create(
-            user=None,
-            username=username,
-            success=False,
-            ip_address=ip_address,
-            user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
-            failure_reason='Invalid credentials'
+            metadata={
+                'username': username,
+                'status': 'failed',
+                'reason': 'invalid_credentials'
+            }
         )
     except Exception as e:
         logger.error(f"Failed to log failed login: {e}")

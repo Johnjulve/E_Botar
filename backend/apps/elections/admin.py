@@ -13,8 +13,8 @@ class PartyAdmin(admin.ModelAdmin):
 
 @admin.register(SchoolPosition)
 class SchoolPositionAdmin(admin.ModelAdmin):
-    list_display = ['name', 'position_type', 'display_order', 'max_candidates', 'is_active', 'created_at']
-    list_filter = ['position_type', 'is_active', 'created_at']
+    list_display = ['name', 'display_order', 'max_candidates', 'is_active', 'created_at']
+    list_filter = ['is_active', 'created_at']
     search_fields = ['name', 'description']
     ordering = ['display_order', 'name']
     readonly_fields = ['created_at', 'updated_at']

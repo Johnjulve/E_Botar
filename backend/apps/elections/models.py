@@ -25,18 +25,7 @@ class Party(models.Model):
 
 class SchoolPosition(models.Model):
     """Model for school administration positions"""
-    POSITION_TYPES = [
-        ('president', 'President'),
-        ('vice_president', 'Vice President'),
-        ('secretary', 'Secretary'),
-        ('treasurer', 'Treasurer'),
-        ('auditor', 'Auditor'),
-        ('public_info', 'Public Information Officer'),
-        ('other', 'Other'),
-    ]
-    
     name = models.CharField(max_length=100)
-    position_type = models.CharField(max_length=20, choices=POSITION_TYPES, default='other')
     description = models.TextField(blank=True)
     display_order = models.PositiveIntegerField(default=0, db_index=True)
     max_candidates = models.PositiveIntegerField(default=10, help_text="Maximum number of candidates allowed for this position")
@@ -48,7 +37,7 @@ class SchoolPosition(models.Model):
         return self.name
     
     class Meta:
-        ordering = ['display_order', 'position_type', 'name']
+        ordering = ['display_order', 'name']
         verbose_name = 'School Position'
         verbose_name_plural = 'School Positions'
 

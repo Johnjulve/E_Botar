@@ -692,21 +692,36 @@ body {
 }
 
 .desktop-sidebar.collapsed .user-pill {
-  left: 10px;
-  right: 10px;
+  left: 50%;
+  right: auto;
+  bottom: 20px;
   justify-content: center;
-  padding: 12px;
+  align-items: center;
+  padding: 0;
   gap: 0;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  transform: translateX(-50%);
 }
 
 .desktop-sidebar.collapsed .user-pill:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 6px 20px rgba(14, 159, 110, 0.4);
-  border-color: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -3px);
+  box-shadow: none;
+  border-color: transparent;
 }
 
 .desktop-sidebar.collapsed .user-pill .user-pill-text {
   display: none;
+}
+
+.desktop-sidebar.collapsed .user-pill .avatar {
+  width: 60px;
+  height: 60px;
+  border-width: 2px;
 }
 
 .desktop-sidebar .user-pill:hover {

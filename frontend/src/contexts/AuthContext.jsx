@@ -133,7 +133,18 @@ export const AuthProvider = ({ children }) => {
   };
 
   const isAdmin = () => {
+    // Check for is_superuser (admin) - not just is_staff
+    return user?.user?.is_superuser || false;
+  };
+
+  const isStaff = () => {
+    // Check if user is staff (is_staff but not necessarily superuser)
     return user?.user?.is_staff || false;
+  };
+
+  const isStaffOrAdmin = () => {
+    // Check if user is either staff or admin
+    return isStaff() || isAdmin();
   };
 
   const value = {
@@ -141,6 +152,8 @@ export const AuthProvider = ({ children }) => {
     loading,
     isAuthenticated,
     isAdmin: isAdmin(),
+    isStaff: isStaff(),
+    isStaffOrAdmin: isStaffOrAdmin(),
     login,
     register,
     logout,

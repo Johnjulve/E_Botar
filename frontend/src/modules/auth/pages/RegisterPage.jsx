@@ -7,7 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Container, Row, Col, Form } from 'react-bootstrap';
 import { useAuth } from '../../../hooks/useAuth';
-import { validatePassword, isValidEmail } from '../../../utils/validators';
+import { validatePassword, isValidEmail, isValidEmailDomain } from '../../../utils/validators';
 import './auth.css';
 
 const RegisterPage = () => {
@@ -17,6 +17,8 @@ const RegisterPage = () => {
   const [formData, setFormData] = useState({
     username: '',
     email: '',
+    first_name: '',
+    last_name: '',
     password: '',
     password_confirm: '',
   });
@@ -81,8 +83,11 @@ const RegisterPage = () => {
     // Email validation
     if (!formData.email.trim()) {
       newErrors.email = 'Email is required';
-    } else if (!isValidEmail(formData.email)) {
-      newErrors.email = 'Invalid email format';
+    } else {
+      const emailValidation = isValidEmailDomain(formData.email);
+      if (!emailValidation.valid) {
+        newErrors.email = emailValidation.message;
+      }
     }
     
     // Password validation
@@ -124,7 +129,9 @@ const RegisterPage = () => {
         username: formData.username,
         email: formData.email,
         password: formData.password,
-        password2: formData.password_confirm // Backend expects password2
+        password_confirm: formData.password_confirm,
+        first_name: formData.first_name.trim() || '',
+        last_name: formData.last_name.trim() || ''
       };
 
       const result = await register(registrationData);
@@ -223,7 +230,7 @@ const RegisterPage = () => {
                       value={formData.email}
                       onChange={handleChange}
                       isInvalid={!!errors.email}
-                      placeholder="your.email@example.com"
+                      placeholder="your.email@ssct.edu.ph"
                       disabled={loading}
                     />
                     {errors.email && (
@@ -233,8 +240,52 @@ const RegisterPage = () => {
                     )}
                     <Form.Text className="text-muted">
                       <i className="fas fa-lock"></i>
-                      Email cannot be changed after registration
+                      Email must be from snsu.edu.ph or scct.edu.ph domain
                     </Form.Text>
+                  </Form.Group>
+                </div>
+
+                <div className="auth-two-column">
+                  <Form.Group className="form-group">
+                    <Form.Label>
+                      <i className="fas fa-id-card"></i>
+                      First Name
+                    </Form.Label>
+                    <Form.Control
+                      type="text"
+                      name="first_name"
+                      value={formData.first_name}
+                      onChange={handleChange}
+                      isInvalid={!!errors.first_name}
+                      placeholder="Your first name (optional)"
+                      disabled={loading}
+                    />
+                    {errors.first_name && (
+                      <div className="invalid-feedback d-block">
+                        {errors.first_name}
+                      </div>
+                    )}
+                  </Form.Group>
+
+                  <Form.Group className="form-group">
+                    <Form.Label>
+                      <i className="fas fa-id-card"></i>
+                      Last Name
+                    </Form.Label>
+                    <Form.Control
+                      type="text"
+                      name="last_name"
+                      value={formData.last_name}
+                      onChange={handleChange}
+                      isInvalid={!!errors.last_name}
+                      placeholder="Your last name (optional)"
+                      disabled={loading}
+                    />
+                    {errors.last_name && (
+                      <div className="invalid-feedback d-block">
+                        {errors.last_name}
+                      </div>
+                    )}
                   </Form.Group>
                 </div>
 

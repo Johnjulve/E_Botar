@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
+from django.core.cache import cache
 import os
 
 load_dotenv() 
@@ -110,6 +111,17 @@ DATABASES = {
     }
 }
 
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "unique-ebotar-cache",
+        "TIMEOUT": None,      # use cache.set timeout values (None = never expire)
+        "OPTIONS": {
+            "MAX_ENTRIES": 300,  # tweak if you want more/less entries per process
+        },
+    }
+}
+
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -150,6 +162,8 @@ STATIC_URL = 'static/'
 # Media files (User uploads)
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+BACKEND_BASE_URL = os.getenv('BACKEND_BASE_URL', None)
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

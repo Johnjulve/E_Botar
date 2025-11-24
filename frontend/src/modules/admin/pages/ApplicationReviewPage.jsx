@@ -94,23 +94,59 @@ const ApplicationReviewPage = () => {
   };
 
   const submitReview = async () => {
+    // Validate review notes for rejection
+    if (reviewAction === 'reject' && !reviewNotes.trim()) {
+      setError('Review notes are required when rejecting an application.');
+      return;
+    }
+
+    let hasError = false;
+    
     try {
       setSubmitting(true);
       setError('');
 
       await candidateService.reviewApplication(id, {
         action: reviewAction,
-        review_notes: reviewNotes
+        review_notes: reviewNotes.trim() || ''
       });
 
-      // Redirect back to applications list
+      // Redirect back to applications list on success
       navigate('/admin/applications');
     } catch (error) {
+      hasError = true;
       console.error('Error reviewing application:', error);
-      setError(error.response?.data?.detail || 'Failed to submit review');
+      const errorData = error.response?.data || {};
+      
+      // Handle different error formats
+      let errorMessage = 'Failed to submit review';
+      
+      if (errorData.detail) {
+        errorMessage = errorData.detail;
+      } else if (errorData.review_notes) {
+        // Field-specific error
+        errorMessage = Array.isArray(errorData.review_notes) 
+          ? errorData.review_notes.join(', ') 
+          : errorData.review_notes;
+      } else if (errorData.non_field_errors) {
+        errorMessage = Array.isArray(errorData.non_field_errors)
+          ? errorData.non_field_errors.join(', ')
+          : errorData.non_field_errors;
+      } else if (typeof errorData === 'object') {
+        // Try to extract first error message from any field
+        const firstError = Object.values(errorData).find(val => val);
+        if (firstError) {
+          errorMessage = Array.isArray(firstError) ? firstError[0] : firstError;
+        }
+      }
+      
+      setError(errorMessage);
     } finally {
       setSubmitting(false);
-      setShowModal(false);
+      // Don't close modal on error so user can fix and retry
+      if (!hasError) {
+        setShowModal(false);
+      }
     }
   };
 
@@ -497,6 +533,9 @@ const ApplicationReviewPage = () => {
             color: '#1f2937'
           }}>
             Review Notes
+            {reviewAction === 'reject' && (
+              <span style={{ color: '#dc2626', marginLeft: '0.25rem' }}>*</span>
+            )}
           </label>
           <textarea
             style={{
@@ -511,8 +550,20 @@ const ApplicationReviewPage = () => {
             rows="4"
             value={reviewNotes}
             onChange={(e) => setReviewNotes(e.target.value)}
-            placeholder={`Add notes about why you ${reviewAction === 'approve' ? 'approved' : 'rejected'} this application...`}
+            placeholder={reviewAction === 'reject' 
+              ? 'Please provide a reason for rejecting this application (required)...'
+              : `Add notes about why you approved this application (optional)...`}
+            required={reviewAction === 'reject'}
           />
+          {reviewAction === 'reject' && (
+            <p style={{
+              margin: '0.5rem 0 0',
+              fontSize: '0.85rem',
+              color: '#6b7280'
+            }}>
+              Review notes are required when rejecting an application.
+            </p>
+          )}
         </div>
 
         <div style={{

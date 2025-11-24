@@ -1,10 +1,11 @@
 from rest_framework import generics, status, viewsets
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth.models import User
-from .models import UserProfile, Department, Course
+from .models import UserProfile, Program
 from apps.common.models import ActivityLog
+from apps.common.permissions import IsSuperUser
 from .serializers import (
     UserSerializer, UserProfileSerializer, UserRegistrationSerializer,
     DepartmentSerializer, CourseSerializer
@@ -27,7 +28,7 @@ def health_check(request):
 def current_user(request):
     """Get or update current authenticated user's profile"""
     if request.method == 'GET':
-        user_serializer = UserSerializer(request.user)
+        user_serializer = UserSerializer(request.user, context={'request': request})
         try:
             profile = request.user.profile
             profile_serializer = UserProfileSerializer(profile, context={'request': request})
@@ -61,7 +62,7 @@ def current_user(request):
                 user_data['email'] = request.data['email']
         
         if user_data:
-            user_serializer = UserSerializer(user, data=user_data, partial=True)
+            user_serializer = UserSerializer(user, data=user_data, partial=True, context={'request': request})
             if user_serializer.is_valid():
                 user_serializer.save()
             else:
@@ -117,7 +118,7 @@ def current_user(request):
         profile.refresh_from_db()
         
         # Return updated data with request context for avatar URL
-        user_serializer = UserSerializer(user)
+        user_serializer = UserSerializer(user, context={'request': request})
         profile_serializer = UserProfileSerializer(profile, context={'request': request})
         
         return Response({
@@ -140,7 +141,7 @@ class UserRegistrationView(generics.CreateAPIView):
         
         return Response({
             'message': 'User registered successfully',
-            'user': UserSerializer(user).data
+            'user': UserSerializer(user, context={'request': request}).data
         }, status=status.HTTP_201_CREATED)
 
 
@@ -151,12 +152,12 @@ class UserProfileViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        # Users can only access their own profile unless staff
-        if self.request.user.is_staff:
+        # Users can only access their own profile unless staff or superuser
+        if self.request.user.is_staff or self.request.user.is_superuser:
             return UserProfile.objects.all()
         return UserProfile.objects.filter(user=self.request.user)
     
-    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
+    @action(detail=True, methods=['post'], permission_classes=[IsSuperUser])
     def toggle_active(self, request, pk=None):
         """Toggle user's active status (admin only)"""
         profile = self.get_object()
@@ -206,7 +207,85 @@ class UserProfileViewSet(viewsets.ModelViewSet):
             'profile': serializer.data
         }, status=status.HTTP_200_OK)
     
-    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
+    @action(detail=True, methods=['post'], permission_classes=[IsSuperUser])
+    def update_role(self, request, pk=None):
+        """Update user's role (admin only)"""
+        profile = self.get_object()
+        user = profile.user
+        
+        # Get new role from request
+        new_role = request.data.get('role')
+        
+        if not new_role:
+            return Response({
+                'error': 'role is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if new_role not in ['student', 'staff', 'admin']:
+            return Response({
+                'error': 'Invalid role. Must be one of: student, staff, admin'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Prevent changing own role
+        if user == request.user:
+            return Response({
+                'error': 'You cannot change your own role'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Get client IP
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip_address = x_forwarded_for.split(',')[0]
+        else:
+            ip_address = request.META.get('REMOTE_ADDR')
+        
+        # Store old role for logging
+        old_role = 'admin' if user.is_superuser else ('staff' if user.is_staff else 'student')
+        
+        # Update role based on new_role
+        if new_role == 'admin':
+            user.is_superuser = True
+            user.is_staff = True
+        elif new_role == 'staff':
+            user.is_superuser = False
+            user.is_staff = True
+        else:  # student
+            user.is_superuser = False
+            user.is_staff = False
+        
+        user.save()
+        
+        # Log the activity
+        student_id = getattr(profile, 'student_id', None)
+        target_identifier = student_id if student_id else user.username
+        
+        ActivityLog.objects.create(
+            user=request.user,
+            action='update',
+            resource_type='User',
+            resource_id=user.id,
+            description=f"Admin {request.user.username} changed role for user {target_identifier} ({user.get_full_name()}) from {old_role} to {new_role}",
+            ip_address=ip_address,
+            metadata={
+                'target_user_id': user.id,
+                'target_student_id': student_id,
+                'target_username': user.username,
+                'old_role': old_role,
+                'new_role': new_role,
+                'admin_username': request.user.username,
+                'action_type': 'role_update'
+            }
+        )
+        
+        # Return updated profile with user data
+        serializer = self.get_serializer(profile, context={'request': request})
+        
+        return Response({
+            'message': f"User role updated to {new_role} successfully",
+            'profile': serializer.data
+        }, status=status.HTTP_200_OK)
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsSuperUser])
     def reset_password(self, request, pk=None):
         """Reset user's password (admin only)"""
         profile = self.get_object()
@@ -264,19 +343,26 @@ class UserProfileViewSet(viewsets.ModelViewSet):
 
 class DepartmentViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for listing departments"""
-    queryset = Department.objects.filter(is_active=True)
     serializer_class = DepartmentSerializer
     permission_classes = [AllowAny]
+    
+    def get_queryset(self):
+        return Program.objects.filter(
+            program_type=Program.ProgramType.DEPARTMENT,
+            is_active=True
+        )
 
 
 class CourseViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for listing courses"""
-    queryset = Course.objects.filter(is_active=True)
     serializer_class = CourseSerializer
     permission_classes = [AllowAny]
     
     def get_queryset(self):
-        queryset = super().get_queryset()
+        queryset = Program.objects.filter(
+            program_type=Program.ProgramType.COURSE,
+            is_active=True
+        )
         department_id = self.request.query_params.get('department', None)
         if department_id:
             queryset = queryset.filter(department_id=department_id)

@@ -1,21 +1,13 @@
 from django.contrib import admin
-from .models import Department, Course, UserProfile
+from .models import Program, UserProfile
 
 
-@admin.register(Department)
-class DepartmentAdmin(admin.ModelAdmin):
-    list_display = ['name', 'code', 'is_active', 'created_at']
-    list_filter = ['is_active', 'created_at']
+@admin.register(Program)
+class ProgramAdmin(admin.ModelAdmin):
+    list_display = ['name', 'code', 'program_type', 'department', 'is_active', 'created_at']
+    list_filter = ['program_type', 'is_active', 'created_at']
     search_fields = ['name', 'code', 'description']
-    ordering = ['name']
-
-
-@admin.register(Course)
-class CourseAdmin(admin.ModelAdmin):
-    list_display = ['name', 'code', 'department', 'is_active', 'created_at']
-    list_filter = ['department', 'is_active', 'created_at']
-    search_fields = ['name', 'code', 'description', 'department__name']
-    ordering = ['department__name', 'name']
+    ordering = ['program_type', 'name']
 
 
 @admin.register(UserProfile)

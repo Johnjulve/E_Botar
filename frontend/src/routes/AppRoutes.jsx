@@ -126,11 +126,11 @@ const AppRoutes = () => {
         } 
       />
 
-      {/* Admin Routes (require admin) */}
+      {/* Admin/Staff Routes - Staff can access dashboard, elections, and applications */}
       <Route 
         path="/admin" 
         element={
-          <ProtectedRoute requireAdmin>
+          <ProtectedRoute requireStaff>
             <AdminDashboardPage />
           </ProtectedRoute>
         } 
@@ -138,7 +138,7 @@ const AppRoutes = () => {
       <Route 
         path="/admin/elections" 
         element={
-          <ProtectedRoute requireAdmin>
+          <ProtectedRoute requireStaff>
             <ElectionManagementPage />
           </ProtectedRoute>
         } 
@@ -146,7 +146,7 @@ const AppRoutes = () => {
       <Route 
         path="/admin/elections/create" 
         element={
-          <ProtectedRoute requireAdmin>
+          <ProtectedRoute requireStaff>
             <ElectionFormPage />
           </ProtectedRoute>
         } 
@@ -154,7 +154,7 @@ const AppRoutes = () => {
       <Route 
         path="/admin/elections/:id/edit" 
         element={
-          <ProtectedRoute requireAdmin>
+          <ProtectedRoute requireStaff>
             <ElectionFormPage />
           </ProtectedRoute>
         } 
@@ -162,7 +162,7 @@ const AppRoutes = () => {
       <Route 
         path="/admin/applications" 
         element={
-          <ProtectedRoute requireAdmin>
+          <ProtectedRoute requireStaff>
             <ApplicationsListPage />
           </ProtectedRoute>
         } 
@@ -170,11 +170,12 @@ const AppRoutes = () => {
       <Route 
         path="/admin/applications/:id" 
         element={
-          <ProtectedRoute requireAdmin>
+          <ProtectedRoute requireStaff>
             <ApplicationReviewPage />
           </ProtectedRoute>
         } 
       />
+      {/* Admin-only Routes - Only superusers can access */}
       <Route 
         path="/admin/users" 
         element={

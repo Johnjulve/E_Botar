@@ -1,32 +1,75 @@
 from django.contrib.auth.models import User
+from django.conf import settings
 from rest_framework import serializers
-from .models import UserProfile, Department, Course
+from .models import UserProfile, Program
 
 
 class DepartmentSerializer(serializers.ModelSerializer):
-    """Serializer for Department model"""
+    """Serializer for department-type programs"""
     class Meta:
-        model = Department
+        model = Program
         fields = ['id', 'name', 'code', 'description', 'is_active', 'created_at', 'updated_at']
         read_only_fields = ['created_at', 'updated_at']
 
 
 class CourseSerializer(serializers.ModelSerializer):
-    """Serializer for Course model"""
+    """Serializer for course-type programs"""
+    department = serializers.IntegerField(source='department_id', read_only=True)
     department_name = serializers.CharField(source='department.name', read_only=True)
     
     class Meta:
-        model = Course
-        fields = ['id', 'department', 'department_name', 'name', 'code', 'description', 'is_active', 'created_at', 'updated_at']
-        read_only_fields = ['created_at', 'updated_at']
+        model = Program
+        fields = [
+            'id', 'department', 'department_name',
+            'name', 'code', 'description',
+            'is_active', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['created_at', 'updated_at', 'department', 'department_name']
 
 
 class UserSerializer(serializers.ModelSerializer):
     """Serializer for User model"""
+    role = serializers.SerializerMethodField()
+    
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'is_staff', 'is_active', 'date_joined']
-        read_only_fields = ['id', 'date_joined', 'is_staff']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'is_staff', 'is_superuser', 'is_active', 'date_joined', 'role']
+        read_only_fields = ['id', 'date_joined', 'role']
+    
+    def get_role(self, obj):
+        """Determine user role based on is_staff and is_superuser"""
+        if obj.is_superuser:
+            return 'admin'
+        elif obj.is_staff:
+            return 'staff'
+        else:
+            return 'student'
+    
+    def to_representation(self, instance):
+        """Hide sensitive fields from non-admin users"""
+        representation = super().to_representation(instance)
+        request = self.context.get('request')
+        
+        if request and request.user:
+            # Users can always see their own is_staff and is_superuser fields
+            # Admins can see all users' fields
+            # Staff/students can only see their own fields
+            if request.user.is_superuser:
+                # Admin can see all fields for all users
+                pass
+            elif request.user.id == instance.id:
+                # User viewing their own profile - can see their own fields
+                pass
+            else:
+                # Non-admin viewing another user's profile - hide sensitive fields
+                representation.pop('is_staff', None)
+                representation.pop('is_superuser', None)
+        else:
+            # No request context - hide sensitive fields
+            representation.pop('is_staff', None)
+            representation.pop('is_superuser', None)
+        
+        return representation
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -55,8 +98,18 @@ class UserProfileSerializer(serializers.ModelSerializer):
         """Return full URL for avatar"""
         if obj.avatar:
             request = self.context.get('request')
+            
+            # Use BACKEND_BASE_URL if configured (for remote access)
+            if hasattr(settings, 'BACKEND_BASE_URL') and settings.BACKEND_BASE_URL:
+                base_url = settings.BACKEND_BASE_URL.rstrip('/')
+                media_url = obj.avatar.url.lstrip('/')
+                return f"{base_url}/{media_url}"
+            
+            # Fallback to request.build_absolute_uri() if available
             if request:
                 return request.build_absolute_uri(obj.avatar.url)
+            
+            # Last resort: return relative URL
             return obj.avatar.url
         return None
     
@@ -94,6 +147,17 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"password": "Passwords must match."})
         return data
     
+    def validate_email(self, value):
+        """Validate email domain"""
+        allowed_domains = ['snsu.edu.ph', 'ssct.edu.ph']  # Add your allowed domains
+        email_domain = value.split('@')[-1].lower()
+        
+        if email_domain not in allowed_domains:
+            raise serializers.ValidationError(
+                f"Email must be from an allowed domain. Allowed domains: {', '.join(allowed_domains)}"
+            )
+        return value
+
     def create(self, validated_data):
         validated_data.pop('password_confirm')
         user = User.objects.create_user(

@@ -75,6 +75,13 @@ export const authService = {
     });
   },
 
+  // Update user role (admin only)
+  updateUserRole: (profileId, role) => {
+    return api.post(`/auth/profiles/${profileId}/update_role/`, {
+      role: role
+    });
+  },
+
   // Logout helper (clears local storage)
   logout: () => {
     localStorage.clear();
