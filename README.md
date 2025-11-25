@@ -46,8 +46,55 @@
 
 E-Botar is a comprehensive electronic voting system designed specifically for student government elections. Built on blockchain-inspired security principles and privacy-preserving technologies, it provides a transparent, verifiable, and user-friendly platform for democratic participation in educational institutions.
 
-> 📖 **For detailed overview, research foundation, and architecture**, see [Information.md](Information.md#overview)
+### Vision
+To modernize student elections by providing a secure, accessible, and efficient digital voting platform that maintains the integrity of the democratic process while enhancing voter participation and transparency.
 
+### Thesis Research
+This system is developed as part of academic research on **"Blockchain-Inspired Electronic Voting Systems for Student Government Elections"**, focusing on:
+- Privacy-preserving vote anonymization
+- Cryptographic receipt verification
+- Transparent audit trails without compromising voter privacy
+- Modern web architecture for scalability and maintainability
+
+---
+
+## 📚 Research Foundation
+
+E-Botar implements key findings from extensive research on electronic voting systems:
+
+### Core Research Principles
+
+**1. Privacy & Anonymity**
+- Immediate vote anonymization upon submission
+- Separation of voter identity from vote choices
+- Encrypted ballot storage for personal verification
+- No linkage between votes and voters in tallying
+
+**2. Verifiability**
+- Individual verifiability through encrypted receipts
+- Voters can verify their ballot was recorded correctly
+- Audit trail without compromising privacy
+- Transparent result computation
+
+**3. Security by Design**
+- Multi-layer encryption for sensitive data
+- JWT-based stateless authentication
+- Role-based access control (RBAC)
+- Comprehensive security event logging
+
+**4. Usability & Accessibility**
+- Intuitive user interface for all stakeholders
+- Mobile-responsive design
+- Clear feedback and guidance
+- Accessibility standards compliance
+
+### Research-Driven Architecture
+
+The system architecture is informed by academic research on:
+- **Blockchain concepts**: Immutability, transparency, decentralization principles
+- **Cryptographic voting protocols**: Receipt-based verification, homomorphic properties
+- **Privacy-preserving systems**: Anonymous credential systems, mix networks
+- **Modern web architecture**: RESTful APIs, microservices patterns, stateless authentication
 ---
 
 ## ✨ Key Features
@@ -210,10 +257,6 @@ E-Botar implements a **three-tier role system**:
 - **[README.md](README.md)** - Quick start guide (this file)
 - **[Information.md](Information.md)** - Complete system information and technical details
 - **[CHANGELOG.md](CHANGELOG.md)** - Version history and changes
-- **[Phase_Implementation.md](Phase_Implementation.md)** - Implementation roadmap and progress
-- **[ADMIN_DASHBOARD_SPEC.md](ADMIN_DASHBOARD_SPEC.md)** - React admin dashboard specification
-- **[PHASE1_COMPLETION_SUMMARY.md](PHASE1_COMPLETION_SUMMARY.md)** - Phase 1 completion details
-- **[PHASE2_DEFERRED_FEATURES.md](PHASE2_DEFERRED_FEATURES.md)** - Features for future implementation
 
 ### Quick Reference
 
