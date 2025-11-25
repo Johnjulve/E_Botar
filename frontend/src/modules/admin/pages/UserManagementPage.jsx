@@ -89,13 +89,15 @@ const UserManagementPage = () => {
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all'); // all, admin, student, verified
+  const [filter, setFilter] = useState('all'); // all, admin, staff, student, verified
   const [selectedUser, setSelectedUser] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showRoleModal, setShowRoleModal] = useState(false);
   const [generatedPassword, setGeneratedPassword] = useState('');
   const [passwordCopied, setPasswordCopied] = useState(false);
+  const [selectedRole, setSelectedRole] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
@@ -126,7 +128,9 @@ const UserManagementPage = () => {
     
     // Apply type filter
     if (filter === 'admin') {
-      filtered = filtered.filter(u => u.user?.is_staff || u.user?.is_superuser);
+      filtered = filtered.filter(u => u.user?.is_superuser);
+    } else if (filter === 'staff') {
+      filtered = filtered.filter(u => u.user?.is_staff && !u.user?.is_superuser);
     } else if (filter === 'student') {
       filtered = filtered.filter(u => !u.user?.is_staff && !u.user?.is_superuser);
     } else if (filter === 'verified') {
@@ -245,7 +249,8 @@ const UserManagementPage = () => {
     return <LoadingSpinner fullScreen text="Loading users..." />;
   }
 
-  const adminCount = users.filter(u => u.user?.is_staff || u.user?.is_superuser).length;
+  const adminCount = users.filter(u => u.user?.is_superuser).length;
+  const staffCount = users.filter(u => u.user?.is_staff && !u.user?.is_superuser).length;
   const studentCount = users.filter(u => !u.user?.is_staff && !u.user?.is_superuser).length;
   const verifiedCount = users.filter(u => u.is_verified || u.user?.is_active).length;
 
@@ -276,6 +281,14 @@ const UserManagementPage = () => {
           </div>
           <div className="admin-stat-value">{adminCount}</div>
           <div className="admin-stat-label">Administrators</div>
+        </div>
+
+        <div className="admin-stat-card">
+          <div className="admin-stat-icon info" style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#2563eb' }}>
+            <Icon name="users" size={24} />
+          </div>
+          <div className="admin-stat-value">{staffCount}</div>
+          <div className="admin-stat-label">Staff</div>
         </div>
 
         <div className="admin-stat-card">
@@ -320,6 +333,18 @@ const UserManagementPage = () => {
         >
           <Icon name="shield" size={16} />
           Admins ({adminCount})
+        </button>
+        <button
+          onClick={() => setFilter('staff')}
+          className={`admin-filter-btn ${filter === 'staff' ? 'active' : ''}`}
+          style={{
+            background: filter === 'staff' ? '#3b82f6' : 'white',
+            color: filter === 'staff' ? 'white' : '#374151',
+            borderColor: filter === 'staff' ? '#3b82f6' : '#d1d5db'
+          }}
+        >
+          <Icon name="users" size={16} />
+          Staff ({staffCount})
         </button>
         <button
           onClick={() => setFilter('student')}
@@ -461,7 +486,7 @@ const UserManagementPage = () => {
                     
                     {/* Role */}
                     <td style={{ padding: '1rem' }}>
-                      {user.user?.is_staff || user.user?.is_superuser ? (
+                      {user.user?.is_superuser ? (
                         <span style={{
                           display: 'inline-flex',
                           alignItems: 'center',
@@ -475,6 +500,21 @@ const UserManagementPage = () => {
                         }}>
                           <Icon name="shield" size={14} />
                           Admin
+                        </span>
+                      ) : user.user?.is_staff ? (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.25rem',
+                          padding: '0.25rem 0.75rem',
+                          background: 'rgba(59, 130, 246, 0.15)',
+                          color: '#1e40af',
+                          borderRadius: '9999px',
+                          fontSize: '0.85rem',
+                          fontWeight: 500
+                        }}>
+                          <Icon name="users" size={14} />
+                          Staff
                         </span>
                       ) : (
                         <span style={{
@@ -562,6 +602,37 @@ const UserManagementPage = () => {
                           }}
                         >
                           <Icon name={user.user?.is_active ? 'toggleRight' : 'toggleLeft'} size={18} />
+                        </button>
+                        
+                        <button
+                          onClick={() => {
+                            setSelectedUser(user);
+                            setSelectedRole(user.user?.is_superuser ? 'admin' : (user.user?.is_staff ? 'staff' : 'student'));
+                            setShowRoleModal(true);
+                          }}
+                          style={{
+                            padding: '0.5rem',
+                            background: 'transparent',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '0.375rem',
+                            cursor: 'pointer',
+                            color: '#8b5cf6',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.15s'
+                          }}
+                          title="Change Role"
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = '#f5f3ff';
+                            e.currentTarget.style.borderColor = '#8b5cf6';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'transparent';
+                            e.currentTarget.style.borderColor = '#d1d5db';
+                          }}
+                        >
+                          <Icon name="shield" size={18} />
                         </button>
                         
                         <button
@@ -769,6 +840,105 @@ const UserManagementPage = () => {
               onClick={handleConfirmPasswordReset}
             >
               Confirm Reset
+            </Button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Role Management Modal */}
+      {showRoleModal && (
+        <Modal
+          show={showRoleModal}
+          onClose={() => {
+            setShowRoleModal(false);
+            setSelectedUser(null);
+            setSelectedRole('');
+          }}
+          title="Change User Role"
+        >
+          <div>
+            <p style={{ marginBottom: '1rem' }}>
+              Change role for <strong>{selectedUser?.user?.first_name} {selectedUser?.user?.last_name}</strong>
+            </p>
+            
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{
+                display: 'block',
+                fontWeight: 600,
+                marginBottom: '0.5rem',
+                color: '#1f2937'
+              }}>
+                Select Role
+              </label>
+              <select
+                value={selectedRole}
+                onChange={(e) => setSelectedRole(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '0.5rem',
+                  fontSize: '0.95rem',
+                  fontFamily: 'inherit',
+                  color: '#374151',
+                  background: 'white'
+                }}
+              >
+                <option value="student">Student</option>
+                <option value="staff">Staff</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+
+            <div style={{
+              background: '#f0f9ff',
+              border: '1px solid #bfdbfe',
+              borderRadius: '0.5rem',
+              padding: '1rem',
+              marginBottom: '1rem'
+            }}>
+              <p style={{
+                margin: 0,
+                fontSize: '0.85rem',
+                color: '#1e40af',
+                lineHeight: 1.6
+              }}>
+                <strong>Role Permissions:</strong><br />
+                <strong>Student:</strong> Can vote and apply as candidate<br />
+                <strong>Staff:</strong> Can manage elections, applications, and view results<br />
+                <strong>Admin:</strong> Full system access including user management
+              </p>
+            </div>
+          </div>
+          
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+            <Button 
+              variant="secondary" 
+              onClick={() => {
+                setShowRoleModal(false);
+                setSelectedUser(null);
+                setSelectedRole('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="primary" 
+              onClick={async () => {
+                try {
+                  await authService.updateUserRole(selectedUser.id, selectedRole);
+                  alert(`User role updated to ${selectedRole} successfully`);
+                  setShowRoleModal(false);
+                  setSelectedUser(null);
+                  setSelectedRole('');
+                  await fetchUsers();
+                } catch (error) {
+                  console.error('Error updating role:', error);
+                  alert(error.response?.data?.error || 'Failed to update role. Please try again.');
+                }
+              }}
+            >
+              Update Role
             </Button>
           </div>
         </Modal>

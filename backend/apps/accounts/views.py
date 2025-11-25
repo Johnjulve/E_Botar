@@ -207,6 +207,84 @@ class UserProfileViewSet(viewsets.ModelViewSet):
         }, status=status.HTTP_200_OK)
     
     @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
+    def update_role(self, request, pk=None):
+        """Update user's role (admin only)"""
+        profile = self.get_object()
+        user = profile.user
+        
+        # Get new role from request
+        new_role = request.data.get('role')
+        
+        if not new_role:
+            return Response({
+                'error': 'role is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if new_role not in ['student', 'staff', 'admin']:
+            return Response({
+                'error': 'Invalid role. Must be one of: student, staff, admin'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Prevent changing own role
+        if user == request.user:
+            return Response({
+                'error': 'You cannot change your own role'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Get client IP
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip_address = x_forwarded_for.split(',')[0]
+        else:
+            ip_address = request.META.get('REMOTE_ADDR')
+        
+        # Store old role for logging
+        old_role = 'admin' if user.is_superuser else ('staff' if user.is_staff else 'student')
+        
+        # Update role based on new_role
+        if new_role == 'admin':
+            user.is_superuser = True
+            user.is_staff = True
+        elif new_role == 'staff':
+            user.is_superuser = False
+            user.is_staff = True
+        else:  # student
+            user.is_superuser = False
+            user.is_staff = False
+        
+        user.save()
+        
+        # Log the activity
+        student_id = getattr(profile, 'student_id', None)
+        target_identifier = student_id if student_id else user.username
+        
+        ActivityLog.objects.create(
+            user=request.user,
+            action='update',
+            resource_type='User',
+            resource_id=user.id,
+            description=f"Admin {request.user.username} changed role for user {target_identifier} ({user.get_full_name()}) from {old_role} to {new_role}",
+            ip_address=ip_address,
+            metadata={
+                'target_user_id': user.id,
+                'target_student_id': student_id,
+                'target_username': user.username,
+                'old_role': old_role,
+                'new_role': new_role,
+                'admin_username': request.user.username,
+                'action_type': 'role_update'
+            }
+        )
+        
+        # Return updated profile with user data
+        serializer = self.get_serializer(profile, context={'request': request})
+        
+        return Response({
+            'message': f"User role updated to {new_role} successfully",
+            'profile': serializer.data
+        }, status=status.HTTP_200_OK)
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
     def reset_password(self, request, pk=None):
         """Reset user's password (admin only)"""
         profile = self.get_object()

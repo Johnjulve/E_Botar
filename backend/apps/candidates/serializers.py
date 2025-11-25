@@ -211,12 +211,15 @@ class CandidateApplicationCreateSerializer(serializers.ModelSerializer):
 class CandidateApplicationReviewSerializer(serializers.Serializer):
     """Serializer for reviewing applications"""
     action = serializers.ChoiceField(choices=['approve', 'reject'])
-    review_notes = serializers.CharField(required=False, allow_blank=True)
+    review_notes = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     
     def validate(self, data):
-        if data['action'] == 'reject' and not data.get('review_notes'):
-            raise serializers.ValidationError({
-                'review_notes': 'Review notes are required when rejecting an application.'
-            })
+        # Require review_notes when rejecting (must be non-empty)
+        if data['action'] == 'reject':
+            review_notes = data.get('review_notes', '').strip() if data.get('review_notes') else ''
+            if not review_notes:
+                raise serializers.ValidationError({
+                    'review_notes': 'Review notes are required when rejecting an application.'
+                })
         return data
 

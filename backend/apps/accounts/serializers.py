@@ -29,10 +29,21 @@ class CourseSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     """Serializer for User model"""
+    role = serializers.SerializerMethodField()
+    
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'is_staff', 'is_active', 'date_joined']
-        read_only_fields = ['id', 'date_joined', 'is_staff']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'is_staff', 'is_superuser', 'is_active', 'date_joined', 'role']
+        read_only_fields = ['id', 'date_joined', 'role']
+    
+    def get_role(self, obj):
+        """Determine user role based on is_staff and is_superuser"""
+        if obj.is_superuser:
+            return 'admin'
+        elif obj.is_staff:
+            return 'staff'
+        else:
+            return 'student'
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
