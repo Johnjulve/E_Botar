@@ -1,6 +1,6 @@
 # E-Botar - System Information
 
-**Version 0.6.3** | Complete system documentation and technical details
+**Version 0.6.4** | Complete system documentation and technical details
 
 [![Django](https://img.shields.io/badge/Django-5.2.8-green.svg)](https://www.djangoproject.com/)
 [![DRF](https://img.shields.io/badge/DRF-3.16.1-red.svg)](https://www.django-rest-framework.org/)
@@ -11,7 +11,7 @@
 
 ## 📖 Table of Contents
 
-- [Release Highlights (0.6.3)](#-release-highlights-063)
+- [Release Highlights (0.6.4)](#-release-highlights-064)
 - [Overview](#overview)
 - [Research Foundation](#research-foundation)
 - [Key Features](#key-features)
@@ -27,8 +27,13 @@
 
 ---
 
-## 🚀 Release Highlights (0.6.3)
+## 🚀 Release Highlights (0.6.4)
 
+- **Fixed staff access to admin panels**: Staff users can now properly access admin panels they're allowed to use (election management, application review). Admin-only features (user management, system logs) remain restricted to superusers.
+- **Enhanced permission system**: Created custom permission classes (`IsSuperUser`, `IsStaffOrSuperUser`) to properly distinguish between staff and admin roles, ensuring staff cannot access admin-only privileges.
+- **Improved data privacy**: Sensitive user fields (`is_staff`, `is_superuser`) are now properly hidden from non-admin users in API responses, while users can still see their own fields for role checks.
+
+### Previous Highlights (0.6.3)
 - **Three-tier role system**: Implemented comprehensive role-based access control with Student, Staff, and Admin roles. Admins can now manage user roles through the user management interface.
 - **Role management interface**: Added role change functionality with visual role badges, filtering, and permission descriptions for better user administration.
 - **Enhanced user management**: Updated user management page with Staff role support, role statistics, and intuitive role assignment workflow.
@@ -648,15 +653,15 @@ Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGc...
 | `/token/refresh/` | POST | Public | Refresh JWT token |
 | `/me/` | GET | Authenticated | Current user profile |
 | `/departments/` | GET | Public | List departments |
-| `/departments/` | POST | Admin | Create department |
+| `/departments/` | POST | Superuser | Create department |
 | `/courses/` | GET | Public | List courses |
-| `/courses/` | POST | Admin | Create course |
-| `/profiles/` | GET | Authenticated | List user profiles |
+| `/courses/` | POST | Superuser | Create course |
+| `/profiles/` | GET | Authenticated | List user profiles (staff/admin see all) |
 | `/profiles/{id}/` | GET | Authenticated | Get user profile |
 | `/profiles/{id}/` | PATCH | Authenticated | Update profile |
-| `/profiles/{id}/toggle_active/` | POST | Admin | Toggle user active status |
-| `/profiles/{id}/reset_password/` | POST | Admin | Reset user password |
-| `/profiles/{id}/update_role/` | POST | Admin | Update user role (Student/Staff/Admin) |
+| `/profiles/{id}/toggle_active/` | POST | Superuser | Toggle user active status |
+| `/profiles/{id}/reset_password/` | POST | Superuser | Reset user password |
+| `/profiles/{id}/update_role/` | POST | Superuser | Update user role (Student/Staff/Admin) |
 
 #### 2. Elections Module (`/api/elections/`)
 
@@ -664,17 +669,17 @@ Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGc...
 |----------|--------|------|-------------|
 | `/health/` | GET | Public | Health check |
 | `/parties/` | GET | Public | List parties |
-| `/parties/` | POST | Admin | Create party |
+| `/parties/` | POST | Superuser | Create party |
 | `/positions/` | GET | Public | List positions |
-| `/positions/` | POST | Admin | Create position |
+| `/positions/` | POST | Superuser | Create position |
 | `/elections/` | GET | Public | List elections |
-| `/elections/` | POST | Admin | Create election |
+| `/elections/` | POST | Staff/Admin | Create election (staff can create) |
 | `/elections/{id}/` | GET | Public | Get election details |
 | `/elections/active/` | GET | Public | Get active elections |
 | `/elections/upcoming/` | GET | Public | Get upcoming elections |
 | `/elections/finished/` | GET | Public | Get finished elections |
-| `/elections/{id}/add_position/` | POST | Admin | Add position to election |
-| `/elections/{id}/remove_position/` | POST | Admin | Remove position from election |
+| `/elections/{id}/add_position/` | POST | Staff/Admin | Add position to election |
+| `/elections/{id}/remove_position/` | POST | Staff/Admin | Remove position from election |
 
 #### 3. Candidates Module (`/api/candidates/`)
 
@@ -687,9 +692,9 @@ Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGc...
 | `/applications/` | POST | Authenticated | Submit application |
 | `/applications/{id}/` | GET | Authenticated | Get application details |
 | `/applications/my_applications/` | GET | Authenticated | Get user's applications |
-| `/applications/pending/` | GET | Admin | Get pending applications |
-| `/applications/{id}/review/` | POST | Admin | Review application |
-| `/applications/bulk_review/` | POST | Admin | Bulk review applications |
+| `/applications/pending/` | GET | Staff/Admin | Get pending applications |
+| `/applications/{id}/review/` | POST | Staff/Admin | Review application |
+| `/applications/bulk_review/` | POST | Staff/Admin | Bulk review applications |
 | `/applications/{id}/withdraw/` | POST | Authenticated | Withdraw application |
 
 #### 4. Voting Module (`/api/voting/`)
@@ -705,7 +710,7 @@ Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGc...
 | `/receipts/verify/` | POST | Authenticated | Verify receipt code |
 | `/results/election_results/` | GET | Public* | Get election results |
 | `/results/my_vote_status/` | GET | Authenticated | Check vote status |
-| `/results/export_results/` | GET | Admin | Export results (CSV/JSON) |
+| `/results/export_results/` | GET | Superuser | Export results (CSV/JSON) |
 | `/results/statistics/` | GET | Public* | Get election statistics |
 
 *Public after election ends, Admin anytime
@@ -853,11 +858,13 @@ Response:
   - Verify own ballot using receipt code
 - **Staff** (`is_staff=True`, `is_superuser=False`):
   - All Student permissions, plus:
+  - Access Admin Dashboard
   - Manage elections (create, edit, activate/deactivate)
   - Review and approve/reject candidate applications
   - View election results and statistics
   - Manage candidates and parties
-  - View activity logs and security events
+  - View all user profiles (without sensitive fields)
+  - Cannot access: User Management, System Logs, Role Management, Password Reset, Export Results
 - **Admin** (`is_superuser=True`, `is_staff=True`):
   - All Staff permissions, plus:
   - User management (activate/deactivate users, reset passwords)
@@ -865,6 +872,7 @@ Response:
   - Full system configuration access
   - Export election results
   - Access Django admin panel
+  - View System Logs and Activity Logs
 
 ### Data Protection
 
@@ -1177,11 +1185,15 @@ pylint apps/
 
 ## 🗺️ Roadmap
 
-### Current Version: 0.6.3
+### Current Version: 0.6.4
 - ✅ Complete Backend API (50+ endpoints)
 - ✅ User authentication and profiles
 - ✅ Three-tier role system (Student, Staff, Admin)
 - ✅ Role management interface
+- ✅ Proper permission system with custom permission classes
+- ✅ Staff access to admin panels (election management, application review)
+- ✅ Admin-only restrictions (user management, system logs)
+- ✅ Data privacy protection (sensitive fields hidden from non-admins)
 - ✅ Election management
 - ✅ Candidate applications (one per election)
 - ✅ Privacy-preserving voting
@@ -1331,7 +1343,7 @@ python manage.py check
 
 ---
 
-**E-Botar v0.6.3** | Last Updated: November 25, 2025  
+**E-Botar v0.6.4** | Last Updated: November 25, 2025  
 **Status**: Backend Complete | Frontend in Development
 
 **Built with ❤️ for democratic student governance**

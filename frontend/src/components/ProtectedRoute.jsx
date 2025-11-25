@@ -8,8 +8,8 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import LoadingSpinner from './common/LoadingSpinner';
 
-const ProtectedRoute = ({ children, requireAdmin = false }) => {
-  const { isAuthenticated, isAdmin, loading } = useAuth();
+const ProtectedRoute = ({ children, requireAdmin = false, requireStaff = false }) => {
+  const { isAuthenticated, isAdmin, isStaffOrAdmin, loading } = useAuth();
 
   if (loading) {
     return <LoadingSpinner fullScreen text="Verifying authentication..." />;
@@ -19,7 +19,13 @@ const ProtectedRoute = ({ children, requireAdmin = false }) => {
     return <Navigate to="/login" replace />;
   }
 
+  // Admin-only routes (superuser only)
   if (requireAdmin && !isAdmin) {
+    return <Navigate to="/" replace />;
+  }
+
+  // Staff routes (staff or admin can access)
+  if (requireStaff && !isStaffOrAdmin) {
     return <Navigate to="/" replace />;
   }
 

@@ -1,8 +1,9 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.db import transaction
+from apps.common.permissions import IsSuperUser, IsStaffOrSuperUser
 from django.db.models import Count
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.http import HttpResponse
@@ -39,14 +40,15 @@ class BallotViewSet(viewsets.ReadOnlyModelViewSet):
     def get_permissions(self):
         if self.action in ['list', 'retrieve', 'my_ballot', 'submit']:
             return [IsAuthenticated()]
-        return [IsAdminUser()]
+        # Only superusers can access admin actions on ballots
+        return [IsSuperUser()]
     
     def get_queryset(self):
         queryset = super().get_queryset()
         user = self.request.user
         
-        # Non-staff users can only see their own ballots
-        if not user.is_staff:
+        # Non-staff/non-superuser users can only see their own ballots
+        if not (user.is_staff or user.is_superuser):
             queryset = queryset.filter(user=user)
         
         return queryset
@@ -183,14 +185,15 @@ class VoteReceiptViewSet(viewsets.ReadOnlyModelViewSet):
     def get_permissions(self):
         if self.action in ['list', 'retrieve', 'my_receipts', 'verify', 'get_votes']:
             return [IsAuthenticated()]
-        return [IsAdminUser()]
+        # Only superusers can access admin actions on receipts
+        return [IsSuperUser()]
     
     def get_queryset(self):
         queryset = super().get_queryset()
         user = self.request.user
         
-        # Non-staff users can only see their own receipts
-        if not user.is_staff:
+        # Non-staff/non-superuser users can only see their own receipts
+        if not (user.is_staff or user.is_superuser):
             queryset = queryset.filter(user=user)
         
         return queryset
@@ -400,7 +403,7 @@ class ResultsViewSet(viewsets.ViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
     
-    @action(detail=False, methods=['get'], permission_classes=[IsAdminUser])
+    @action(detail=False, methods=['get'], permission_classes=[IsSuperUser])
     def export_results(self, request):
         """Export election results in various formats"""
         election_id = request.query_params.get('election_id')

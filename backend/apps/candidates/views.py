@@ -1,9 +1,10 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.core.exceptions import ValidationError as DjangoValidationError
 from apps.common.models import ActivityLog
+from apps.common.permissions import IsSuperUser, IsStaffOrSuperUser
 from .models import Candidate, CandidateApplication
 from .serializers import (
     CandidateListSerializer, CandidateDetailSerializer,
@@ -51,8 +52,8 @@ class CandidateViewSet(viewsets.ReadOnlyModelViewSet):
         if party_id:
             queryset = queryset.filter(party_id=party_id)
         
-        # Filter active only for non-staff
-        if not self.request.user.is_staff:
+        # Filter active only for non-staff/non-superuser
+        if not (self.request.user.is_staff or self.request.user.is_superuser):
             queryset = queryset.filter(is_active=True)
         
         return queryset
@@ -84,7 +85,10 @@ class CandidateApplicationViewSet(viewsets.ModelViewSet):
         elif self.action in ['list', 'retrieve']:
             return [IsAuthenticated()]
         elif self.action in ['update', 'partial_update', 'destroy', 'review', 'bulk_review']:
-            return [IsAdminUser()]
+            # Staff can review applications, but only superusers can delete
+            if self.action == 'destroy':
+                return [IsSuperUser()]
+            return [IsStaffOrSuperUser()]
         return [IsAuthenticated()]
     
     def get_serializer_class(self):
@@ -123,14 +127,14 @@ class CandidateApplicationViewSet(viewsets.ModelViewSet):
         serializer = CandidateApplicationListSerializer(applications, many=True)
         return Response(serializer.data)
     
-    @action(detail=False, methods=['get'], permission_classes=[IsAdminUser])
+    @action(detail=False, methods=['get'], permission_classes=[IsStaffOrSuperUser])
     def pending(self, request):
-        """Get all pending applications (admin only)"""
+        """Get all pending applications (staff/admin only)"""
         pending_apps = self.get_queryset().filter(status='pending')
         serializer = self.get_serializer(pending_apps, many=True)
         return Response(serializer.data)
     
-    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
+    @action(detail=True, methods=['post'], permission_classes=[IsStaffOrSuperUser])
     def review(self, request, pk=None):
         """Review an application (approve/reject)"""
         application = self.get_object()
@@ -223,7 +227,7 @@ class CandidateApplicationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
     
-    @action(detail=False, methods=['post'], permission_classes=[IsAdminUser])
+    @action(detail=False, methods=['post'], permission_classes=[IsStaffOrSuperUser])
     def bulk_review(self, request):
         """Bulk review multiple applications"""
         application_ids = request.data.get('application_ids', [])

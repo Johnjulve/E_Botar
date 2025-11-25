@@ -44,6 +44,32 @@ class UserSerializer(serializers.ModelSerializer):
             return 'staff'
         else:
             return 'student'
+    
+    def to_representation(self, instance):
+        """Hide sensitive fields from non-admin users"""
+        representation = super().to_representation(instance)
+        request = self.context.get('request')
+        
+        if request and request.user:
+            # Users can always see their own is_staff and is_superuser fields
+            # Admins can see all users' fields
+            # Staff/students can only see their own fields
+            if request.user.is_superuser:
+                # Admin can see all fields for all users
+                pass
+            elif request.user.id == instance.id:
+                # User viewing their own profile - can see their own fields
+                pass
+            else:
+                # Non-admin viewing another user's profile - hide sensitive fields
+                representation.pop('is_staff', None)
+                representation.pop('is_superuser', None)
+        else:
+            # No request context - hide sensitive fields
+            representation.pop('is_staff', None)
+            representation.pop('is_superuser', None)
+        
+        return representation
 
 
 class UserProfileSerializer(serializers.ModelSerializer):

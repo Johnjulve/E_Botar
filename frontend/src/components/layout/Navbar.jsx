@@ -86,7 +86,7 @@ const Icon = ({ name, size = 20, className = '' }) => {
 };
 
 const Navbar = () => {
-  const { user, isAuthenticated, isAdmin, logout } = useAuth();
+  const { user, isAuthenticated, isAdmin, isStaffOrAdmin, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [showMenu, setShowMenu] = useState(false);
@@ -134,19 +134,28 @@ const Navbar = () => {
   const menuSections = useMemo(() => {
     const sections = [];
 
-    if (isAdmin) {
+    // Show admin menu for staff and admins
+    if (isStaffOrAdmin) {
+      const adminMenuItems = [
+        { key: 'admin-dashboard', label: 'Dashboard', to: '/admin' },
+        { key: 'admin-elections', label: 'Elections', to: '/admin/elections' },
+        { key: 'admin-applications', label: 'Applications', to: '/admin/applications' },
+      ];
+      
+      // Admin-only items (superuser only)
+      if (isAdmin) {
+        adminMenuItems.push(
+          { key: 'admin-users', label: 'User Management', to: '/admin/users' },
+          { key: 'admin-logs', label: 'System Logs', to: '/admin/logs' }
+        );
+      }
+      
       sections.push({
         key: 'admin',
-        label: 'Admin',
+        label: isAdmin ? 'Admin' : 'Staff',
         icon: 'settings',
         collapsible: true,
-        children: [
-          { key: 'admin-dashboard', label: 'Dashboard', to: '/admin' },
-          { key: 'admin-elections', label: 'Elections', to: '/admin/elections' },
-          { key: 'admin-applications', label: 'Applications', to: '/admin/applications' },
-          { key: 'admin-users', label: 'User Management', to: '/admin/users' },
-          { key: 'admin-logs', label: 'System Logs', to: '/admin/logs' },
-        ],
+        children: adminMenuItems,
       });
     }
 
@@ -204,7 +213,7 @@ const Navbar = () => {
     }
 
     return sections;
-  }, [isAuthenticated, isAdmin, canApplyAsCandidate]);
+  }, [isAuthenticated, isAdmin, isStaffOrAdmin, canApplyAsCandidate]);
 
   useEffect(() => {
     const activeSections = {};

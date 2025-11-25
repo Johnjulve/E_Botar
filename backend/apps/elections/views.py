@@ -1,9 +1,10 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.utils import timezone
 from apps.common.models import ActivityLog
+from apps.common.permissions import IsSuperUser, IsStaffOrSuperUser
 from .models import Party, SchoolPosition, SchoolElection, ElectionPosition
 from .serializers import (
     PartySerializer, SchoolPositionSerializer,
@@ -32,7 +33,7 @@ class PartyViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
             return [AllowAny()]
-        return [IsAdminUser()]
+        return [IsSuperUser()]
     
     def get_queryset(self):
         # Use cached method for list action
@@ -54,7 +55,7 @@ class SchoolPositionViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
             return [AllowAny()]
-        return [IsAdminUser()]
+        return [IsSuperUser()]
     
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -72,7 +73,10 @@ class SchoolElectionViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ['list', 'retrieve', 'active', 'upcoming', 'finished']:
             return [AllowAny()]
-        return [IsAdminUser()]
+        # Staff can manage elections, but only superusers can create/delete
+        if self.action in ['create', 'destroy']:
+            return [IsSuperUser()]
+        return [IsStaffOrSuperUser()]
     
     def get_serializer_class(self):
         if self.action == 'retrieve':
@@ -253,7 +257,7 @@ class SchoolElectionViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
     
-    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
+    @action(detail=True, methods=['post'], permission_classes=[IsSuperUser])
     def reject_pending_applications(self, request, pk=None):
         """Manually trigger auto-rejection of pending applications for this election"""
         election = self.get_object()

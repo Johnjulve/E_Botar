@@ -1,10 +1,11 @@
 from rest_framework import generics, status, viewsets
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth.models import User
 from .models import UserProfile, Program
 from apps.common.models import ActivityLog
+from apps.common.permissions import IsSuperUser
 from .serializers import (
     UserSerializer, UserProfileSerializer, UserRegistrationSerializer,
     DepartmentSerializer, CourseSerializer
@@ -27,7 +28,7 @@ def health_check(request):
 def current_user(request):
     """Get or update current authenticated user's profile"""
     if request.method == 'GET':
-        user_serializer = UserSerializer(request.user)
+        user_serializer = UserSerializer(request.user, context={'request': request})
         try:
             profile = request.user.profile
             profile_serializer = UserProfileSerializer(profile, context={'request': request})
@@ -61,7 +62,7 @@ def current_user(request):
                 user_data['email'] = request.data['email']
         
         if user_data:
-            user_serializer = UserSerializer(user, data=user_data, partial=True)
+            user_serializer = UserSerializer(user, data=user_data, partial=True, context={'request': request})
             if user_serializer.is_valid():
                 user_serializer.save()
             else:
@@ -117,7 +118,7 @@ def current_user(request):
         profile.refresh_from_db()
         
         # Return updated data with request context for avatar URL
-        user_serializer = UserSerializer(user)
+        user_serializer = UserSerializer(user, context={'request': request})
         profile_serializer = UserProfileSerializer(profile, context={'request': request})
         
         return Response({
@@ -140,7 +141,7 @@ class UserRegistrationView(generics.CreateAPIView):
         
         return Response({
             'message': 'User registered successfully',
-            'user': UserSerializer(user).data
+            'user': UserSerializer(user, context={'request': request}).data
         }, status=status.HTTP_201_CREATED)
 
 
@@ -151,12 +152,12 @@ class UserProfileViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        # Users can only access their own profile unless staff
-        if self.request.user.is_staff:
+        # Users can only access their own profile unless staff or superuser
+        if self.request.user.is_staff or self.request.user.is_superuser:
             return UserProfile.objects.all()
         return UserProfile.objects.filter(user=self.request.user)
     
-    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
+    @action(detail=True, methods=['post'], permission_classes=[IsSuperUser])
     def toggle_active(self, request, pk=None):
         """Toggle user's active status (admin only)"""
         profile = self.get_object()
@@ -206,7 +207,7 @@ class UserProfileViewSet(viewsets.ModelViewSet):
             'profile': serializer.data
         }, status=status.HTTP_200_OK)
     
-    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
+    @action(detail=True, methods=['post'], permission_classes=[IsSuperUser])
     def update_role(self, request, pk=None):
         """Update user's role (admin only)"""
         profile = self.get_object()
@@ -284,7 +285,7 @@ class UserProfileViewSet(viewsets.ModelViewSet):
             'profile': serializer.data
         }, status=status.HTTP_200_OK)
     
-    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
+    @action(detail=True, methods=['post'], permission_classes=[IsSuperUser])
     def reset_password(self, request, pk=None):
         """Reset user's password (admin only)"""
         profile = self.get_object()

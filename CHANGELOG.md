@@ -9,6 +9,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.6.4] - 2025-11-25
+### Fixed
+- **Staff Access to Admin Panels**: Fixed issue where staff users could not see admin panels they're allowed to access. Staff can now properly access election management and application review interfaces.
+- **Permission System**: Replaced Django's `IsAdminUser` (which checks `is_staff`) with custom permission classes to properly distinguish between staff and admin roles.
+  - Created `IsSuperUser` permission class that checks `is_superuser` for admin-only operations
+  - Created `IsStaffOrSuperUser` permission class for operations accessible to both staff and admins
+  - Updated all views to use appropriate permission classes
+
+- **Frontend Role Detection**: Fixed frontend to check `is_superuser` instead of `is_staff` for admin access, ensuring proper role-based UI rendering.
+
+- **Sensitive Data Exposure**: Fixed issue where staff users could see sensitive fields (`is_staff`, `is_superuser`) of other users. These fields are now properly hidden from non-admin users.
+
+### Changed
+- **Backend Permission Classes**:
+  - All admin-only endpoints now use `IsSuperUser` (requires `is_superuser=True`)
+  - Staff-accessible endpoints use `IsStaffOrSuperUser` (allows both staff and admin)
+  - Updated views in accounts, elections, candidates, and voting modules
+
+- **Frontend Auth Context**:
+  - `isAdmin()` now checks `is_superuser` instead of `is_staff`
+  - Added `isStaff()` function to check staff status
+  - Added `isStaffOrAdmin()` function for staff-accessible features
+
+- **Protected Routes**:
+  - Added `requireStaff` prop to `ProtectedRoute` component
+  - Staff-accessible routes (dashboard, elections, applications) use `requireStaff`
+  - Admin-only routes (user management, system logs) use `requireAdmin`
+
+- **Navbar Menu**:
+  - Shows "Admin" menu for staff and admins
+  - Displays "Staff" label for staff users, "Admin" for superusers
+  - Conditionally shows admin-only menu items (User Management, System Logs) only for superusers
+
+- **User Serializer**:
+  - Users can see their own `is_staff` and `is_superuser` fields (needed for frontend role checks)
+  - Admins can see all users' sensitive fields
+  - Non-admins viewing other users' profiles cannot see sensitive fields
+
+### Technical Details
+- Created `apps/common/permissions.py` with custom permission classes
+- Updated all ViewSets and API views to use new permission classes
+- Frontend routes properly distinguish between staff and admin access
+- API responses now filter sensitive fields based on requester's role
+- Staff users can access: Admin Dashboard, Election Management, Application Review
+- Staff users cannot access: User Management, System Logs, Role Management, Password Reset
+
+---
+
 ## [0.6.3] - 2025-11-25
 ### Added
 - **Role-Based Access Control System**:
