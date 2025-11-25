@@ -1,6 +1,6 @@
 # E-Botar - Blockchain-Inspired Electronic Voting System
 
-**Version 0.6.2** | A secure, privacy-preserving electronic voting platform for student government elections
+**Version 0.6.3** | A secure, privacy-preserving electronic voting platform for student government elections
 
 [![Django](https://img.shields.io/badge/Django-5.2.8-green.svg)](https://www.djangoproject.com/)
 [![DRF](https://img.shields.io/badge/DRF-3.16.1-red.svg)](https://www.django-rest-framework.org/)
@@ -11,24 +11,24 @@
 
 ## 📖 Table of Contents
 
-- [Release Highlights (0.6.2)](#-release-highlights-062)
-- [Overview](#overview)
-- [Research Foundation](#research-foundation)
+- [Release Highlights (0.6.3)](#-release-highlights-063)
+- [Quick Start](#quick-start)
 - [Key Features](#key-features)
-- [Architecture](#architecture)
-- [Technology Stack](#technology-stack)
-- [Getting Started](#getting-started)
-- [API Documentation](#api-documentation)
-- [Security Features](#security-features)
-- [User Workflows](#user-workflows)
-- [Development](#development)
+- [Role-Based Access Control](#role-based-access-control)
 - [Documentation](#documentation)
-- [Roadmap](#roadmap)
+- [Quick Reference](#quick-reference)
+
+> 📚 **For complete system information**, see [Information.md](Information.md)
 
 ---
 
-## 🚀 Release Highlights (0.6.2)
+## 🚀 Release Highlights (0.6.3)
 
+- **Three-tier role system**: Implemented comprehensive role-based access control with Student, Staff, and Admin roles. Admins can now manage user roles through the user management interface.
+- **Role management interface**: Added role change functionality with visual role badges, filtering, and permission descriptions for better user administration.
+- **Enhanced user management**: Updated user management page with Staff role support, role statistics, and intuitive role assignment workflow.
+
+### Previous Highlights (0.6.2)
 - **One application per election**: Users can now only submit one application per election, regardless of position. To change positions, users must withdraw their existing application first.
 - **Enhanced application validation**: Database-level constraint and application-level validation ensure data integrity and provide clear error messages.
 - **Improved error handling**: Frontend application form now properly displays validation errors with better user guidance.
@@ -46,55 +46,7 @@
 
 E-Botar is a comprehensive electronic voting system designed specifically for student government elections. Built on blockchain-inspired security principles and privacy-preserving technologies, it provides a transparent, verifiable, and user-friendly platform for democratic participation in educational institutions.
 
-### Vision
-To modernize student elections by providing a secure, accessible, and efficient digital voting platform that maintains the integrity of the democratic process while enhancing voter participation and transparency.
-
-### Thesis Research
-This system is developed as part of academic research on **"Blockchain-Inspired Electronic Voting Systems for Student Government Elections"**, focusing on:
-- Privacy-preserving vote anonymization
-- Cryptographic receipt verification
-- Transparent audit trails without compromising voter privacy
-- Modern web architecture for scalability and maintainability
-
----
-
-## 📚 Research Foundation
-
-E-Botar implements key findings from extensive research on electronic voting systems:
-
-### Core Research Principles
-
-**1. Privacy & Anonymity**
-- Immediate vote anonymization upon submission
-- Separation of voter identity from vote choices
-- Encrypted ballot storage for personal verification
-- No linkage between votes and voters in tallying
-
-**2. Verifiability**
-- Individual verifiability through encrypted receipts
-- Voters can verify their ballot was recorded correctly
-- Audit trail without compromising privacy
-- Transparent result computation
-
-**3. Security by Design**
-- Multi-layer encryption for sensitive data
-- JWT-based stateless authentication
-- Role-based access control (RBAC)
-- Comprehensive security event logging
-
-**4. Usability & Accessibility**
-- Intuitive user interface for all stakeholders
-- Mobile-responsive design
-- Clear feedback and guidance
-- Accessibility standards compliance
-
-### Research-Driven Architecture
-
-The system architecture is informed by academic research on:
-- **Blockchain concepts**: Immutability, transparency, decentralization principles
-- **Cryptographic voting protocols**: Receipt-based verification, homomorphic properties
-- **Privacy-preserving systems**: Anonymous credential systems, mix networks
-- **Modern web architecture**: RESTful APIs, microservices patterns, stateless authentication
+> 📖 **For detailed overview, research foundation, and architecture**, see [Information.md](Information.md#overview)
 
 ---
 
@@ -110,11 +62,13 @@ The system architecture is informed by academic research on:
 
 ### 👥 **Comprehensive User Management**
 - **JWT Authentication**: Stateless token-based authentication for scalability
+- **Role-Based Access Control**: Three-tier role system (Student, Staff, Admin) with granular permissions
 - **Student Profiles**: Complete academic information (department, course, year level)
 - **Auto-Generated Student IDs**: Format YYYY-XXXXX (year + random digits)
 - **Program Hierarchy**: Unified department/course structure with direct department linkage for courses
 - **Profile Verification**: Admin-controlled verification system
 - **Avatar Support**: Profile photo uploads with validation
+- **Role Management**: Admins can change user roles through the user management interface
 
 ### 🏛️ **Flexible Election Management**
 - **Multi-Election Support**: Manage concurrent and sequential elections
@@ -145,9 +99,12 @@ The system architecture is informed by academic research on:
 
 ### 🔒 **Enterprise-Grade Security**
 - **JWT Token Security**: Access and refresh token rotation
-- **Role-Based Access Control**: Public, authenticated, admin permission levels
+- **Role-Based Access Control (RBAC)**: Three-tier permission system with granular access control
+  - **Student Role**: Can vote, apply as candidate, view own profile and applications
+  - **Staff Role**: Can manage elections, review applications, view results, manage candidates (limited admin access)
+  - **Admin Role**: Full system access including user management, role assignment, and all administrative functions
 - **Security Event Logging**: Automatic capture of security incidents
-- **Activity Audit Trails**: Complete logging of user actions
+- **Activity Audit Trails**: Complete logging of user actions including role changes
 - **IP Address Tracking**: Request source logging for forensics
 - **Failed Login Monitoring**: Suspicious activity detection
 - **CSRF Protection**: Cross-site request forgery prevention
@@ -156,898 +113,93 @@ The system architecture is informed by academic research on:
 ### 🎨 **Modern User Experience**
 - **Responsive Design**: Mobile-first approach with Bootstrap 5
 - **RESTful API**: Clean, documented API for frontend consumption
-- **React Dashboard**: Modern admin interface (in development)
+- **React Dashboard**: Modern admin interface
 - **Real-Time Feedback**: Comprehensive error handling and user guidance
 - **Accessible Design**: WCAG compliance considerations
 - **Progressive Enhancement**: Works across all modern browsers
 
----
-
-## 🏗️ Architecture
-
-### System Overview
-
-E-Botar follows a modern **split-stack architecture** separating frontend and backend concerns:
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     Frontend Layer                          │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │  React 18 + Vite                                    │   │
-│  │  - User Interface Components                        │   │
-│  │  - Admin Dashboard (In Development)                 │   │
-│  │  - JWT Token Management                             │   │
-│  │  - API Client with Axios                            │   │
-│  └─────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
-                            ↕ HTTP/REST API
-┌─────────────────────────────────────────────────────────────┐
-│                     Backend Layer                           │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │  Django REST Framework                              │   │
-│  │  - RESTful API Endpoints (50+)                      │   │
-│  │  - JWT Authentication                               │   │
-│  │  - Security Middleware                              │   │
-│  │  - CORS Configuration                               │   │
-│  └─────────────────────────────────────────────────────┘   │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │  Business Logic Layer (5 Modules)                   │   │
-│  │  - accounts: User management                        │   │
-│  │  - elections: Election lifecycle                    │   │
-│  │  - candidates: Application workflow                 │   │
-│  │  - voting: Ballot & receipt management              │   │
-│  │  - common: Security & utilities                     │   │
-│  └─────────────────────────────────────────────────────┘   │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │  Data Layer                                         │   │
-│  │  - Django ORM (18 Custom Models)                    │   │
-│  │  - SQLite (Dev) / PostgreSQL (Production)           │   │
-│  │  - Migration System                                 │   │
-│  └─────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Module Organization
-
-```
-E_Botar/
-├── backend/                    # Django REST Framework Backend
-│   ├── backend/                # Project configuration
-│   │   ├── settings.py         # Django settings
-│   │   ├── urls.py             # Main URL routing
-│   │   └── wsgi.py             # WSGI application
-│   ├── apps/                   # Application modules
-│   │   ├── accounts/           # Authentication & user profiles
-│   │   │   ├── models.py       # User, UserProfile, Program
-│   │   │   ├── serializers.py  # JSON serialization
-│   │   │   ├── views.py        # API endpoints
-│   │   │   └── urls.py         # URL routing
-│   │   ├── elections/          # Election management
-│   │   │   ├── models.py       # Election, Position, Party
-│   │   │   ├── serializers.py  # Election data serialization
-│   │   │   ├── views.py        # CRUD operations
-│   │   │   └── urls.py         # Election routes
-│   │   ├── candidates/         # Candidate applications
-│   │   │   ├── models.py       # Candidate, CandidateApplication
-│   │   │   ├── serializers.py  # Application serialization
-│   │   │   ├── views.py        # Application workflow
-│   │   │   └── urls.py         # Candidate routes
-│   │   ├── voting/             # Voting & results
-│   │   │   ├── models.py       # VoteReceipt, Ballot, AnonVote
-│   │   │   ├── serializers.py  # Vote data serialization
-│   │   │   ├── views.py        # Voting operations
-│   │   │   └── urls.py         # Voting routes
-│   │   └── common/             # Security & utilities
-│   │       ├── models.py       # SecurityEvent, ActivityLog
-│   │       ├── middleware.py   # Security logging
-│   │       └── utils.py        # Helper functions
-│   ├── media/                  # User uploads (photos, documents)
-│   ├── requirements.txt        # Python dependencies
-│   └── manage.py               # Django management script
-│
-├── frontend/                   # React frontend (Vite)
-│   ├── src/
-│   │   ├── components/         # React components
-│   │   ├── pages/              # Page components
-│   │   ├── services/           # API client services
-│   │   └── utils/              # Helper functions
-│   ├── package.json            # Node dependencies
-│   └── vite.config.js          # Vite configuration
-│
-├── env/                        # Python virtual environment
-│
-├── docs/                       # Documentation
-│   ├── Phase_Implementation.md # Implementation roadmap
-│   ├── ADMIN_DASHBOARD_SPEC.md # Admin dashboard specification
-│   └── PHASE1_COMPLETION_SUMMARY.md
-│
-├── CHANGELOG.md                # Version history
-├── README.md                   # This file
-└── .gitignore                  # Git ignore rules
-```
-
-### Database Schema
-
-#### Core Models (18 Custom Models)
-
-**User Management** (3 models)
-```
-User (Django built-in)
-├── UserProfile (1:1)
-│   ├── student_id (unique, auto-generated)
-│   ├── department → Program (FK, type=department)
-│   ├── course → Program (FK, type=course)
-│   ├── year_level, phone_number, avatar
-│   └── is_verified (admission gate)
-│
-Program
-├── program_type (department | course)
-├── parent → Program (FK, optional; course → department)
-├── children → Program (reverse FK)
-└── code, description, is_active
-```
-
-**Election Management** (4 models)
-```
-SchoolElection
-├── title (auto-generated: "SY YYYY-YYYY")
-├── start_date, end_date
-├── is_active
-└── election_positions → ElectionPosition (1:Many)
-    └── position → SchoolPosition (FK)
-
-Party
-├── name, description, logo, color
-└── candidates, applications (reverse FK)
-
-SchoolPosition
-├── name
-├── display_order
-└── election_positions, candidates (reverse FK)
-```
-
-**Candidate System** (2 models)
-```
-CandidateApplication
-├── user → User (FK)
-├── position → SchoolPosition (FK)
-├── election → SchoolElection (FK)
-├── party → Party (FK, optional)
-├── status (pending, approved, rejected, withdrawn)
-├── manifesto, photo
-├── submitted_at, reviewed_at, reviewed_by
-└── candidate (1:1, created on approval)
-
-Candidate
-├── user → User (FK)
-├── position → SchoolPosition (FK)
-├── election → SchoolElection (FK)
-├── party → Party (FK, optional)
-├── approved_application → CandidateApplication (1:1)
-├── manifesto, photo
-└── is_active
-```
-
-**Privacy-Preserving Voting** (4 models)
-```
-VoteReceipt
-├── user → User (FK)
-├── election → SchoolElection (FK)
-├── receipt_code (SHA-256 hash)
-├── encrypted_original_receipt (Fernet encrypted)
-├── created_at, ip_address
-└── [proves user voted, no vote choices]
-
-Ballot
-├── user → User (FK)
-├── election → SchoolElection (FK)
-├── encrypted_choices (JSON encrypted)
-├── submitted_at, ip_address
-└── choices → VoteChoice (1:Many)
-    └── [temporary, for verification only]
-
-VoteChoice
-├── ballot → Ballot (FK)
-├── position → SchoolPosition (FK)
-├── candidate → Candidate (FK)
-└── [temporary storage before anonymization]
-
-AnonVote
-├── election → SchoolElection (FK)
-├── position → SchoolPosition (FK)
-├── candidate → Candidate (FK)
-├── created_at
-└── [NO user reference - anonymous tallying]
-```
-
-**Security & Audit** (2 models)
-```
-SecurityEvent
-├── user → User (FK, optional)
-├── event_type (login_attempt, failed_login, etc.)
-├── severity (low, medium, high, critical)
-├── description, ip_address, user_agent
-├── metadata (JSON)
-└── created_at
-
-ActivityLog
-├── user → User (FK, optional)
-├── action, module, details (JSON)
-├── ip_address, user_agent
-└── timestamp
-```
-
-### Privacy-Preserving Design
-
-The voting system implements a **three-layer separation** for privacy:
-
-1. **VoteReceipt**: Proves a user voted (without revealing choices)
-2. **Ballot**: Encrypted personal copy for verification only
-3. **AnonVote**: Anonymized votes for tallying (no user link)
-
-**Flow**:
-```
-User submits ballot
-    ↓
-1. Create VoteReceipt (user + election, hashed receipt)
-2. Create Ballot (encrypted vote choices for verification)
-3. Create AnonVotes (one per position, NO user reference)
-    ↓
-Results computed from AnonVotes ONLY
-```
-
-This design ensures:
-- ✅ Voter privacy (no link between user and vote in tallying)
-- ✅ Individual verifiability (users can check their encrypted ballot)
-- ✅ Audit trail (receipts prove participation without revealing votes)
-- ✅ Transparent counting (AnonVotes are countable by anyone with DB access)
+> 📖 **For detailed architecture, database schema, and technology stack**, see [Information.md](Information.md#architecture)
 
 ---
 
-## 🛠️ Technology Stack
-
-### Backend
-- **Framework**: Django 5.2.8
-- **API**: Django REST Framework 3.16.1
-- **Authentication**: djangorestframework-simplejwt 5.5.1 (JWT tokens)
-- **Database**: SQLite (development), PostgreSQL (production-ready)
-- **ORM**: Django ORM with migrations
-- **CORS**: django-cors-headers for cross-origin requests
-- **Image Processing**: Pillow 11.0+ for avatar/photo uploads
-- **Environment**: python-dotenv for configuration
-- **Encryption**: cryptography (Fernet) for ballot encryption
-
-### Frontend
-- **Framework**: React 18.3 with Hooks
-- **Build Tool**: Vite 6.0 (fast HMR, optimized builds)
-- **HTTP Client**: Axios with interceptors
-- **Routing**: React Router 7.0
-- **State Management**: React Context API + Hooks
-- **Styling**: Bootstrap 5.3 + Custom CSS
-- **Icons**: Font Awesome 6.x
-- **Charts**: Chart.js (planned)
-
-### Security
-- **Authentication**: JWT access + refresh tokens
-- **Encryption**: Fernet symmetric encryption (Python cryptography)
-- **Hashing**: SHA-256 for receipt codes, PBKDF2 for passwords
-- **CORS**: Configured for frontend-backend separation
-- **CSRF**: Django CSRF protection on state-changing operations
-- **Validation**: Server-side validation with DRF serializers
-
-### Development Tools
-- **Version Control**: Git
-- **Environment**: Python venv
-- **Package Management**: pip (Python), npm (Node.js)
-- **Code Quality**: Django system checks
-- **Database Migrations**: Django migrations system
-
-### Deployment Ready
-- **WSGI Server**: Gunicorn (recommended)
-- **Web Server**: Nginx (reverse proxy)
-- **Database**: PostgreSQL (production)
-- **Static Files**: WhiteNoise or Nginx
-- **Media Files**: Local storage or S3-compatible
-- **Environment**: .env configuration
-- **Containerization**: Docker-ready architecture
-
----
-
-## 🚀 Getting Started
+## 🚀 Quick Start
 
 ### Prerequisites
-
-- **Python**: 3.10 or higher
-- **Node.js**: 18.x or higher (for frontend)
-- **pip**: Python package installer
-- **npm**: Node package manager
-- **Git**: Version control
+- **Python**: 3.10+ | **Node.js**: 18.x+ | **Git**: Version control
 
 ### Installation
 
-#### 1. Clone the Repository
-
+**Backend**:
 ```powershell
-git clone <repository-url>
-cd "E_Botar"
-```
-
-#### 2. Backend Setup
-
-```powershell
-# Navigate to backend
 cd backend
-
-# Create virtual environment
 python -m venv ../env
-
-# Activate virtual environment (Windows PowerShell)
 ..\env\Scripts\Activate.ps1
-
-# Install dependencies
 pip install -r requirements.txt
-
-# Create .env file
-# Copy .env.example to .env and configure:
-# - SECRET_KEY (Django secret)
-# - FERNET_KEY (for ballot encryption)
-# - DATABASE settings (if using PostgreSQL)
-# - CORS_ALLOWED_ORIGINS (frontend URL)
-
-# Run migrations
 python manage.py migrate
-
-# Create superuser
-python manage.py createsuperuser
-
-# Run development server
-python manage.py runserver
+python manage.py superuser  # Create admin account
+python manage.py runserver  # Runs on http://localhost:8000
 ```
 
-**Backend will run on**: `http://localhost:8000`
-
-#### 3. Frontend Setup
-
+**Frontend**:
 ```powershell
-# Navigate to frontend (in a new terminal)
 cd frontend
-
-# Install dependencies
 npm install
-
-# Create .env file
-# Set VITE_API_BASE_URL=http://localhost:8000
-
-# Run development server
-npm run dev
+npm run dev  # Runs on http://localhost:5173
 ```
 
-**Frontend will run on**: `http://localhost:5173`
+> 📖 **For detailed installation and configuration**, see [Information.md](Information.md#getting-started)
 
-### Quick Start Commands
+---
 
-**Start Backend**:
-```powershell
-cd backend
-..\env\Scripts\Activate.ps1
-python manage.py runserver
-```
+## 🔐 Role-Based Access Control
 
-**Start Frontend**:
-```powershell
-cd frontend
-npm run dev
-```
+E-Botar implements a **three-tier role system**:
 
-### Initial Configuration
+### Student Role
+- Vote in active elections
+- Apply as candidate (one application per election)
+- View own profile, applications, and vote receipts
+- Verify own ballot using receipt code
 
-1. **Create Programs (Departments & Courses)**:
-   - Access: `http://localhost:8000/admin/`
-   - Navigate to Accounts → Programs
-   - Add department-type programs (e.g., "Computer Studies")
-   - Add course-type programs and set their parent department
+### Staff Role
+- All Student permissions, plus:
+- Manage elections (create, edit, activate/deactivate)
+- Review and approve/reject candidate applications
+- View election results and statistics
+- Manage candidates and parties
+- View activity logs and security events
 
-2. **Create Super Admin (optional shortcut)**:
-   ```powershell
-   cd backend
-   ..\env\Scripts\Activate.ps1
-   python manage.py superuser --username admin --email admin@example.com
-   ```
-   - You can also set `SUPERUSER_USERNAME`, `SUPERUSER_EMAIL`, `SUPERUSER_PASSWORD` env vars
-   - Omit `--password` to be prompted or auto-generate a secure password
+### Admin Role
+- All Staff permissions, plus:
+- User management (activate/deactivate users, reset passwords)
+- Role management (assign Student/Staff/Admin roles)
+- Full system configuration access
+- Export election results
+- Access Django admin panel
 
-3. **Create Parties** (optional):
-   - Navigate to Elections → Parties
-   - Create political parties with names, colors, logos
-
-4. **Create Positions**:
-   - Navigate to Elections → School Positions
-   - Create positions (President, Vice President, etc.)
-
-5. **Create Election**:
-   - Navigate to Elections → School Elections
-   - Set start year and end year (auto-generates title)
-   - Set start_date and end_date for voting period
-   - Add positions to the election
-
-6. **Ready to Use**:
-   - Students can register via API
-   - Admins can verify students
-   - Candidates can apply (when election is upcoming)
-   - Voting begins when election is active
+> 📖 **For detailed role permissions and API documentation**, see [Information.md](Information.md#security-features)
 
 ---
 
 ## 📡 API Documentation
 
-### Base URL
-```
-Development: http://localhost:8000/api
-Production: https://your-domain.com/api
-```
+**Base URL**: `http://localhost:8000/api` (development)
 
-### Authentication
+**Authentication**: JWT tokens via `/api/auth/token/`
 
-**Obtain JWT Token**:
-```http
-POST /api/auth/token/
-Content-Type: application/json
-
-{
-  "username": "student123",
-  "password": "password123"
-}
-
-Response:
-{
-  "access": "eyJ0eXAiOiJKV1QiLCJhbGc...",
-  "refresh": "eyJ0eXAiOiJKV1QiLCJhbGc..."
-}
-```
-
-**Refresh Token**:
-```http
-POST /api/auth/token/refresh/
-Content-Type: application/json
-
-{
-  "refresh": "eyJ0eXAiOiJKV1QiLCJhbGc..."
-}
-```
-
-**Use Token in Requests**:
-```http
-Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGc...
-```
-
-### API Modules
-
-#### 1. Accounts Module (`/api/auth/`)
-
-| Endpoint | Method | Auth | Description |
-|----------|--------|------|-------------|
-| `/health/` | GET | Public | Health check |
-| `/register/` | POST | Public | User registration |
-| `/token/` | POST | Public | Obtain JWT token |
-| `/token/refresh/` | POST | Public | Refresh JWT token |
-| `/me/` | GET | Authenticated | Current user profile |
-| `/departments/` | GET | Public | List departments |
-| `/departments/` | POST | Admin | Create department |
-| `/courses/` | GET | Public | List courses |
-| `/courses/` | POST | Admin | Create course |
-| `/profiles/` | GET | Authenticated | List user profiles |
-| `/profiles/{id}/` | GET | Authenticated | Get user profile |
-| `/profiles/{id}/` | PATCH | Authenticated | Update profile |
-
-#### 2. Elections Module (`/api/elections/`)
-
-| Endpoint | Method | Auth | Description |
-|----------|--------|------|-------------|
-| `/health/` | GET | Public | Health check |
-| `/parties/` | GET | Public | List parties |
-| `/parties/` | POST | Admin | Create party |
-| `/positions/` | GET | Public | List positions |
-| `/positions/` | POST | Admin | Create position |
-| `/elections/` | GET | Public | List elections |
-| `/elections/` | POST | Admin | Create election |
-| `/elections/{id}/` | GET | Public | Get election details |
-| `/elections/active/` | GET | Public | Get active elections |
-| `/elections/upcoming/` | GET | Public | Get upcoming elections |
-| `/elections/finished/` | GET | Public | Get finished elections |
-| `/elections/{id}/add_position/` | POST | Admin | Add position to election |
-| `/elections/{id}/remove_position/` | POST | Admin | Remove position from election |
-
-#### 3. Candidates Module (`/api/candidates/`)
-
-| Endpoint | Method | Auth | Description |
-|----------|--------|------|-------------|
-| `/health/` | GET | Public | Health check |
-| `/candidates/` | GET | Public | List approved candidates |
-| `/candidates/by_election/` | GET | Public | Filter candidates by election |
-| `/applications/` | GET | Authenticated | List applications (own or all) |
-| `/applications/` | POST | Authenticated | Submit application |
-| `/applications/{id}/` | GET | Authenticated | Get application details |
-| `/applications/my_applications/` | GET | Authenticated | Get user's applications |
-| `/applications/pending/` | GET | Admin | Get pending applications |
-| `/applications/{id}/review/` | POST | Admin | Review application |
-| `/applications/bulk_review/` | POST | Admin | Bulk review applications |
-| `/applications/{id}/withdraw/` | POST | Authenticated | Withdraw application |
-
-#### 4. Voting Module (`/api/voting/`)
-
-| Endpoint | Method | Auth | Description |
-|----------|--------|------|-------------|
-| `/health/` | GET | Public | Health check |
-| `/ballots/` | GET | Authenticated | List user's ballots |
-| `/ballots/submit/` | POST | Authenticated | Submit ballot |
-| `/ballots/my_ballot/` | GET | Authenticated | Get ballot for election |
-| `/receipts/` | GET | Authenticated | List user's receipts |
-| `/receipts/my_receipts/` | GET | Authenticated | Get user's receipts |
-| `/receipts/verify/` | POST | Authenticated | Verify receipt code |
-| `/results/election_results/` | GET | Public* | Get election results |
-| `/results/my_vote_status/` | GET | Authenticated | Check vote status |
-| `/results/export_results/` | GET | Admin | Export results (CSV/JSON) |
-| `/results/statistics/` | GET | Public* | Get election statistics |
-
-*Public after election ends, Admin anytime
-
-### Example API Calls
-
-**Register User**:
-```javascript
-POST /api/auth/register/
-{
-  "username": "student123",
-  "email": "student@example.com",
-  "password": "SecurePass123!",
-  "password2": "SecurePass123!",
-  "first_name": "John",
-  "last_name": "Doe",
-  "department": 1,
-  "course": 3,
-  "year_level": "3rd Year"
-}
-```
-
-**Submit Candidate Application**:
-```javascript
-POST /api/candidates/applications/
-Authorization: Bearer <token>
-Content-Type: multipart/form-data
-
-{
-  "election": 1,
-  "position": 2,
-  "party": 1,
-  "manifesto": "My campaign platform...",
-  "photo": <file>
-}
-```
-
-**Submit Ballot**:
-```javascript
-POST /api/voting/ballots/submit/
-Authorization: Bearer <token>
-{
-  "election_id": 1,
-  "votes": [
-    {"position_id": 1, "candidate_id": 5},
-    {"position_id": 2, "candidate_id": 8},
-    {"position_id": 3, "candidate_id": 12}
-  ]
-}
-
-Response:
-{
-  "detail": "Ballot submitted successfully.",
-  "ballot_id": 42,
-  "receipt_code": "ABC1...XYZ9"
-}
-```
-
-**Get Election Results**:
-```javascript
-GET /api/voting/results/election_results/?election_id=1
-
-Response:
-[
-  {
-    "position_id": 1,
-    "position_name": "President",
-    "total_votes": 150,
-    "candidates": [
-      {
-        "candidate_id": 5,
-        "candidate_name": "Jane Smith",
-        "party": "Progressive Party",
-        "vote_count": 85,
-        "percentage": 56.67
-      },
-      ...
-    ]
-  },
-  ...
-]
-```
-
-### Error Responses
-
-**Standard Error Format**:
-```json
-{
-  "detail": "Error message here"
-}
-```
-
-**Validation Errors**:
-```json
-{
-  "field_name": ["Error message for this field"]
-}
-```
-
-**HTTP Status Codes**:
-- `200 OK`: Successful request
-- `201 Created`: Resource created
-- `400 Bad Request`: Validation error
-- `401 Unauthorized`: Authentication required
-- `403 Forbidden`: Permission denied
-- `404 Not Found`: Resource not found
-- `500 Internal Server Error`: Server error
+> 📖 **For complete API documentation with all endpoints and examples**, see [Information.md](Information.md#api-documentation)
 
 ---
 
 ## 🔒 Security Features
 
-### Authentication & Authorization
+- **JWT Authentication**: Access tokens (1 hour), refresh tokens (7 days)
+- **Role-Based Access Control**: Student, Staff, and Admin roles with granular permissions
+- **Encryption**: Fernet encryption for ballots, SHA-256 for receipts
+- **Privacy-Preserving**: Immediate vote anonymization, no user-vote linkage in tallying
+- **Audit Logging**: Complete activity and security event logging
 
-**JWT Token Security**:
-- Access tokens expire after 1 hour
-- Refresh tokens expire after 7 days
-- Tokens include user ID and expiration
-- Token rotation on refresh
-
-**Role-Based Access Control (RBAC)**:
-- **Public**: Read-only access to elections, candidates, results (after election)
-- **Authenticated**: Submit ballots, apply as candidate, view own data
-- **Admin/Staff**: Full CRUD operations, review applications, manage elections
-
-### Data Protection
-
-**Encryption**:
-- Ballot copies encrypted with Fernet (symmetric encryption)
-- Receipt codes stored as SHA-256 hashes
-- Original receipts encrypted for verification
-- Passwords hashed with PBKDF2 (Django default)
-
-**Privacy Measures**:
-- Immediate vote anonymization upon submission
-- No linkage between user and vote in tallying database
-- Anonymous vote records for results computation
-- Encrypted ballot storage for personal verification only
-
-**Input Validation**:
-- Server-side validation on all inputs
-- DRF serializers for type checking
-- Custom validators for business rules
-- File upload validation (size, type)
-
-### Audit & Monitoring
-
-**Activity Logging**:
-- All user actions logged with timestamp
-- IP address and user agent captured
-- Request method and path recorded
-- Status codes logged for analysis
-
-**Security Event Logging**:
-- Failed login attempts tracked
-- Suspicious activity flagged
-- Unauthorized access attempts logged
-- System errors captured with context
-
-**Access Attempt Tracking**:
-- Username attempts recorded
-- Success/failure status logged
-- IP-based rate limiting ready
-- Forensic data for security analysis
-
-### Application Security
-
-**CSRF Protection**:
-- Django CSRF middleware active
-- CSRF tokens on all state-changing operations
-- Token validation on POST/PUT/PATCH/DELETE
-
-**SQL Injection Prevention**:
-- Django ORM parameterized queries
-- No raw SQL without sanitization
-- Input sanitization at serializer level
-
-**XSS Prevention**:
-- React auto-escapes output
-- Django template auto-escaping (if used)
-- Content Security Policy headers (recommended)
-
-**CORS Configuration**:
-- Whitelist specific frontend origins
-- Credentials support for JWT cookies (optional)
-- Preflight request handling
-
----
-
-## 👥 User Workflows
-
-### Student Workflow
-
-```
-1. Register Account
-   └─> POST /api/auth/register/
-       ├─ Provide: username, email, password, name, academic info
-       └─ Receive: User account created
-
-2. Login
-   └─> POST /api/auth/token/
-       ├─ Provide: username, password
-       └─ Receive: JWT access + refresh tokens
-
-3. Complete Profile (if needed)
-   └─> PATCH /api/auth/profiles/{id}/
-       ├─ Update: department, course, year_level, avatar
-       └─ Wait for admin verification
-
-4. Apply as Candidate (when election is upcoming)
-   └─> POST /api/candidates/applications/
-       ├─ Select: election, position, party (optional)
-       ├─ Upload: photo, manifesto
-       └─ Wait for admin review
-
-5. Vote (when election is active)
-   └─> POST /api/voting/ballots/submit/
-       ├─ Select one candidate per position
-       └─ Receive: Vote receipt code
-
-6. Verify Vote
-   └─> POST /api/voting/receipts/verify/
-       ├─ Provide: receipt code
-       └─ Confirm: Vote was recorded
-
-7. View Results (after election ends)
-   └─> GET /api/voting/results/election_results/?election_id={id}
-       └─ See: Vote counts and percentages
-```
-
-### Admin Workflow
-
-```
-1. Login as Admin
-   └─> POST /api/auth/token/
-       └─ Use: Staff/superuser credentials
-
-2. Setup Academic Structure
-   └─> POST /api/auth/departments/
-       └─> POST /api/auth/courses/
-           └─ Create departments and courses
-
-3. Create Election
-   └─> POST /api/elections/elections/
-       ├─ Set: start_year, end_year, dates
-       └─> POST /api/elections/elections/{id}/add_position/
-           └─ Add positions to election
-
-4. Review Candidate Applications
-   └─> GET /api/candidates/applications/pending/
-       └─> POST /api/candidates/applications/{id}/review/
-           ├─ Action: approve or reject
-           └─ Automatic: Candidate record created on approval
-
-5. Monitor Voting
-   └─> GET /api/voting/receipts/
-       └─ View: Vote receipts and timestamps
-
-6. View Results & Statistics
-   └─> GET /api/voting/results/statistics/?election_id={id}
-       └─ See: Turnout, participation metrics
-
-7. Export Results
-   └─> GET /api/voting/results/export_results/?election_id={id}&format=csv
-       └─ Download: CSV or JSON file
-```
-
----
-
-## 🔧 Development
-
-### Project Structure
-
-```
-backend/
-├── apps/
-│   ├── accounts/       # User management
-│   ├── elections/      # Election management
-│   ├── candidates/     # Candidate applications
-│   ├── voting/         # Voting & results
-│   └── common/         # Security & utilities
-├── backend/
-│   ├── settings.py     # Configuration
-│   └── urls.py         # URL routing
-├── media/              # User uploads
-├── manage.py           # Django CLI
-└── requirements.txt    # Dependencies
-
-frontend/
-├── src/
-│   ├── components/     # React components
-│   ├── pages/          # Page components
-│   ├── services/       # API client
-│   └── utils/          # Helpers
-├── package.json        # Dependencies
-└── vite.config.js      # Vite config
-```
-
-### Running Tests
-
-```powershell
-# Backend tests
-cd backend
-python manage.py test
-
-# Frontend tests
-cd frontend
-npm test
-```
-
-### Database Management
-
-**Create Migration**:
-```powershell
-python manage.py makemigrations
-```
-
-**Apply Migrations**:
-```powershell
-python manage.py migrate
-```
-
-**Database Shell**:
-```powershell
-python manage.py dbshell
-```
-
-**Django Shell**:
-```powershell
-python manage.py shell
-```
-
-### Debugging
-
-**Django Debug Mode**:
-- Set `DEBUG = True` in settings.py (development only)
-- View detailed error pages
-- Django Debug Toolbar (install separately)
-
-**API Testing**:
-- DRF Browsable API: `http://localhost:8000/api/`
-- Postman/Insomnia for API testing
-- curl commands for quick tests
-
-### Code Quality
-
-**Django System Check**:
-```powershell
-python manage.py check
-```
-
-**Check Migrations**:
-```powershell
-python manage.py showmigrations
-```
-
-**Static Analysis** (recommended):
-```powershell
-pip install pylint
-pylint apps/
-```
+> 📖 **For detailed security features, encryption, and audit mechanisms**, see [Information.md](Information.md#security-features)
 
 ---
 
@@ -1055,9 +207,10 @@ pylint apps/
 
 ### Available Documentation
 
-- **[README.md](README.md)** - This comprehensive overview
-- **[Phase_Implementation.md](Phase_Implementation.md)** - Implementation roadmap and progress
+- **[README.md](README.md)** - Quick start guide (this file)
+- **[Information.md](Information.md)** - Complete system information and technical details
 - **[CHANGELOG.md](CHANGELOG.md)** - Version history and changes
+- **[Phase_Implementation.md](Phase_Implementation.md)** - Implementation roadmap and progress
 - **[ADMIN_DASHBOARD_SPEC.md](ADMIN_DASHBOARD_SPEC.md)** - React admin dashboard specification
 - **[PHASE1_COMPLETION_SUMMARY.md](PHASE1_COMPLETION_SUMMARY.md)** - Phase 1 completion details
 - **[PHASE2_DEFERRED_FEATURES.md](PHASE2_DEFERRED_FEATURES.md)** - Features for future implementation
@@ -1065,133 +218,19 @@ pylint apps/
 ### Quick Reference
 
 **For Developers**:
-1. Start with [Phase_Implementation.md](Phase_Implementation.md) for architecture overview
-2. Reference this README for API documentation
-3. Check [CHANGELOG.md](CHANGELOG.md) for recent changes
+1. Start with [Information.md](Information.md) for complete system documentation
+2. Check [CHANGELOG.md](CHANGELOG.md) for recent changes
+3. Reference [Phase_Implementation.md](Phase_Implementation.md) for architecture
 
 **For Administrators**:
-1. Review this README for system overview
-2. Follow Quick Start guide for installation
-3. Use Admin Workflow section for daily operations
+1. Follow Quick Start guide above
+2. See [Information.md](Information.md#user-workflows) for detailed workflows
+3. Use [Information.md](Information.md#getting-started) for configuration
 
 **For Researchers**:
-1. Research Foundation section explains academic basis
-2. Privacy-Preserving Design details voting architecture
-3. Security Features section covers cryptographic implementations
-
----
-
-## 🗺️ Roadmap
-
-### Current Version: 0.2.0 (Phase 1 Complete)
-- ✅ Complete Backend API (50+ endpoints)
-- ✅ User authentication and profiles
-- ✅ Election management
-- ✅ Candidate applications
-- ✅ Privacy-preserving voting
-- ✅ Results and analytics
-- ✅ Security logging
-
-### Next: Version 0.3.0 (Phase 3 - Q1 2025)
-- 🔄 React User Interface (authentication, voting, results)
-- 🔄 React Admin Dashboard (election management, application review)
-- 🔄 Data visualizations (Chart.js integration)
-- 🔄 Mobile-responsive UI with Bootstrap 5
-- 🔄 Complete frontend-backend integration
-
-### Future: Version 1.0.0 (Q2 2025)
-- 📋 Email notification system (P1 deferred feature)
-- 📋 Analytics & reporting dashboard (P2 deferred feature)
-- 📋 Google OAuth integration (P2 deferred feature)
-- 📋 Rate limiting & advanced security (P2 deferred feature)
-- 📋 Management commands (bulk operations) (P2 deferred feature)
-- 📋 Testing infrastructure (unit + E2E tests) (P2 deferred feature)
-
-### Long-term Goals (Version 2.0+)
-- 📋 WebSocket real-time updates (P3 deferred feature)
-- 📋 Progressive Web App (PWA) (P3 deferred feature)
-- 📋 Mobile app (React Native)
-- 📋 Biometric authentication
-- 📋 Advanced fraud detection with ML
-- 📋 Multi-institution support
-- 📋 External audit tools
-- 📋 Blockchain integration (proof-of-concept)
-
-**Note**: See [PHASE2_DEFERRED_FEATURES.md](PHASE2_DEFERRED_FEATURES.md) for complete feature roadmap with priorities and implementation details.
-
----
-
-## 📜 License
-
-This system is **proprietary software** developed as part of academic research for educational institution use.
-
-**Copyright © 2024-2025**. All rights reserved.
-
-### Usage Terms
-- Developed for thesis research purposes
-- Intended for educational institution deployment
-- Commercial use requires separate licensing
-- Modifications must maintain security and privacy guarantees
-
-### Academic Use
-- May be referenced in academic research
-- Code examples may be used with proper citation
-- Deployment for research purposes permitted
-
-### Contact
-For licensing inquiries or collaboration opportunities, please contact the development team.
-
----
-
-## 🙏 Acknowledgments
-
-### Academic Foundation
-- Thesis advisors for research guidance
-- Academic institution for testing environment
-- Student government for requirements gathering
-
-### Technical Stack
-- **Django Software Foundation** - Django framework
-- **Django REST Framework** - API toolkit
-- **React Team** - Frontend framework
-- **Vite Team** - Build tooling
-
-### Open Source Libraries
-- Bootstrap 5 - UI framework
-- Chart.js - Data visualization
-- Axios - HTTP client
-- Font Awesome - Icon library
-- cryptography - Python encryption library
-
-### Research References
-- Blockchain voting system research papers
-- Privacy-preserving voting protocols
-- Modern web application security practices
-- WCAG accessibility guidelines
-
----
-
-## 💬 Support
-
-### For Users
-- **Registration Issues**: Contact system administrator
-- **Voting Problems**: Check election status and eligibility
-- **Account Questions**: Use password reset or contact admin
-
-### For Administrators
-- **System Setup**: Follow Quick Start guide
-- **Configuration**: Check settings.py and .env
-- **Troubleshooting**: Review Django logs and error messages
-
-### For Developers
-- **API Documentation**: See API Documentation section above
-- **Code Issues**: Check Django system checks
-- **Database Problems**: Review migration status
-
-### Contact Information
-- **System Administrator**: [Contact information]
-- **Technical Support**: [Support email/channel]
-- **Security Issues**: [Security contact - private channel]
+1. See [Information.md](Information.md#research-foundation) for academic basis
+2. Review [Information.md](Information.md#architecture) for system design
+3. Check [Information.md](Information.md#security-features) for security implementation
 
 ---
 
@@ -1218,7 +257,7 @@ npm run dev
 python manage.py migrate
 
 # Create admin user
-python manage.py createsuperuser
+python manage.py superuser --username admin --email admin@example.com
 
 # System check
 python manage.py check
@@ -1232,7 +271,9 @@ python manage.py check
 
 ---
 
-**E-Botar v0.2.0** | Last Updated: November 10, 2025  
-**Status**: Backend Complete (Phase 1) | **Next**: React Dashboard (Phase 2)
+**E-Botar v0.6.3** | Last Updated: November 25, 2025  
+**Status**: Backend Complete | Frontend in Development
+
+> 📖 **For complete documentation**, see [Information.md](Information.md)
 
 **Built with ❤️ for democratic student governance**

@@ -9,6 +9,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.6.3] - 2025-11-25
+### Added
+- **Role-Based Access Control System**:
+  - Implemented three-tier role system: Student, Staff, and Admin
+  - Added role computation in UserSerializer based on `is_staff` and `is_superuser` flags
+  - Created `update_role` API endpoint for role management (admin only)
+  - Added role change logging in ActivityLog for audit trail
+  - Role management prevents self-role changes for security
+
+- **User Management Interface Enhancements**:
+  - Added "Change Role" button in user management table actions
+  - Created Role Management Modal with role selection dropdown
+  - Added Staff filter tab and statistics display
+  - Updated role badges to visually distinguish Admin, Staff, and Student roles
+  - Added role permission descriptions in role change modal
+
+### Changed
+- **User Management Page**:
+  - Updated filtering logic to distinguish Admin (`is_superuser`) from Staff (`is_staff` only)
+  - Added Staff count in statistics dashboard
+  - Updated role display to show three distinct roles with color-coded badges
+  - Enhanced user table to include role management functionality
+
+- **Backend Serializers**:
+  - Added `role` computed field to UserSerializer
+  - Role automatically determined: Admin (is_superuser), Staff (is_staff only), Student (neither)
+
+- **API Endpoints**:
+  - Added `POST /api/auth/profiles/{id}/update_role/` endpoint for role management
+  - Endpoint validates role changes and prevents self-modification
+  - Returns updated profile with new role information
+
+### Technical Details
+- Role system uses Django's built-in `is_staff` and `is_superuser` flags
+- Admin role: `is_superuser=True`, `is_staff=True` (full access)
+- Staff role: `is_staff=True`, `is_superuser=False` (limited admin access)
+- Student role: `is_staff=False`, `is_superuser=False` (standard user)
+- All role changes are logged in ActivityLog with metadata
+- Frontend service method `updateUserRole()` added to authService
+
+---
+
 ## [0.6.2] - 2025-11-25
 ### Changed
 - **Candidate Application Restrictions**:
