@@ -1,4 +1,5 @@
 from django.contrib.auth.models import User
+from django.conf import settings
 from rest_framework import serializers
 from .models import UserProfile, Program
 
@@ -60,8 +61,18 @@ class UserProfileSerializer(serializers.ModelSerializer):
         """Return full URL for avatar"""
         if obj.avatar:
             request = self.context.get('request')
+            
+            # Use BACKEND_BASE_URL if configured (for remote access)
+            if hasattr(settings, 'BACKEND_BASE_URL') and settings.BACKEND_BASE_URL:
+                base_url = settings.BACKEND_BASE_URL.rstrip('/')
+                media_url = obj.avatar.url.lstrip('/')
+                return f"{base_url}/{media_url}"
+            
+            # Fallback to request.build_absolute_uri() if available
             if request:
                 return request.build_absolute_uri(obj.avatar.url)
+            
+            # Last resort: return relative URL
             return obj.avatar.url
         return None
     
@@ -99,6 +110,17 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"password": "Passwords must match."})
         return data
     
+    def validate_email(self, value):
+        """Validate email domain"""
+        allowed_domains = ['snsu.edu.ph', 'ssct.edu.ph']  # Add your allowed domains
+        email_domain = value.split('@')[-1].lower()
+        
+        if email_domain not in allowed_domains:
+            raise serializers.ValidationError(
+                f"Email must be from an allowed domain. Allowed domains: {', '.join(allowed_domains)}"
+            )
+        return value
+
     def create(self, validated_data):
         validated_data.pop('password_confirm')
         user = User.objects.create_user(

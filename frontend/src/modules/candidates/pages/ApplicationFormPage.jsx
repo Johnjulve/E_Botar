@@ -164,7 +164,34 @@ const ApplicationFormPage = () => {
       }, 2000);
     } catch (error) {
       console.error('Error submitting application:', error);
-      setError(error.response?.data?.detail || error.response?.data?.error || 'Failed to submit application. Please try again.');
+      const errorData = error.response?.data || {};
+      
+      // Handle different error formats
+      let errorMessage = 'Failed to submit application. Please try again.';
+      
+      if (errorData.detail) {
+        errorMessage = errorData.detail;
+      } else if (errorData.error) {
+        errorMessage = errorData.error;
+      } else if (errorData.election) {
+        // Field-specific error (e.g., from serializer validation)
+        errorMessage = Array.isArray(errorData.election) 
+          ? errorData.election.join(', ') 
+          : errorData.election;
+      } else if (errorData.non_field_errors) {
+        // Model validation errors
+        errorMessage = Array.isArray(errorData.non_field_errors)
+          ? errorData.non_field_errors.join(', ')
+          : errorData.non_field_errors;
+      } else if (typeof errorData === 'object') {
+        // Try to extract first error message from any field
+        const firstError = Object.values(errorData).find(val => val);
+        if (firstError) {
+          errorMessage = Array.isArray(firstError) ? firstError[0] : firstError;
+        }
+      }
+      
+      setError(errorMessage);
     } finally {
       setSubmitting(false);
     }

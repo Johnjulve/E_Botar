@@ -7,11 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
 
+## [0.6.2] - 2025-11-25
+### Changed
+- **Candidate Application Restrictions**:
+  - Enforced one application per user per election (regardless of position)
+  - Changed unique constraint from `(user, position, election)` to `(user, election)`
+  - Users must withdraw their existing application before applying for a different position in the same election
+  - Updated validation logic in both model `clean()` method and serializer to check for existing active applications
+  - Improved error messages to guide users on withdrawing existing applications
+
+- **Frontend Application Form**:
+  - Enhanced error handling to properly display validation errors from backend
+  - Added support for field-specific errors (election field) and non-field errors
+  - Improved error message extraction and display for better user experience
+
+### Fixed
+- Users can no longer submit multiple applications for different positions in the same election
+- Database constraint now properly enforces one application per election at the database level
+- Existing duplicate applications were automatically cleaned up during migration (kept most recent, marked others as withdrawn)
+
+### Technical Details
+- Created migration to clean up existing duplicate applications before applying new constraint
+- Updated `CandidateApplication.clean()` to validate against any active application (pending/approved) in the same election
+- Serializer validation now provides clear error messages when duplicate application is detected
+- Migration process safely handles existing data by preserving the most recent application per user+election combination
 
 ---
 
-## [0.5.5] - 2025-11-18
+## [0.6.1] - 2025-11-24
+### Changed
+- **Election Position Model**:
+  - Removed `position_type` field from `SchoolPosition` model
+  - Positions are now identified solely by their name and display order
+  - Simplified position management without predefined type categories
+  - Updated admin, serializers, and views to reflect removal of position_type
+
+- **Program Model Structure**:
+  - Replaced generic `parent` self-reference with explicit `department` foreign key
+  - Course-type programs now directly reference their department via `department` field
+  - Improved query clarity and admin interface for department-course relationships
+  - Updated serializers and views to use `department_id` instead of `parent_id`
+
+- **Registration System**:
+  - Added email domain validation (snsu.edu.ph, ssct.edu.ph)
+  - Fixed password confirmation field name (`password_confirm` instead of `password2`)
+  - Added optional first_name and last_name fields to registration form
+  - Enhanced frontend validation with domain-specific email checks
+  - Improved error messaging for registration failures
+
+- **Admin Privacy**:
+  - Masked ballot identifiers in VoteChoice admin list view
+  - Improved privacy protection for vote tracking in admin interface
+
+### Fixed
+- Registration form now correctly sends `password_confirm` field matching backend expectations
+- Email validation now enforces institution-specific domains on both frontend and backend
+- Course filtering by department now uses correct `department_id` field
+
+---
+
+## [0.6.0] - 2025-11-25
 ### Added
 - **Caching Optimization System**:
   - Created `ElectionDataService` with caching for election queries

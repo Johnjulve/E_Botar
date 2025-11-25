@@ -15,6 +15,36 @@ export const isValidEmail = (email) => {
 };
 
 /**
+ * Validate email domain
+ * @param {string} email - Email to validate
+ * @param {array} allowedDomains - Array of allowed email domains
+ * @returns {object} Validation result with valid boolean and message
+ */
+export const isValidEmailDomain = (email, allowedDomains = ['snsu.edu.ph', 'ssct.edu.ph']) => {
+  if (!email) {
+    return { valid: false, message: 'Email is required' };
+  }
+  
+  if (!isValidEmail(email)) {
+    return { valid: false, message: 'Invalid email format' };
+  }
+  
+  const emailDomain = email.split('@')[1]?.toLowerCase();
+  if (!emailDomain) {
+    return { valid: false, message: 'Invalid email format' };
+  }
+  
+  if (!allowedDomains.includes(emailDomain)) {
+    return { 
+      valid: false, 
+      message: `Email must be from an allowed domain. Allowed domains: ${allowedDomains.join(', ')}` 
+    };
+  }
+  
+  return { valid: true, message: '' };
+};
+
+/**
  * Validate password strength
  * @param {string} password - Password to validate
  * @returns {object} Validation result with errors array
@@ -185,6 +215,7 @@ export const validateForm = (data, rules) => {
 
 export default {
   isValidEmail,
+  isValidEmailDomain,
   validatePassword,
   isValidStudentId,
   isValidPhone,

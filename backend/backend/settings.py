@@ -163,6 +163,8 @@ STATIC_URL = 'static/'
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+BACKEND_BASE_URL = os.getenv('BACKEND_BASE_URL', None)  # e.g., 'http://192.168.1.100:8000'
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 

@@ -33,17 +33,19 @@ class CandidateApplication(models.Model):
     def clean(self):
         """Validate application rules"""
         
-        # Rule 1: Check if user already has a pending/approved application for this position in this election
+        # Rule 1: Check if user already has any active application (pending/approved) for this election
+        # Users can only have ONE application per election, regardless of position
         existing_application = CandidateApplication.objects.filter(
             user=self.user,
-            position=self.position,
             election=self.election,
             status__in=['pending', 'approved']
         ).exclude(pk=self.pk).first()
         
         if existing_application:
             raise ValidationError(
-                f"You already have a {existing_application.get_status_display()} application for {self.position.name} in this election."
+                f"You already have a {existing_application.get_status_display().lower()} application "
+                f"for {existing_application.position.name} in this election. "
+                f"Please withdraw your existing application first if you want to apply for a different position."
             )
         
         # Rule 2: Check if same party already has an approved application for this position
@@ -115,7 +117,7 @@ class CandidateApplication(models.Model):
         self.save()
     
     class Meta:
-        unique_together = ['user', 'position', 'election']
+        unique_together = [['user', 'election']]
         ordering = ['-submitted_at']
         verbose_name = 'Candidate Application'
         verbose_name_plural = 'Candidate Applications'

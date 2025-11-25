@@ -1,6 +1,6 @@
 # E-Botar - Blockchain-Inspired Electronic Voting System
 
-**Version 0.6.0** | A secure, privacy-preserving electronic voting platform for student government elections
+**Version 0.6.2** | A secure, privacy-preserving electronic voting platform for student government elections
 
 [![Django](https://img.shields.io/badge/Django-5.2.8-green.svg)](https://www.djangoproject.com/)
 [![DRF](https://img.shields.io/badge/DRF-3.16.1-red.svg)](https://www.django-rest-framework.org/)
@@ -11,7 +11,7 @@
 
 ## 📖 Table of Contents
 
-- [Release Highlights (0.6.0)](#-release-highlights-060)
+- [Release Highlights (0.6.2)](#-release-highlights-062)
 - [Overview](#overview)
 - [Research Foundation](#research-foundation)
 - [Key Features](#key-features)
@@ -27,14 +27,18 @@
 
 ---
 
-## 🚀 Release Highlights (0.6.0)
+## 🚀 Release Highlights (0.6.2)
 
-- **Unified academic programs**: Departments and courses now live under a single Program model with `program_type` and parent-child links, simplifying admin management while keeping API responses backward compatible.
-- **Superuser bootstrap command**: `python manage.py superuser` accepts CLI flags or environment defaults so fresh environments can stand up an admin account in seconds.
-- **Smart caching layer**: `ElectionDataService`, `VotingDataService`, and the shared `@cache_result` decorator wrap expensive election/result queries with configurable timeouts plus targeted invalidation hooks.
-- **Navigation polish**: Collapsed desktop sidebar shows an avatar-only pill, preventing clipped name/email content.
-- **Candidate application resiliency**: The application form consumes the new `election_positions` relation, clears stale selections whenever the election changes, disables the dropdown until positions load, and surfaces helper text when no slots exist.
-- **Application history clarity**: "My Applications" cards and the withdraw modal fall back to `position_name` / `party_name` so position details stay visible even if nested objects are missing.
+- **One application per election**: Users can now only submit one application per election, regardless of position. To change positions, users must withdraw their existing application first.
+- **Enhanced application validation**: Database-level constraint and application-level validation ensure data integrity and provide clear error messages.
+- **Improved error handling**: Frontend application form now properly displays validation errors with better user guidance.
+
+### Previous Highlights (0.6.1)
+- **Simplified position management**: Removed `position_type` categorization from positions, allowing flexible position creation without predefined types.
+- **Direct department linkage**: Program model now uses explicit `department` foreign key instead of generic parent reference, improving query clarity and admin workflows.
+- **Enhanced registration security**: Email domain validation restricts registration to institution domains (snsu.edu.ph, ssct.edu.ph) with validation on both frontend and backend.
+- **Registration form improvements**: Fixed password confirmation field, added optional name fields, and improved error handling for better user experience.
+- **Admin privacy protection**: VoteChoice admin interface now masks ballot identifiers to protect voter privacy while maintaining audit capabilities.
 
 ---
 
@@ -108,21 +112,23 @@ The system architecture is informed by academic research on:
 - **JWT Authentication**: Stateless token-based authentication for scalability
 - **Student Profiles**: Complete academic information (department, course, year level)
 - **Auto-Generated Student IDs**: Format YYYY-XXXXX (year + random digits)
-- **Program Hierarchy**: Unified department/course structure with parent-child linkage
+- **Program Hierarchy**: Unified department/course structure with direct department linkage for courses
 - **Profile Verification**: Admin-controlled verification system
 - **Avatar Support**: Profile photo uploads with validation
 
 ### 🏛️ **Flexible Election Management**
 - **Multi-Election Support**: Manage concurrent and sequential elections
 - **Precise Scheduling**: Start/end date-time with timezone support
-- **Position Management**: Flexible position creation with custom ordering
+- **Position Management**: Flexible position creation with custom ordering (no predefined type categories)
 - **Automatic State Transitions**: Time-based election status (upcoming, active, finished)
 - **Party System**: Support for registered parties with branding
 - **Election Analytics**: Real-time statistics and voter turnout
 
 ### 🎯 **Smart Candidate Applications**
+- **One Application Per Election**: Users can only submit one application per election, regardless of position
 - **Application Workflow**: Complete submission, review, and approval process
 - **Business Rules Enforcement**: No consecutive terms for same position
+- **Position Change Process**: Users must withdraw existing application before applying for a different position in the same election
 - **Party Restrictions**: One candidate per party per position per election
 - **Bulk Review Operations**: Admin efficiency for high-volume applications
 - **Application Tracking**: Pending, approved, rejected, withdrawn states
