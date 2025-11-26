@@ -145,7 +145,7 @@ const ApplicationReviewPage = () => {
       setSubmitting(false);
       // Don't close modal on error so user can fix and retry
       if (!hasError) {
-        setShowModal(false);
+      setShowModal(false);
       }
     }
   };

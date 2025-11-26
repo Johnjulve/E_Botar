@@ -229,9 +229,7 @@ const ResultsDetailsPage = () => {
                 </div>
 
                 <div className="candidates-list">
-                  {positionResult.candidates
-                    .filter(candidate => !electionEnded || candidate.is_winner) // Show only winners if election ended
-                    .map((candidate, candIndex) => {
+                  {positionResult.candidates.map((candidate, candIndex) => {
                     const percentage = parseFloat(candidate.percentage) || 0;
                     const isWinner = candidate.is_winner && electionEnded;
                     const rank = candIndex + 1;
