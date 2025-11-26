@@ -28,23 +28,6 @@
 - **Enhanced permission system**: Created custom permission classes to properly distinguish between staff and admin roles, ensuring staff cannot access admin-only privileges.
 - **Improved data privacy**: Sensitive user fields (`is_staff`, `is_superuser`) are now properly hidden from non-admin users in API responses.
 
-### Previous Highlights (0.6.3)
-- **Three-tier role system**: Implemented comprehensive role-based access control with Student, Staff, and Admin roles. Admins can now manage user roles through the user management interface.
-- **Role management interface**: Added role change functionality with visual role badges, filtering, and permission descriptions for better user administration.
-- **Enhanced user management**: Updated user management page with Staff role support, role statistics, and intuitive role assignment workflow.
-
-### Previous Highlights (0.6.2)
-- **One application per election**: Users can now only submit one application per election, regardless of position. To change positions, users must withdraw their existing application first.
-- **Enhanced application validation**: Database-level constraint and application-level validation ensure data integrity and provide clear error messages.
-- **Improved error handling**: Frontend application form now properly displays validation errors with better user guidance.
-
-### Previous Highlights (0.6.1)
-- **Simplified position management**: Removed `position_type` categorization from positions, allowing flexible position creation without predefined types.
-- **Direct department linkage**: Program model now uses explicit `department` foreign key instead of generic parent reference, improving query clarity and admin workflows.
-- **Enhanced registration security**: Email domain validation restricts registration to institution domains (snsu.edu.ph, ssct.edu.ph) with validation on both frontend and backend.
-- **Registration form improvements**: Fixed password confirmation field, added optional name fields, and improved error handling for better user experience.
-- **Admin privacy protection**: VoteChoice admin interface now masks ballot identifiers to protect voter privacy while maintaining audit capabilities.
-
 ---
 
 ## 🎯 Overview
