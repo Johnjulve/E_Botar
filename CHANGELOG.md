@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Frontend Role Detection**: Fixed frontend to check `is_superuser` instead of `is_staff` for admin access, ensuring proper role-based UI rendering.
 
 - **Sensitive Data Exposure**: Fixed issue where staff users could see sensitive fields (`is_staff`, `is_superuser`) of other users. These fields are now properly hidden from non-admin users.
+- **Election Results Coverage**: Results API and UI now include every candidate (even with zero votes) for both active and completed elections.
 
 ### Changed
 - **Backend Permission Classes**:

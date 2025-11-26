@@ -331,23 +331,37 @@ class ResultsViewSet(viewsets.ViewSet):
                 position=position
             ).values('candidate').annotate(
                 vote_count=Count('id')
-            ).order_by('-vote_count')
+            )
             
-            # Calculate total votes for this position
-            position_total_votes = sum(v['vote_count'] for v in position_votes)
+            # Map candidate_id -> vote_count for quick lookup
+            vote_map = {vote['candidate']: vote['vote_count'] for vote in position_votes}
+            position_total_votes = sum(vote_map.values())
+            
+            # Include every candidate for this position (even if zero votes)
+            position_candidates = Candidate.objects.filter(
+                election=election,
+                position=position
+            ).select_related('user', 'party')
             
             candidates_data = []
-            for idx, vote_data in enumerate(position_votes):
-                candidate = Candidate.objects.get(id=vote_data['candidate'])
+            for candidate in position_candidates:
+                vote_count = vote_map.get(candidate.id, 0)
+                percentage = round((vote_count / position_total_votes * 100), 2) if position_total_votes > 0 else 0
                 candidates_data.append({
                     'candidate_id': candidate.id,
                     'candidate_name': candidate.user.get_full_name(),
                     'party': candidate.party.name if candidate.party else None,
-                    'vote_count': vote_data['vote_count'],
-                    'percentage': round((vote_data['vote_count'] / position_total_votes * 100), 2) if position_total_votes > 0 else 0,
-                    'is_winner': election_ended and idx == 0 and vote_data['vote_count'] > 0,  # Winner is 1st place when election ends
-                    'rank': idx + 1  # 1-based ranking
+                    'vote_count': vote_count,
+                    'percentage': percentage,
+                    'is_winner': False,  # assigned after sorting
+                    'rank': None
                 })
+            
+            # Sort candidates by votes (desc) and assign rank/winner flag
+            candidates_data.sort(key=lambda c: c['vote_count'], reverse=True)
+            for idx, candidate_data in enumerate(candidates_data, start=1):
+                candidate_data['rank'] = idx
+                candidate_data['is_winner'] = election_ended and idx == 1 and candidate_data['vote_count'] > 0
             
             positions_data.append({
                 'position_id': position.id,

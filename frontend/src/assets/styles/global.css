@@ -8,6 +8,63 @@
   transition-delay: 0s !important;
 }
 
+/* Enable text and image selection globally */
+* {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
+/* Allow images to be selectable and draggable */
+img {
+  -webkit-user-select: auto;
+  -moz-user-select: auto;
+  -ms-user-select: auto;
+  user-select: auto;
+  -webkit-user-drag: auto;
+  -khtml-user-drag: auto;
+  -moz-user-drag: auto;
+  -o-user-drag: auto;
+  user-drag: auto;
+  pointer-events: auto;
+}
+
+/* Ensure text content is selectable */
+p, h1, h2, h3, h4, h5, h6, span, div, td, th, label, .text-selectable {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+  cursor: text;
+}
+
+/* Buttons and interactive elements should not be selectable */
+button, .btn, a, input, select, textarea, .nav-link {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Allow selecting text within sidebar navigation items */
+.desktop-sidebar .side-item,
+.desktop-sidebar .side-item *,
+.desktop-sidebar .side-item-button,
+.desktop-sidebar .side-item-button *,
+.desktop-sidebar .side-item-collapsible,
+.desktop-sidebar .side-item-collapsible *,
+.desktop-sidebar .user-pill,
+.desktop-sidebar .user-pill *,
+.offcanvas .list-group-item,
+.offcanvas .list-group-item * {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+  cursor: pointer;
+}
+
 /* Remove all underlines from links and buttons */
 a, button, .btn, .nav-link {
   text-decoration: none !important;
@@ -53,6 +110,11 @@ body {
   margin: 0;
   padding: 0;
   overflow-x: hidden;
+  /* Enable text selection by default */
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
 }
 
 #root {

@@ -1,6 +1,11 @@
 from django.contrib import admin
 from django.utils.html import format_html
+import logging
 from .models import Candidate, CandidateApplication
+from apps.common.models import ActivityLog
+from apps.common.utils import get_client_ip
+
+logger = logging.getLogger(__name__)
 
 
 @admin.register(CandidateApplication)
@@ -55,6 +60,121 @@ class CandidateApplicationAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
     
     actions = ['approve_applications', 'reject_applications']
+    
+    def has_delete_permission(self, request, obj=None):
+        """Allow deletion of applications regardless of status"""
+        return request.user.is_staff
+    
+    def delete_model(self, request, obj):
+        """Handle deletion of application, including cleanup of related Candidate if exists"""
+        # Store application details for logging before deletion
+        app_id = obj.id
+        app_user = obj.user.get_full_name() or obj.user.username
+        app_position = obj.position.name
+        app_election = obj.election.title
+        app_status = obj.get_status_display()
+        ip_address = get_client_ip(request)
+        
+        # If this is an approved application, check if there's a related Candidate
+        candidate_deleted = False
+        if obj.status == 'approved':
+            try:
+                candidate = obj.candidate
+                if candidate:
+                    # Delete the related Candidate first
+                    candidate.delete()
+                    candidate_deleted = True
+            except Candidate.DoesNotExist:
+                pass
+        
+        # Log the deletion before actually deleting
+        try:
+            ActivityLog.objects.create(
+                user=request.user,
+                action='delete',
+                resource_type='CandidateApplication',
+                resource_id=app_id,
+                description=f"Admin {request.user.username} deleted application for {app_user} - {app_position} ({app_status}) in election '{app_election}'",
+                ip_address=ip_address,
+                metadata={
+                    'application_id': app_id,
+                    'applicant': app_user,
+                    'position': app_position,
+                    'election': app_election,
+                    'status': obj.status,
+                    'candidate_deleted': candidate_deleted,
+                }
+            )
+        except Exception as e:
+            # Log error but don't prevent deletion
+            logger.error(f"Failed to log application deletion: {e}")
+        
+        # Delete the application
+        super().delete_model(request, obj)
+    
+    def delete_queryset(self, request, queryset):
+        """Handle bulk deletion of applications"""
+        ip_address = get_client_ip(request)
+        deleted_count = 0
+        
+        for application in queryset:
+            try:
+                # Store application details for logging before deletion
+                app_id = application.id
+                app_user = application.user.get_full_name() or application.user.username
+                app_position = application.position.name
+                app_election = application.election.title
+                app_status = application.get_status_display()
+                
+                # If approved, delete related Candidate first
+                candidate_deleted = False
+                if application.status == 'approved':
+                    try:
+                        candidate = application.candidate
+                        if candidate:
+                            candidate.delete()
+                            candidate_deleted = True
+                    except Candidate.DoesNotExist:
+                        pass
+                
+                # Log the deletion before actually deleting
+                try:
+                    ActivityLog.objects.create(
+                        user=request.user,
+                        action='delete',
+                        resource_type='CandidateApplication',
+                        resource_id=app_id,
+                        description=f"Admin {request.user.username} deleted application for {app_user} - {app_position} ({app_status}) in election '{app_election}'",
+                        ip_address=ip_address,
+                        metadata={
+                            'application_id': app_id,
+                            'applicant': app_user,
+                            'position': app_position,
+                            'election': app_election,
+                            'status': application.status,
+                            'candidate_deleted': candidate_deleted,
+                            'bulk_delete': True,
+                        }
+                    )
+                except Exception as log_error:
+                    # Log error but don't prevent deletion
+                    logger.error(f"Failed to log application deletion: {log_error}")
+                
+                # Delete the application
+                application.delete()
+                deleted_count += 1
+            except Exception as e:
+                self.message_user(
+                    request, 
+                    f"Error deleting {application}: {str(e)}", 
+                    level='error'
+                )
+        
+        self.message_user(
+            request, 
+            f"Successfully deleted {deleted_count} application(s).",
+            level='success'
+        )
     
     def approve_applications(self, request, queryset):
         """Bulk approve applications"""
