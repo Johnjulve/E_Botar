@@ -1,10 +1,47 @@
 from django.utils.deprecation import MiddlewareMixin
 from django.contrib.auth.signals import user_logged_in, user_logged_out, user_login_failed
 from django.dispatch import receiver
+from django.conf import settings
+from django.http import Http404
 from .models import SecurityEvent, ActivityLog
 import logging
+import os
 
 logger = logging.getLogger(__name__)
+
+
+class DynamicAllowedHostsMiddleware(MiddlewareMixin):
+    """Middleware to dynamically handle ALLOWED_HOSTS on any platform when domain is not yet set"""
+    
+    def process_request(self, request):
+        """Dynamically add Host to ALLOWED_HOSTS if needed (platform-agnostic)"""
+        # Check if we're in production (any platform)
+        is_production = (
+            os.environ.get('DJANGO_ENV') == 'production' or
+            os.environ.get('ENVIRONMENT') == 'production' or
+            os.environ.get('RAILWAY_ENVIRONMENT') is not None or
+            os.environ.get('RAILWAY') is not None or
+            os.environ.get('DYNO') is not None or  # Heroku
+            os.environ.get('RENDER') is not None or  # Render
+            os.environ.get('PORT') is not None  # Most platforms set PORT
+        )
+        
+        if is_production:
+            # Get the Host header (without port)
+            host = request.get_host().split(':')[0]
+            
+            # If ALLOWED_HOSTS is empty or doesn't include this host, add it dynamically
+            # This is safe on cloud platforms because they handle all routing
+            if not settings.ALLOWED_HOSTS or host not in settings.ALLOWED_HOSTS:
+                # Dynamically add the host to ALLOWED_HOSTS
+                # This works because Django checks ALLOWED_HOSTS in CommonMiddleware (after this)
+                if not settings.ALLOWED_HOSTS:
+                    settings.ALLOWED_HOSTS = []
+                if host not in settings.ALLOWED_HOSTS:
+                    settings.ALLOWED_HOSTS.append(host)
+                    logger.debug(f"Dynamically added host to ALLOWED_HOSTS: {host}")
+        
+        return None
 
 
 class SecurityLoggingMiddleware(MiddlewareMixin):

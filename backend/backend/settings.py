@@ -22,14 +22,19 @@ load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Environment detection
-# Railway sets PORT, RAILWAY_ENVIRONMENT, or RAILWAY_PUBLIC_DOMAIN
+# Environment detection - Support multiple platforms
 IS_RAILWAY = (
     os.environ.get('RAILWAY_ENVIRONMENT') is not None or
-    os.environ.get('RAILWAY') is not None or
-    os.environ.get('PORT') is not None
+    os.environ.get('RAILWAY') is not None
 )
-IS_PRODUCTION = os.environ.get('DJANGO_ENV') == 'production' or IS_RAILWAY
+IS_HEROKU = os.environ.get('DYNO') is not None
+IS_RENDER = os.environ.get('RENDER') is not None
+IS_PRODUCTION = (
+    os.environ.get('DJANGO_ENV') == 'production' or
+    os.environ.get('ENVIRONMENT') == 'production' or
+    IS_RAILWAY or IS_HEROKU or IS_RENDER or
+    os.environ.get('PORT') is not None  # Most platforms set PORT
+)
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -53,24 +58,95 @@ if not SECRET_KEY:
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true' if IS_PRODUCTION else True
 
-# ALLOWED_HOSTS configuration
-if IS_RAILWAY:
-    # Railway provides RAILWAY_PUBLIC_DOMAIN or uses PORT
-    allowed_hosts = ['*']  # Allow all hosts on Railway by default
-    railway_domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN', '')
-    if railway_domain:
-        allowed_hosts.append(railway_domain)
-    # Add custom domain if set
-    custom_domain = os.environ.get('CUSTOM_DOMAIN', '')
-    if custom_domain:
-        allowed_hosts.append(custom_domain)
-    # Also check for explicit ALLOWED_HOSTS env var
+# ALLOWED_HOSTS configuration - Dynamic and platform-agnostic
+def normalize_domain(domain_str):
+    """Normalize domain string by removing protocol and trailing slashes"""
+    if not domain_str:
+        return None
+    domain = domain_str.replace('https://', '').replace('http://', '').strip()
+    domain = domain.rstrip('/')
+    return domain
+
+def get_allowed_hosts():
+    """Dynamically determine ALLOWED_HOSTS from environment variables"""
+    allowed_hosts = []
+    
+    # Priority 1: Explicit ALLOWED_HOSTS environment variable (highest priority)
     explicit_hosts = os.environ.get('ALLOWED_HOSTS', '')
     if explicit_hosts:
-        allowed_hosts.extend([h.strip() for h in explicit_hosts.split(',') if h.strip()])
-    ALLOWED_HOSTS = allowed_hosts
-else:
-    ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',') if os.environ.get('ALLOWED_HOSTS') else ['localhost', '127.0.0.1']
+        hosts = [h.strip() for h in explicit_hosts.split(',') if h.strip()]
+        allowed_hosts.extend(hosts)
+        return allowed_hosts  # If explicitly set, use only those
+    
+    # Priority 2: Platform-specific domain variables
+    platform_domains = []
+    
+    # Railway
+    if IS_RAILWAY:
+        railway_domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN', '')
+        if railway_domain:
+            domain = normalize_domain(railway_domain)
+            if domain:
+                platform_domains.append(domain)
+                # Also add without port if it has one
+                if ':' in domain:
+                    platform_domains.append(domain.split(':')[0])
+    
+    # Heroku
+    if IS_HEROKU:
+        heroku_domain = os.environ.get('HEROKU_APP_NAME', '')
+        if heroku_domain:
+            platform_domains.append(f'{heroku_domain}.herokuapp.com')
+    
+    # Render
+    if IS_RENDER:
+        render_domain = os.environ.get('RENDER_EXTERNAL_HOSTNAME', '')
+        if render_domain:
+            domain = normalize_domain(render_domain)
+            if domain:
+                platform_domains.append(domain)
+    
+    # Priority 3: Generic domain variables (work on any platform)
+    generic_domain_vars = [
+        'PUBLIC_DOMAIN',
+        'DOMAIN',
+        'HOST',
+        'CUSTOM_DOMAIN',
+        'APP_URL',
+        'SITE_URL',
+    ]
+    
+    for var_name in generic_domain_vars:
+        domain_value = os.environ.get(var_name, '')
+        if domain_value:
+            domain = normalize_domain(domain_value)
+            if domain and domain not in platform_domains:
+                platform_domains.append(domain)
+                # Also add without port if it has one
+                if ':' in domain:
+                    platform_domains.append(domain.split(':')[0])
+    
+    allowed_hosts.extend(platform_domains)
+    
+    # Priority 4: For production platforms, if no domains found, allow dynamic addition via middleware
+    if IS_PRODUCTION and not allowed_hosts:
+        # Empty list means middleware will handle it dynamically
+        # This is safe because platforms handle routing
+        import warnings
+        warnings.warn(
+            "No domain environment variables set. ALLOWED_HOSTS is empty. "
+            "Set ALLOWED_HOSTS, PUBLIC_DOMAIN, or platform-specific domain variable. "
+            "Middleware will dynamically add hosts from requests.",
+            UserWarning
+        )
+    
+    # Priority 5: Local development defaults
+    if not IS_PRODUCTION and not allowed_hosts:
+        allowed_hosts = ['localhost', '127.0.0.1', '0.0.0.0']
+    
+    return allowed_hosts
+
+ALLOWED_HOSTS = get_allowed_hosts()
 
 
 REST_FRAMEWORK = {
@@ -110,6 +186,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'apps.common.middleware.DynamicAllowedHostsMiddleware',  # Handle ALLOWED_HOSTS dynamically (platform-agnostic)
     'whitenoise.middleware.WhiteNoiseMiddleware',  # Serve static files efficiently
     'django.contrib.sessions.middleware.SessionMiddleware',
     "corsheaders.middleware.CorsMiddleware",
@@ -236,19 +313,74 @@ BACKEND_BASE_URL = os.getenv('BACKEND_BASE_URL', None)
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# CORS Configuration
-if IS_PRODUCTION:
-    # Production: Only allow specific origins
-    CORS_ALLOWED_ORIGINS = []
+# CORS Configuration - Dynamic and platform-agnostic
+def get_cors_origins():
+    """Dynamically determine CORS allowed origins from environment variables"""
+    cors_origins = []
+    
+    # Priority 1: Explicit FRONTEND_URL (highest priority)
     frontend_url = os.environ.get('FRONTEND_URL', '')
     if frontend_url:
-        # Remove trailing slash if present
-        frontend_url = frontend_url.rstrip('/')
-        CORS_ALLOWED_ORIGINS.append(frontend_url)
-    railway_domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN', '')
-    if railway_domain:
-        # If frontend is on same domain, add it
-        CORS_ALLOWED_ORIGINS.append(f'https://{railway_domain}')
+        url = frontend_url.rstrip('/')
+        cors_origins.append(url)
+        # Also add without protocol if needed
+        if url.startswith('https://'):
+            cors_origins.append(url.replace('https://', 'http://', 1))
+    
+    # Priority 2: Generic frontend domain variables
+    frontend_vars = ['FRONTEND_DOMAIN', 'CLIENT_URL', 'APP_URL', 'SITE_URL']
+    for var_name in frontend_vars:
+        url_value = os.environ.get(var_name, '')
+        if url_value:
+            url = url_value.rstrip('/')
+            if url not in cors_origins:
+                cors_origins.append(url)
+    
+    # Priority 3: If frontend is on same domain as backend (production platforms)
+    if IS_PRODUCTION:
+        # Check platform-specific domain variables
+        platform_domains = []
+        
+        if IS_RAILWAY:
+            railway_domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN', '')
+            if railway_domain:
+                domain = normalize_domain(railway_domain)
+                if domain:
+                    platform_domains.append(f'https://{domain}')
+                    platform_domains.append(f'http://{domain}')
+        
+        if IS_HEROKU:
+            heroku_domain = os.environ.get('HEROKU_APP_NAME', '')
+            if heroku_domain:
+                platform_domains.append(f'https://{heroku_domain}.herokuapp.com')
+                platform_domains.append(f'http://{heroku_domain}.herokuapp.com')
+        
+        if IS_RENDER:
+            render_domain = os.environ.get('RENDER_EXTERNAL_HOSTNAME', '')
+            if render_domain:
+                domain = normalize_domain(render_domain)
+                if domain:
+                    platform_domains.append(f'https://{domain}')
+                    platform_domains.append(f'http://{domain}')
+        
+        # Add generic domain variables
+        for var_name in ['PUBLIC_DOMAIN', 'DOMAIN', 'CUSTOM_DOMAIN']:
+            domain_value = os.environ.get(var_name, '')
+            if domain_value:
+                domain = normalize_domain(domain_value)
+                if domain:
+                    url = f'https://{domain}'
+                    if url not in cors_origins and url not in platform_domains:
+                        platform_domains.append(url)
+                        platform_domains.append(f'http://{domain}')
+        
+        cors_origins.extend(platform_domains)
+    
+    return cors_origins
+
+if IS_PRODUCTION:
+    # Production: Only allow specific origins
+    CORS_ALLOWED_ORIGINS = get_cors_origins()
     
     # If no CORS origins configured, allow all (for API-only deployments)
     # Set FRONTEND_URL to restrict CORS if needed
@@ -280,16 +412,58 @@ if IS_PRODUCTION:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
 
-# CSRF trusted origins for Railway
-if IS_RAILWAY:
-    railway_domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN', '')
-    custom_domain = os.environ.get('CUSTOM_DOMAIN', '')
+# CSRF trusted origins - Dynamic and platform-agnostic
+def get_csrf_trusted_origins():
+    """Dynamically determine CSRF trusted origins from environment variables"""
     csrf_origins = []
-    if railway_domain:
-        csrf_origins.append(f'https://{railway_domain}')
-        csrf_origins.append(f'http://{railway_domain}')  # Also allow HTTP for Railway's internal routing
-    if custom_domain:
-        csrf_origins.append(f'https://{custom_domain}')
-        csrf_origins.append(f'http://{custom_domain}')
-    if csrf_origins:
-        CSRF_TRUSTED_ORIGINS = csrf_origins
+    
+    # Priority 1: Explicit CSRF_TRUSTED_ORIGINS (highest priority)
+    explicit_origins = os.environ.get('CSRF_TRUSTED_ORIGINS', '')
+    if explicit_origins:
+        origins = [o.strip() for o in explicit_origins.split(',') if o.strip()]
+        csrf_origins.extend(origins)
+        return csrf_origins  # If explicitly set, use only those
+    
+    # Priority 2: Platform-specific domains
+    if IS_PRODUCTION:
+        # Railway
+        if IS_RAILWAY:
+            railway_domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN', '')
+            if railway_domain:
+                domain = normalize_domain(railway_domain)
+                if domain:
+                    csrf_origins.append(f'https://{domain}')
+                    csrf_origins.append(f'http://{domain}')  # Also allow HTTP for internal routing
+        
+        # Heroku
+        if IS_HEROKU:
+            heroku_domain = os.environ.get('HEROKU_APP_NAME', '')
+            if heroku_domain:
+                csrf_origins.append(f'https://{heroku_domain}.herokuapp.com')
+                csrf_origins.append(f'http://{heroku_domain}.herokuapp.com')
+        
+        # Render
+        if IS_RENDER:
+            render_domain = os.environ.get('RENDER_EXTERNAL_HOSTNAME', '')
+            if render_domain:
+                domain = normalize_domain(render_domain)
+                if domain:
+                    csrf_origins.append(f'https://{domain}')
+                    csrf_origins.append(f'http://{domain}')
+        
+        # Generic domain variables
+        for var_name in ['PUBLIC_DOMAIN', 'DOMAIN', 'CUSTOM_DOMAIN', 'APP_URL', 'SITE_URL']:
+            domain_value = os.environ.get(var_name, '')
+            if domain_value:
+                domain = normalize_domain(domain_value)
+                if domain:
+                    url = f'https://{domain}'
+                    if url not in csrf_origins:
+                        csrf_origins.append(url)
+                        csrf_origins.append(f'http://{domain}')
+    
+    return csrf_origins
+
+csrf_trusted_origins = get_csrf_trusted_origins()
+if csrf_trusted_origins:
+    CSRF_TRUSTED_ORIGINS = csrf_trusted_origins
