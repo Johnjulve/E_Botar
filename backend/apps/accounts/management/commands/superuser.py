@@ -49,11 +49,28 @@ class Command(BaseCommand):
 
         self.stdout.write(f'Ensuring superuser "{username}" exists...')
 
-        user, created = User.objects.get_or_create(username=username, defaults={'email': email})
+        # Try to get user by username first, then by email
+        try:
+            user = User.objects.get(username=username)
+            created = False
+        except User.DoesNotExist:
+            try:
+                user = User.objects.get(email=email)
+                created = False
+                # Update username if it's different
+                if user.username != username:
+                    user.username = username
+            except User.DoesNotExist:
+                user = User.objects.create_user(username=username, email=email, password=password)
+                created = True
+        
+        # Update user attributes
         user.email = email
         user.is_staff = True
         user.is_superuser = True
-        user.set_password(password)
+        # Only set password if it was provided (for new users or when explicitly updating)
+        if password and (created or options.get('password') or os.environ.get('SUPERUSER_PASSWORD')):
+            user.set_password(password)
         user.save()
 
         if created:

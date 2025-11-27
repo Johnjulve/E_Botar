@@ -228,7 +228,11 @@ E-Botar is configured to work seamlessly on Railway while maintaining full local
    
    # Setup database
    python manage.py migrate
-   python manage.py superuser
+   
+   # Create admin account
+   python manage.py superuser --username admin --email admin@example.com
+   # Or use environment variables:
+   # SUPERUSER_USERNAME=admin SUPERUSER_EMAIL=admin@example.com python manage.py superuser --no-input
    
    # Run backend server
    python manage.py runserver
@@ -238,6 +242,26 @@ E-Botar is configured to work seamlessly on Railway while maintaining full local
    npm install
    npm run dev
    ```
+
+### Create Admin Account on Railway
+
+After deploying to Railway, create your admin account:
+
+```bash
+# Option 1: Interactive (recommended)
+railway run python manage.py superuser --username admin --email admin@example.com
+
+# Option 2: Using environment variables (set in Railway dashboard)
+railway run python manage.py superuser --no-input
+
+# Option 3: Auto-generate password
+railway run python manage.py superuser --username admin --email admin@example.com --no-input
+```
+
+**Environment Variables (set in Railway):**
+- `SUPERUSER_USERNAME` - Admin username (default: admin)
+- `SUPERUSER_EMAIL` - Admin email (default: admin@example.com)
+- `SUPERUSER_PASSWORD` - Admin password (auto-generated if not set)
 
 ### Environment Detection
 
