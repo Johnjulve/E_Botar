@@ -219,7 +219,7 @@ const EditProfilePage = () => {
             </div>
             
             <div className="col-md-6">
-              <label className="form-label">Department</label>
+              <label className="form-label">College</label>
               <select
                 name="department"
                 className="form-select"
