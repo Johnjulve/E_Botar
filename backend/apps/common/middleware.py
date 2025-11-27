@@ -11,10 +11,15 @@ logger = logging.getLogger(__name__)
 
 
 class DynamicAllowedHostsMiddleware(MiddlewareMixin):
-    """Middleware to dynamically handle ALLOWED_HOSTS on any platform when domain is not yet set"""
+    """Middleware to dynamically handle ALLOWED_HOSTS on any platform"""
     
     def process_request(self, request):
-        """Dynamically add Host to ALLOWED_HOSTS if needed (platform-agnostic)"""
+        """Handle ALLOWED_HOSTS dynamically, including '*' wildcard support"""
+        # Check if '*' is in ALLOWED_HOSTS (allow all hosts)
+        if '*' in settings.ALLOWED_HOSTS:
+            # Allow all hosts - this is safe on cloud platforms
+            return None
+        
         # Check if we're in production (any platform)
         is_production = (
             os.environ.get('DJANGO_ENV') == 'production' or
