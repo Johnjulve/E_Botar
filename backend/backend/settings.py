@@ -23,9 +23,11 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Environment detection - Support multiple platforms
+# Match working E_Botar-FULL-Django pattern exactly
 IS_RAILWAY = (
     os.environ.get('RAILWAY_ENVIRONMENT') is not None or
-    os.environ.get('RAILWAY') is not None
+    os.environ.get('RAILWAY') is not None or
+    os.environ.get('PORT') is not None  # Railway sets PORT
 )
 IS_HEROKU = os.environ.get('DYNO') is not None
 IS_RENDER = os.environ.get('RENDER') is not None
@@ -68,60 +70,58 @@ def normalize_domain(domain_str):
     domain = domain.rstrip('/')
     return domain
 
-if IS_PRODUCTION:
-    # Production: Match working E_Botar-FULL-Django pattern
-    # Start with '*' to allow all hosts (platforms handle routing)
-    # Then add specific domains for better security
-    allowed_hosts = ['*']  # Allow all hosts on cloud platforms by default
-    
-    # Priority 1: Explicit ALLOWED_HOSTS environment variable (highest priority)
+# ALLOWED_HOSTS configuration - Match working E_Botar-FULL-Django pattern exactly
+if IS_RAILWAY:
+    # Railway: Match working project pattern exactly
+    allowed_hosts = ['*']  # Allow all hosts on Railway by default
+    railway_domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN', '')
+    if railway_domain:
+        allowed_hosts.append(railway_domain)
+    # Add custom domain if set
+    custom_domain = os.environ.get('CUSTOM_DOMAIN', '')
+    if custom_domain:
+        allowed_hosts.append(custom_domain)
+    # Also check for explicit ALLOWED_HOSTS env var
     explicit_hosts = os.environ.get('ALLOWED_HOSTS', '')
     if explicit_hosts:
-        # If explicitly set, use only those (override '*')
+        allowed_hosts.extend([h.strip() for h in explicit_hosts.split(',') if h.strip()])
+    ALLOWED_HOSTS = allowed_hosts
+elif IS_PRODUCTION:
+    # Other production platforms
+    allowed_hosts = []
+    
+    # Explicit ALLOWED_HOSTS
+    explicit_hosts = os.environ.get('ALLOWED_HOSTS', '')
+    if explicit_hosts:
         allowed_hosts = [h.strip() for h in explicit_hosts.split(',') if h.strip()]
     else:
-        # Priority 2: Platform-specific domain variables
-        # Railway
-        if IS_RAILWAY:
-            railway_domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN', '')
-            if railway_domain:
-                domain = normalize_domain(railway_domain)
-                if domain and domain not in allowed_hosts:
-                    allowed_hosts.append(domain)
-        
-        # Heroku
+        # Platform-specific
         if IS_HEROKU:
             heroku_domain = os.environ.get('HEROKU_APP_NAME', '')
             if heroku_domain:
-                domain = f'{heroku_domain}.herokuapp.com'
-                if domain not in allowed_hosts:
-                    allowed_hosts.append(domain)
+                allowed_hosts.append(f'{heroku_domain}.herokuapp.com')
         
-        # Render
         if IS_RENDER:
             render_domain = os.environ.get('RENDER_EXTERNAL_HOSTNAME', '')
             if render_domain:
                 domain = normalize_domain(render_domain)
-                if domain and domain not in allowed_hosts:
+                if domain:
                     allowed_hosts.append(domain)
         
-        # Priority 3: Generic domain variables (work on any platform)
-        generic_domain_vars = ['PUBLIC_DOMAIN', 'DOMAIN', 'CUSTOM_DOMAIN', 'APP_URL', 'SITE_URL']
-        for var_name in generic_domain_vars:
+        # Generic variables
+        for var_name in ['PUBLIC_DOMAIN', 'DOMAIN', 'CUSTOM_DOMAIN']:
             domain_value = os.environ.get(var_name, '')
             if domain_value:
                 domain = normalize_domain(domain_value)
-                if domain and domain not in allowed_hosts:
+                if domain:
                     allowed_hosts.append(domain)
-                    # Also add without port if it has one
-                    if ':' in domain:
-                        domain_no_port = domain.split(':')[0]
-                        if domain_no_port not in allowed_hosts:
-                            allowed_hosts.append(domain_no_port)
+        
+        if not allowed_hosts:
+            allowed_hosts = ['*']  # Fallback for other platforms
     
     ALLOWED_HOSTS = allowed_hosts
 else:
-    # Local development: Use specific hosts
+    # Local development
     ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',') if os.environ.get('ALLOWED_HOSTS') else ['localhost', '127.0.0.1']
 
 

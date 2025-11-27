@@ -12,14 +12,10 @@ logger = logging.getLogger(__name__)
 
 class DynamicAllowedHostsMiddleware(MiddlewareMixin):
     """Middleware to dynamically handle ALLOWED_HOSTS on any platform"""
+    """This middleware runs before CommonMiddleware to allow dynamic host addition"""
     
     def process_request(self, request):
-        """Handle ALLOWED_HOSTS dynamically, including '*' wildcard support"""
-        # Check if '*' is in ALLOWED_HOSTS (allow all hosts)
-        if '*' in settings.ALLOWED_HOSTS:
-            # Allow all hosts - this is safe on cloud platforms
-            return None
-        
+        """Handle ALLOWED_HOSTS dynamically - allow all hosts on cloud platforms"""
         # Check if we're in production (any platform)
         is_production = (
             os.environ.get('DJANGO_ENV') == 'production' or
@@ -35,16 +31,15 @@ class DynamicAllowedHostsMiddleware(MiddlewareMixin):
             # Get the Host header (without port)
             host = request.get_host().split(':')[0]
             
-            # If ALLOWED_HOSTS is empty or doesn't include this host, add it dynamically
-            # This is safe on cloud platforms because they handle all routing
-            if not settings.ALLOWED_HOSTS or host not in settings.ALLOWED_HOSTS:
-                # Dynamically add the host to ALLOWED_HOSTS
-                # This works because Django checks ALLOWED_HOSTS in CommonMiddleware (after this)
-                if not settings.ALLOWED_HOSTS:
-                    settings.ALLOWED_HOSTS = []
-                if host not in settings.ALLOWED_HOSTS:
-                    settings.ALLOWED_HOSTS.append(host)
-                    logger.debug(f"Dynamically added host to ALLOWED_HOSTS: {host}")
+            # If '*' is in ALLOWED_HOSTS, allow all hosts (matches working project)
+            if '*' in settings.ALLOWED_HOSTS:
+                # Allow all hosts - this is safe on cloud platforms
+                return None
+            
+            # If ALLOWED_HOSTS doesn't include this host, add it dynamically
+            if host not in settings.ALLOWED_HOSTS:
+                settings.ALLOWED_HOSTS.append(host)
+                logger.debug(f"Dynamically added host to ALLOWED_HOSTS: {host}")
         
         return None
 
