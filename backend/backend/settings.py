@@ -242,11 +242,23 @@ if IS_PRODUCTION:
     CORS_ALLOWED_ORIGINS = []
     frontend_url = os.environ.get('FRONTEND_URL', '')
     if frontend_url:
+        # Remove trailing slash if present
+        frontend_url = frontend_url.rstrip('/')
         CORS_ALLOWED_ORIGINS.append(frontend_url)
     railway_domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN', '')
     if railway_domain:
         # If frontend is on same domain, add it
         CORS_ALLOWED_ORIGINS.append(f'https://{railway_domain}')
+    
+    # If no CORS origins configured, allow all (for API-only deployments)
+    # Set FRONTEND_URL to restrict CORS if needed
+    if not CORS_ALLOWED_ORIGINS:
+        CORS_ALLOW_ALL_ORIGINS = True
+        import warnings
+        warnings.warn(
+            "No FRONTEND_URL set. CORS allows all origins. Set FRONTEND_URL to restrict CORS.",
+            UserWarning
+        )
     CORS_ALLOW_CREDENTIALS = True
 else:
     # Development: Allow all origins
