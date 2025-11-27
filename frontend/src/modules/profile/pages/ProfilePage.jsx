@@ -129,7 +129,7 @@ const ProfilePage = () => {
                 <span className="info-value">{profile?.year_level || 'Not specified'}</span>
               </div>
               <div className="info-item">
-                <span className="info-label">Department</span>
+                <span className="info-label">College</span>
                 <span className="info-value">{profile?.department?.name || 'Not specified'}</span>
               </div>
               <div className="info-item">
