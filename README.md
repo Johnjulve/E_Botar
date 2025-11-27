@@ -186,6 +186,71 @@ npm run dev  # Runs on http://localhost:5173
 
 ---
 
+## 🚂 Railway Deployment
+
+E-Botar is configured to work seamlessly on Railway while maintaining full local development support.
+
+### Quick Deploy to Railway
+
+1. **Connect Repository**: Link your GitHub repository to Railway
+2. **Set Root Directory**: In Railway service settings, set Root Directory to `backend`
+3. **Add PostgreSQL**: In Railway dashboard, click "New" → "Database" → "Add PostgreSQL"
+4. **Set Environment Variables**:
+   - `SECRET_KEY`: Generate with `python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"`
+   - `DEBUG`: Set to `False` for production
+   - `FRONTEND_URL`: Your frontend URL (if deployed separately)
+5. **Deploy**: Railway will automatically detect the `Procfile` in `backend/` folder and deploy
+
+### Local Development After Cloning
+
+1. **Run Setup Script**:
+   ```powershell
+   # Windows
+   .\setup_local.bat
+   
+   # Linux/Mac
+   chmod +x setup_local.sh
+   ./setup_local.sh
+   ```
+
+2. **Or Manual Setup**:
+   ```powershell
+   # Create backend/.env file (copy from backend/.env.example)
+   # Edit backend/.env and set SECRET_KEY
+   
+   # Create and activate virtual environment
+   python -m venv env
+   .\env\Scripts\Activate.ps1
+   
+   # Install backend dependencies
+   cd backend
+   pip install -r requirements.txt
+   
+   # Setup database
+   python manage.py migrate
+   python manage.py superuser
+   
+   # Run backend server
+   python manage.py runserver
+   
+   # In another terminal, run frontend
+   cd frontend
+   npm install
+   npm run dev
+   ```
+
+### Environment Detection
+
+The system automatically detects the environment:
+- **Local**: Uses SQLite, DEBUG=True, relaxed security, CORS allows all
+- **Railway**: Uses PostgreSQL (from DATABASE_URL), DEBUG=False, production security, CORS restricted
+
+No code changes needed - it just works! 🎉
+
+**👉 [See Complete Railway Deployment Guide](RAILWAY_DEPLOYMENT.md)**
+
+---
+
 ## 🔐 Role-Based Access Control
 
 E-Botar implements a **three-tier role system**:

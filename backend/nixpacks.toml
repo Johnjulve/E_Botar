@@ -1,0 +1,17 @@
+[phases.setup]
+nixPkgs = ["python313", "postgresql"]
+
+[phases.install]
+cmds = [
+    "pip install --upgrade pip",
+    "pip install -r requirements.txt"
+]
+
+[phases.build]
+cmds = [
+    "python manage.py collectstatic --noinput || true"
+]
+
+[start]
+cmd = "python manage.py migrate && gunicorn backend.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 120"
+

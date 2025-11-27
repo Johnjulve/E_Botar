@@ -14,6 +14,7 @@ from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
 from django.core.cache import cache
+from urllib.parse import urlparse
 import os
 
 load_dotenv() 
@@ -21,17 +22,55 @@ load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Environment detection
+# Railway sets PORT, RAILWAY_ENVIRONMENT, or RAILWAY_PUBLIC_DOMAIN
+IS_RAILWAY = (
+    os.environ.get('RAILWAY_ENVIRONMENT') is not None or
+    os.environ.get('RAILWAY') is not None or
+    os.environ.get('PORT') is not None
+)
+IS_PRODUCTION = os.environ.get('DJANGO_ENV') == 'production' or IS_RAILWAY
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-c^hu1q77a4tnn$dil=sboisr6kk78)&w^99*6l#(_+z^!t&))6'
+SECRET_KEY = os.environ.get('SECRET_KEY')
+if not SECRET_KEY:
+    if IS_PRODUCTION:
+        raise ValueError(
+            "SECRET_KEY environment variable must be set in production! "
+            "Generate one with: python -c \"from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())\""
+        )
+    # Fallback for local development only
+    SECRET_KEY = 'django-insecure-c^hu1q77a4tnn$dil=sboisr6kk78)&w^99*6l#(_+z^!t&))6'
+    import warnings
+    warnings.warn(
+        "Using insecure default SECRET_KEY. Set SECRET_KEY environment variable for production!",
+        UserWarning
+    )
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true' if IS_PRODUCTION else True
 
-# Temporarily allow all hosts
-ALLOWED_HOSTS = ["*"]
+# ALLOWED_HOSTS configuration
+if IS_RAILWAY:
+    # Railway provides RAILWAY_PUBLIC_DOMAIN or uses PORT
+    allowed_hosts = ['*']  # Allow all hosts on Railway by default
+    railway_domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN', '')
+    if railway_domain:
+        allowed_hosts.append(railway_domain)
+    # Add custom domain if set
+    custom_domain = os.environ.get('CUSTOM_DOMAIN', '')
+    if custom_domain:
+        allowed_hosts.append(custom_domain)
+    # Also check for explicit ALLOWED_HOSTS env var
+    explicit_hosts = os.environ.get('ALLOWED_HOSTS', '')
+    if explicit_hosts:
+        allowed_hosts.extend([h.strip() for h in explicit_hosts.split(',') if h.strip()])
+    ALLOWED_HOSTS = allowed_hosts
+else:
+    ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',') if os.environ.get('ALLOWED_HOSTS') else ['localhost', '127.0.0.1']
 
 
 REST_FRAMEWORK = {
@@ -71,6 +110,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Serve static files efficiently
     'django.contrib.sessions.middleware.SessionMiddleware',
     "corsheaders.middleware.CorsMiddleware",
     'django.middleware.common.CommonMiddleware',
@@ -104,12 +144,34 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# Use PostgreSQL on Railway, SQLite for local development
+DATABASE_URL = os.environ.get('DATABASE_URL')
+
+if DATABASE_URL:
+    # Parse DATABASE_URL (Railway format: postgresql://user:password@host:port/dbname)
+    parsed = urlparse(DATABASE_URL)
+    
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': parsed.path[1:],  # Remove leading '/'
+            'USER': parsed.username,
+            'PASSWORD': parsed.password,
+            'HOST': parsed.hostname,
+            'PORT': parsed.port or '5432',
+            'OPTIONS': {
+                'sslmode': 'require',
+            },
+        }
     }
-}
+else:
+    # Local development - use SQLite
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 CACHES = {
     "default": {
@@ -158,6 +220,10 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# WhiteNoise configuration for static files
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Media files (User uploads)
 MEDIA_URL = 'media/'
@@ -170,5 +236,48 @@ BACKEND_BASE_URL = os.getenv('BACKEND_BASE_URL', None)
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOW_CREDENTIALS = True
+# CORS Configuration
+if IS_PRODUCTION:
+    # Production: Only allow specific origins
+    CORS_ALLOWED_ORIGINS = []
+    frontend_url = os.environ.get('FRONTEND_URL', '')
+    if frontend_url:
+        CORS_ALLOWED_ORIGINS.append(frontend_url)
+    railway_domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN', '')
+    if railway_domain:
+        # If frontend is on same domain, add it
+        CORS_ALLOWED_ORIGINS.append(f'https://{railway_domain}')
+    CORS_ALLOW_CREDENTIALS = True
+else:
+    # Development: Allow all origins
+    CORS_ALLOW_ALL_ORIGINS = True
+    CORS_ALLOW_CREDENTIALS = True
+
+# Security settings for production
+if IS_PRODUCTION:
+    # HTTPS settings
+    SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', 'False').lower() == 'true'
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
+    
+    # HSTS settings
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+
+# CSRF trusted origins for Railway
+if IS_RAILWAY:
+    railway_domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN', '')
+    custom_domain = os.environ.get('CUSTOM_DOMAIN', '')
+    csrf_origins = []
+    if railway_domain:
+        csrf_origins.append(f'https://{railway_domain}')
+        csrf_origins.append(f'http://{railway_domain}')  # Also allow HTTP for Railway's internal routing
+    if custom_domain:
+        csrf_origins.append(f'https://{custom_domain}')
+        csrf_origins.append(f'http://{custom_domain}')
+    if csrf_origins:
+        CSRF_TRUSTED_ORIGINS = csrf_origins
