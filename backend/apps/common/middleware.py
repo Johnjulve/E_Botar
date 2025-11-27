@@ -1,10 +1,47 @@
 from django.utils.deprecation import MiddlewareMixin
 from django.contrib.auth.signals import user_logged_in, user_logged_out, user_login_failed
 from django.dispatch import receiver
+from django.conf import settings
+from django.http import Http404
 from .models import SecurityEvent, ActivityLog
 import logging
+import os
 
 logger = logging.getLogger(__name__)
+
+
+class DynamicAllowedHostsMiddleware(MiddlewareMixin):
+    """Middleware to dynamically handle ALLOWED_HOSTS on any platform"""
+    """This middleware runs before CommonMiddleware to allow dynamic host addition"""
+    
+    def process_request(self, request):
+        """Handle ALLOWED_HOSTS dynamically - allow all hosts on cloud platforms"""
+        # Check if we're in production (any platform)
+        is_production = (
+            os.environ.get('DJANGO_ENV') == 'production' or
+            os.environ.get('ENVIRONMENT') == 'production' or
+            os.environ.get('RAILWAY_ENVIRONMENT') is not None or
+            os.environ.get('RAILWAY') is not None or
+            os.environ.get('DYNO') is not None or  # Heroku
+            os.environ.get('RENDER') is not None or  # Render
+            os.environ.get('PORT') is not None  # Most platforms set PORT
+        )
+        
+        if is_production:
+            # Get the Host header (without port)
+            host = request.get_host().split(':')[0]
+            
+            # If '*' is in ALLOWED_HOSTS, allow all hosts (matches working project)
+            if '*' in settings.ALLOWED_HOSTS:
+                # Allow all hosts - this is safe on cloud platforms
+                return None
+            
+            # If ALLOWED_HOSTS doesn't include this host, add it dynamically
+            if host not in settings.ALLOWED_HOSTS:
+                settings.ALLOWED_HOSTS.append(host)
+                logger.debug(f"Dynamically added host to ALLOWED_HOSTS: {host}")
+        
+        return None
 
 
 class SecurityLoggingMiddleware(MiddlewareMixin):
