@@ -9,6 +9,81 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.1] - 2025-12-XX
+### Fixed
+- **Production API Access**: Fixed `/me` endpoint access issues in production mode
+  - Enhanced API service with proper base URL fallback handling
+  - Added automatic `/api` suffix normalization for environment variables
+  - Improved error messages for network and CORS issues
+  - Added 30-second timeout to prevent hanging requests
+
+- **CORS Configuration**: Fixed comma-separated `FRONTEND_URL` support in backend
+  - Backend now properly handles multiple frontend URLs separated by commas
+  - Improved URL normalization for trailing slashes and protocols
+  - Better support for production deployments with multiple frontend instances
+
+### Added
+- **Automatic Token Refresh**: Implemented automatic JWT token refresh on 401 errors
+  - API service now automatically refreshes expired access tokens
+  - Seamless user experience without manual re-authentication
+  - Automatic redirect to login if refresh token is invalid
+
+- **Enhanced Error Handling**: Improved API error handling and user feedback
+  - Better network error detection and messaging
+  - CORS error detection with helpful error messages
+  - More informative error responses for debugging
+
+### Changed
+- **API Service Architecture**: Enhanced `frontend/src/services/api.js`
+  - Added `getBaseURL()` helper function with intelligent URL handling
+  - Added response interceptor for automatic token refresh
+  - Improved request interceptor with better error handling
+  - Added timeout configuration (30 seconds)
+
+- **Backend CORS Logic**: Updated `backend/backend/settings.py`
+  - Enhanced `get_cors_origins()` to support comma-separated frontend URLs
+  - Improved URL parsing and normalization
+  - Better handling of multiple frontend domains
+
+### Technical Details
+- Frontend API service now handles missing `VITE_API_BASE_URL` gracefully
+- Token refresh uses refresh token from localStorage automatically
+- CORS configuration supports multiple frontend URLs for staging/production
+- All changes are backward compatible with existing deployments
+
+---
+
+## [0.7.0] - 2025-12-XX
+### Added
+- **Production Deployment Configuration**: 
+  - Vercel deployment configuration (`vercel.json`)
+  - Environment variable documentation for production setup
+  - Frontend build optimization for production
+
+- **Frontend Production Readiness**:
+  - Production build configuration in `vite.config.js`
+  - Optimized build output with sourcemap control
+  - Production-ready static file serving
+
+### Changed
+- **Frontend Architecture**: 
+  - Enhanced API service with production-ready error handling
+  - Improved environment variable handling for different deployment environments
+  - Better separation of development and production configurations
+
+- **Backend Production Settings**:
+  - Enhanced CORS configuration for production environments
+  - Improved environment detection for various hosting platforms
+  - Better handling of production security settings
+
+### Technical Details
+- Frontend configured for Vercel deployment with proper routing
+- Backend ready for Railway, Heroku, Render, and other platforms
+- Environment variable system supports multiple deployment scenarios
+- Production builds optimized for performance
+
+---
+
 ## [0.6.4] - 2025-11-25
 ### Fixed
 - **Staff Access to Admin Panels**: Fixed issue where staff users could not see admin panels they're allowed to access. Staff can now properly access election management and application review interfaces.
