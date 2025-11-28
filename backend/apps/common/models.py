@@ -34,6 +34,7 @@ class SecurityEvent(models.Model):
     created_at = models.DateTimeField(default=timezone.now, db_index=True)
     
     class Meta:
+        db_table = 'common_securityevent'
         ordering = ['-created_at']
         verbose_name = 'Security Event'
         verbose_name_plural = 'Security Events'
@@ -72,6 +73,7 @@ class ActivityLog(models.Model):
     created_at = models.DateTimeField(default=timezone.now, db_index=True)
     
     class Meta:
+        db_table = 'common_activitylog'
         ordering = ['-created_at']
         verbose_name = 'Activity Log'
         verbose_name_plural = 'Activity Logs'

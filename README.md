@@ -25,8 +25,12 @@
 ## 🚀 Release Highlights (0.7.1)
 
 - **Production API Fixes**: Fixed `/me` endpoint access issues in production with enhanced error handling, automatic token refresh, and improved CORS configuration.
+- **Backend Error Resolution**: Resolved 500 Internal Server Error on `/me` endpoint by fixing serializer handling of None values and adding comprehensive error handling.
+- **Database Migration Fixes**: Fixed "no such table" errors by adding explicit table names to all models across all apps, ensuring consistent database schema in production.
 - **Automatic Token Refresh**: API service now automatically refreshes expired JWT tokens, providing seamless user experience without manual re-authentication.
 - **Enhanced CORS Support**: Backend now properly supports multiple frontend URLs and improved production deployment configuration.
+
+> ⚠️ **Important**: After deploying this update, run `python manage.py migrate` in production to create/update database tables.
 
 ### Previous Highlights (0.7.0)
 - **Production Deployment**: Added Vercel deployment configuration and production-ready build settings for frontend and backend.

@@ -32,6 +32,7 @@ class Program(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
+        db_table = 'accounts_program'
         ordering = ['program_type', 'name']
         constraints = [
             models.UniqueConstraint(fields=['program_type', 'code'], name='unique_program_code_per_type'),
@@ -96,6 +97,7 @@ class UserProfile(models.Model):
         super().save(*args, **kwargs)
     
     class Meta:
+        db_table = 'accounts_userprofile'
         verbose_name = 'User Profile'
         verbose_name_plural = 'User Profiles'
         ordering = ['-created_at']

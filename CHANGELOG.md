@@ -17,6 +17,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Improved error messages for network and CORS issues
   - Added 30-second timeout to prevent hanging requests
 
+- **Backend 500 Error on `/me` Endpoint**: Fixed internal server errors when accessing user profile
+  - Added comprehensive error handling in `current_user` view with try-except blocks
+  - Fixed serializer to properly handle `None` values for `department` and `course` fields
+  - Added `allow_null=True` for nested serializers to prevent serialization errors
+  - Improved `avatar_url` generation with better error handling and fallback logic
+  - Added logging for debugging production issues
+  - Enhanced error responses with detailed error messages for troubleshooting
+
+- **Database Table Name Issues**: Fixed "no such table" errors in production
+  - Added explicit `db_table` settings to all models across all apps to prevent migration issues
+  - **Accounts app**: `accounts_userprofile`, `accounts_program`
+  - **Elections app**: `elections_party`, `elections_schoolposition`, `elections_schoolelection`, `elections_electionposition`
+  - **Candidates app**: `candidates_candidateapplication`, `candidates_candidate`
+  - **Voting app**: `voting_votereceipt`, `voting_anonvote`, `voting_ballot`, `voting_votechoice`
+  - **Common app**: `common_securityevent`, `common_activitylog`
+  - Ensures consistent table names across all deployment environments
+  - Prevents future "no such table" errors when migrations are run
+
 - **CORS Configuration**: Fixed comma-separated `FRONTEND_URL` support in backend
   - Backend now properly handles multiple frontend URLs separated by commas
   - Improved URL normalization for trailing slashes and protocols
@@ -49,7 +67,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Frontend API service now handles missing `VITE_API_BASE_URL` gracefully
 - Token refresh uses refresh token from localStorage automatically
 - CORS configuration supports multiple frontend URLs for staging/production
+- Backend `/me` endpoint now handles edge cases (missing profiles, None values, avatar URL generation)
+- Error logging added to help diagnose production issues
+- Serializer improvements ensure proper handling of optional related fields
+- **All models now have explicit `db_table` settings** to ensure consistent table naming
+- Database migrations will now create tables with predictable names regardless of app structure
+- Prevents "no such table" errors when deploying to production
 - All changes are backward compatible with existing deployments
+- **Important**: Run `python manage.py migrate` in production after deploying these changes
 
 ---
 
