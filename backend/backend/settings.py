@@ -295,13 +295,20 @@ def get_cors_origins():
     cors_origins = []
     
     # Priority 1: Explicit FRONTEND_URL (highest priority)
+    # Supports comma-separated values for multiple frontends
     frontend_url = os.environ.get('FRONTEND_URL', '')
     if frontend_url:
-        url = frontend_url.rstrip('/')
-        cors_origins.append(url)
-        # Also add without protocol if needed
-        if url.startswith('https://'):
-            cors_origins.append(url.replace('https://', 'http://', 1))
+        # Split by comma to support multiple URLs
+        urls = [url.strip() for url in frontend_url.split(',') if url.strip()]
+        for url in urls:
+            url = url.rstrip('/')
+            if url not in cors_origins:
+                cors_origins.append(url)
+                # Also add without protocol if needed (for internal routing)
+                if url.startswith('https://'):
+                    http_url = url.replace('https://', 'http://', 1)
+                    if http_url not in cors_origins:
+                        cors_origins.append(http_url)
     
     # Priority 2: Generic frontend domain variables
     frontend_vars = ['FRONTEND_DOMAIN', 'CLIENT_URL', 'APP_URL', 'SITE_URL']
