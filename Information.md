@@ -1,6 +1,6 @@
 # E-Botar - System Information
 
-**Version 0.6.4** | Complete system documentation and technical details
+**Version 0.7.1** | Complete system documentation and technical details
 
 [![Django](https://img.shields.io/badge/Django-5.2.8-green.svg)](https://www.djangoproject.com/)
 [![DRF](https://img.shields.io/badge/DRF-3.16.1-red.svg)](https://www.django-rest-framework.org/)
@@ -27,8 +27,20 @@
 
 ---
 
-## 🚀 Release Highlights (0.6.4)
+## 🚀 Release Highlights (0.7.1)
 
+- **Production API Fixes**: Fixed `/me` endpoint access issues in production with enhanced error handling, automatic token refresh, and improved CORS configuration for multiple frontend URLs.
+- **Backend Error Resolution**: Resolved 500 Internal Server Error on `/me` endpoint by fixing serializer handling of None values (department, course) and adding comprehensive error handling with logging.
+- **Database Migration Fixes**: Fixed "no such table" errors by adding explicit `db_table` settings to all 12 models across 5 apps (accounts, elections, candidates, voting, common), ensuring consistent database schema and preventing migration issues in production.
+- **Automatic Token Refresh**: API service now automatically refreshes expired JWT tokens, providing seamless user experience without manual re-authentication.
+- **Enhanced Production Deployment**: Improved CORS configuration, environment variable handling, and production-ready error messages with detailed logging for troubleshooting.
+
+> ⚠️ **Important**: After deploying this update, run `python manage.py migrate` in production to create/update database tables with the new explicit table names.
+
+### Previous Highlights (0.7.0)
+- **Production Deployment Configuration**: Added Vercel deployment configuration and production-ready build settings for both frontend and backend.
+
+### Previous Highlights (0.6.4)
 - **Fixed staff access to admin panels**: Staff users can now properly access admin panels they're allowed to use (election management, application review). Admin-only features (user management, system logs) remain restricted to superusers.
 - **Enhanced permission system**: Created custom permission classes (`IsSuperUser`, `IsStaffOrSuperUser`) to properly distinguish between staff and admin roles, ensuring staff cannot access admin-only privileges.
 - **Improved data privacy**: Sensitive user fields (`is_staff`, `is_superuser`) are now properly hidden from non-admin users in API responses, while users can still see their own fields for role checks.
@@ -1185,7 +1197,7 @@ pylint apps/
 
 ## 🗺️ Roadmap
 
-### Current Version: 0.6.4
+### Current Version: 0.7.1
 - ✅ Complete Backend API (50+ endpoints)
 - ✅ User authentication and profiles
 - ✅ Three-tier role system (Student, Staff, Admin)
@@ -1199,14 +1211,16 @@ pylint apps/
 - ✅ Privacy-preserving voting
 - ✅ Results and analytics
 - ✅ Security logging
-- ✅ React frontend (in development)
+- ✅ Complete React frontend (all modules functional)
+- ✅ Production deployment configuration (Vercel, Railway, etc.)
+- ✅ Production API fixes and error handling
+- ✅ Automatic token refresh system
 
-### Next: Version 0.7.0 (Q1 2025)
-- 🔄 Complete React User Interface (authentication, voting, results)
-- 🔄 Complete React Admin Dashboard (election management, application review)
-- 🔄 Data visualizations (Chart.js integration)
-- 🔄 Mobile-responsive UI with Bootstrap 5
-- 🔄 Complete frontend-backend integration
+### Next: Version 0.8.0 (Q1 2025)
+- 🔄 Enhanced data visualizations (Chart.js integration)
+- 🔄 Advanced analytics dashboard
+- 🔄 Performance optimizations
+- 🔄 Comprehensive testing suite
 
 ### Future: Version 1.0.0 (Q2 2025)
 - 📋 Email notification system (P1 deferred feature)

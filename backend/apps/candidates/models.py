@@ -117,6 +117,7 @@ class CandidateApplication(models.Model):
         self.save()
     
     class Meta:
+        db_table = 'candidates_candidateapplication'
         unique_together = [['user', 'election']]
         ordering = ['-submitted_at']
         verbose_name = 'Candidate Application'
@@ -162,6 +163,7 @@ class Candidate(models.Model):
                 self.approved_application = approved_app
     
     class Meta:
+        db_table = 'candidates_candidate'
         ordering = ['position__display_order', 'user__first_name']
         unique_together = ['user', 'election', 'position']
         verbose_name = 'Candidate'

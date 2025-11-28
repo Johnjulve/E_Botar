@@ -1,6 +1,6 @@
 # E-Botar - Blockchain-Inspired Electronic Voting System
 
-**Version 0.6.4** | A secure, privacy-preserving electronic voting platform for student government elections
+**Version 0.7.1** | A secure, privacy-preserving electronic voting platform for student government elections
 
 [![Django](https://img.shields.io/badge/Django-5.2.8-green.svg)](https://www.djangoproject.com/)
 [![DRF](https://img.shields.io/badge/DRF-3.16.1-red.svg)](https://www.django-rest-framework.org/)
@@ -11,7 +11,7 @@
 
 ## 📖 Table of Contents
 
-- [Release Highlights (0.6.4)](#-release-highlights-064)
+- [Release Highlights (0.7.1)](#-release-highlights-071)
 - [Quick Start](#quick-start)
 - [Key Features](#key-features)
 - [Role-Based Access Control](#role-based-access-control)
@@ -22,11 +22,18 @@
 
 ---
 
-## 🚀 Release Highlights (0.6.4)
+## 🚀 Release Highlights (0.7.1)
 
-- **Fixed staff access to admin panels**: Staff users can now properly access admin panels they're allowed to use (election management, application review). Admin-only features (user management, system logs) remain restricted to superusers.
-- **Enhanced permission system**: Created custom permission classes to properly distinguish between staff and admin roles, ensuring staff cannot access admin-only privileges.
-- **Improved data privacy**: Sensitive user fields (`is_staff`, `is_superuser`) are now properly hidden from non-admin users in API responses.
+- **Production API Fixes**: Fixed `/me` endpoint access issues in production with enhanced error handling, automatic token refresh, and improved CORS configuration.
+- **Backend Error Resolution**: Resolved 500 Internal Server Error on `/me` endpoint by fixing serializer handling of None values and adding comprehensive error handling.
+- **Database Migration Fixes**: Fixed "no such table" errors by adding explicit table names to all models across all apps, ensuring consistent database schema in production.
+- **Automatic Token Refresh**: API service now automatically refreshes expired JWT tokens, providing seamless user experience without manual re-authentication.
+- **Enhanced CORS Support**: Backend now properly supports multiple frontend URLs and improved production deployment configuration.
+
+> ⚠️ **Important**: After deploying this update, run `python manage.py migrate` in production to create/update database tables.
+
+### Previous Highlights (0.7.0)
+- **Production Deployment**: Added Vercel deployment configuration and production-ready build settings for frontend and backend.
 
 ---
 
@@ -391,8 +398,8 @@ python manage.py check
 
 ---
 
-**E-Botar v0.6.3** | Last Updated: November 25, 2025  
-**Status**: Backend Complete | Frontend in Development
+**E-Botar v0.7.1** | Last Updated: December 2025  
+**Status**: Production Ready | Full Stack Complete
 
 > 📖 **For complete documentation**, see [Information.md](Information.md)
 

@@ -18,6 +18,7 @@ class Party(models.Model):
         return self.name
     
     class Meta:
+        db_table = 'elections_party'
         ordering = ['name']
         verbose_name = 'Party'
         verbose_name_plural = 'Parties'
@@ -37,6 +38,7 @@ class SchoolPosition(models.Model):
         return self.name
     
     class Meta:
+        db_table = 'elections_schoolposition'
         ordering = ['display_order', 'name']
         verbose_name = 'School Position'
         verbose_name_plural = 'School Positions'
@@ -108,6 +110,7 @@ class SchoolElection(models.Model):
         return rejected_count
     
     class Meta:
+        db_table = 'elections_schoolelection'
         ordering = ['-start_date']
         verbose_name = 'School Election'
         verbose_name_plural = 'School Elections'
@@ -124,6 +127,7 @@ class ElectionPosition(models.Model):
         return f"{self.election.title} - {self.position.name}"
     
     class Meta:
+        db_table = 'elections_electionposition'
         unique_together = ['election', 'position']
         ordering = ['order', 'position__display_order']
         verbose_name = 'Election Position'

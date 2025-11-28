@@ -243,6 +243,4 @@ PHASE2_SUMMARY.md
 PHASE2_DEFERRED_FEATURES.md
 THESIS_DEFEND.md
 
-# Ignore generated migrations (except package initializers)
-backend/apps/*/migrations/*.py
-!backend/apps/*/migrations/__init__.py
+

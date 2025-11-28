@@ -75,8 +75,8 @@ class UserSerializer(serializers.ModelSerializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     """Serializer for UserProfile model"""
     user = UserSerializer(read_only=True)
-    department = DepartmentSerializer(read_only=True)
-    course = CourseSerializer(read_only=True)
+    department = DepartmentSerializer(read_only=True, allow_null=True)
+    course = CourseSerializer(read_only=True, allow_null=True)
     avatar_url = serializers.SerializerMethodField()
     
     # Write-only fields for updates
@@ -94,23 +94,47 @@ class UserProfileSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'avatar_url', 'department', 'course']
     
+    def to_representation(self, instance):
+        """Override to handle None values for department and course"""
+        # Get base representation - DRF will handle nested serialization automatically
+        ret = super().to_representation(instance)
+        
+        # Ensure None values are properly set (DRF should handle this with allow_null=True,
+        # but we explicitly set it to be safe)
+        if instance.department is None:
+            ret['department'] = None
+        if instance.course is None:
+            ret['course'] = None
+        
+        return ret
+    
     def get_avatar_url(self, obj):
         """Return full URL for avatar"""
         if obj.avatar:
-            request = self.context.get('request')
-            
-            # Use BACKEND_BASE_URL if configured (for remote access)
-            if hasattr(settings, 'BACKEND_BASE_URL') and settings.BACKEND_BASE_URL:
-                base_url = settings.BACKEND_BASE_URL.rstrip('/')
-                media_url = obj.avatar.url.lstrip('/')
-                return f"{base_url}/{media_url}"
-            
-            # Fallback to request.build_absolute_uri() if available
-            if request:
-                return request.build_absolute_uri(obj.avatar.url)
-            
-            # Last resort: return relative URL
-            return obj.avatar.url
+            try:
+                request = self.context.get('request')
+                
+                # Use BACKEND_BASE_URL if configured (for remote access)
+                if hasattr(settings, 'BACKEND_BASE_URL') and settings.BACKEND_BASE_URL:
+                    base_url = settings.BACKEND_BASE_URL.rstrip('/')
+                    media_url = obj.avatar.url.lstrip('/')
+                    return f"{base_url}/{media_url}"
+                
+                # Fallback to request.build_absolute_uri() if available
+                if request:
+                    try:
+                        return request.build_absolute_uri(obj.avatar.url)
+                    except Exception:
+                        # If build_absolute_uri fails, try to construct manually
+                        if hasattr(request, 'scheme') and hasattr(request, 'get_host'):
+                            return f"{request.scheme}://{request.get_host()}{obj.avatar.url}"
+                        return obj.avatar.url
+                
+                # Last resort: return relative URL
+                return obj.avatar.url
+            except Exception:
+                # If anything fails, return None or relative URL
+                return obj.avatar.url if obj.avatar else None
         return None
     
     def update(self, instance, validated_data):

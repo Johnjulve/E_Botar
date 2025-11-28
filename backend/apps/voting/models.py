@@ -17,6 +17,7 @@ class VoteReceipt(models.Model):
     ip_address = models.GenericIPAddressField(null=True, blank=True, help_text="IP address for audit trail")
     
     class Meta:
+        db_table = 'voting_votereceipt'
         unique_together = ['user', 'election']
         ordering = ['-created_at']
         verbose_name = 'Vote Receipt'
@@ -62,6 +63,7 @@ class AnonVote(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
+        db_table = 'voting_anonvote'
         ordering = ['-created_at']
         verbose_name = 'Anonymous Vote'
         verbose_name_plural = 'Anonymous Votes'
@@ -95,6 +97,7 @@ class Ballot(models.Model):
     user_agent = models.CharField(max_length=255, blank=True, help_text="Browser user agent")
     
     class Meta:
+        db_table = 'voting_ballot'
         unique_together = ['user', 'election']
         ordering = ['-submitted_at']
         verbose_name = 'Ballot'
@@ -127,6 +130,7 @@ class VoteChoice(models.Model):
     anonymized = models.BooleanField(default=False, help_text="Whether this choice has been converted to AnonVote")
     
     class Meta:
+        db_table = 'voting_votechoice'
         unique_together = ['ballot', 'position']
         ordering = ['position__display_order']
         verbose_name = 'Vote Choice'
