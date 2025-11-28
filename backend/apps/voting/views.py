@@ -1,3 +1,4 @@
+import logging
 from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
@@ -10,6 +11,8 @@ from django.http import HttpResponse
 import csv
 import json
 from .models import VoteReceipt, AnonVote, Ballot, VoteChoice
+
+logger = logging.getLogger(__name__)
 from .serializers import (
     VoteReceiptSerializer, BallotSerializer, BallotSubmissionSerializer,
     AnonVoteSerializer, VoteReceiptVerifySerializer,
@@ -216,14 +219,17 @@ class VoteReceiptViewSet(viewsets.ReadOnlyModelViewSet):
         try:
             receipt = VoteReceipt.objects.get(receipt_code=receipt_code)
             if receipt.verify_receipt(receipt_code):
+                election_title = receipt.election.title if receipt.election else 'Unknown Election'
                 return Response({
                     'valid': True,
                     'message': 'Receipt is valid',
-                    'election': receipt.election.title,
+                    'election': election_title,
                     'voted_at': receipt.created_at
                 })
         except VoteReceipt.DoesNotExist:
             pass
+        except Exception as e:
+            logger.error(f"Error verifying receipt: {str(e)}", exc_info=True)
         
         return Response({
             'valid': False,
@@ -253,6 +259,13 @@ class VoteReceiptViewSet(viewsets.ReadOnlyModelViewSet):
             
             # Get the ballot and votes
             try:
+                # Check if ballot exists (should always exist, but handle gracefully)
+                if not hasattr(receipt, 'ballot') or receipt.ballot is None:
+                    return Response(
+                        {'detail': 'No ballot found for this receipt'},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+                
                 ballot = receipt.ballot
                 choices = ballot.choices.select_related(
                     'position', 
@@ -261,21 +274,29 @@ class VoteReceiptViewSet(viewsets.ReadOnlyModelViewSet):
                     'candidate__party'
                 ).all()
                 
-                votes_data = [{
-                    'position_id': choice.position.id,
-                    'position_name': choice.position.name,
+                votes_data = []
+                for choice in choices:
+                    # Safely access candidate and user data
+                    if choice.candidate and choice.candidate.user:
+                        votes_data.append({
+                            'position_id': choice.position.id if choice.position else None,
+                            'position_name': choice.position.name if choice.position else 'Unknown',
                     'candidate_id': choice.candidate.id,
-                    'candidate_name': choice.candidate.user.get_full_name(),
-                    'candidate_photo': choice.candidate.photo.url if choice.candidate.photo else None,
-                    'party_name': choice.candidate.party.name if choice.candidate.party else 'Independent',
-                } for choice in choices]
+                            'candidate_name': choice.candidate.user.get_full_name() or 'Unknown',
+                            'candidate_photo': choice.candidate.photo.url if (choice.candidate.photo and hasattr(choice.candidate.photo, 'url')) else None,
+                            'party_name': choice.candidate.party.name if (choice.candidate.party and choice.candidate.party.name) else 'Independent',
+                        })
+                
+                election_data = None
+                if receipt.election:
+                    election_data = {
+                        'id': receipt.election.id,
+                        'title': receipt.election.title,
+                    }
                 
                 return Response({
                     'valid': True,
-                    'election': {
-                        'id': receipt.election.id,
-                        'title': receipt.election.title,
-                    },
+                    'election': election_data,
                     'voted_at': receipt.created_at,
                     'votes': votes_data
                 })
@@ -324,8 +345,23 @@ class ResultsViewSet(viewsets.ViewSet):
         positions_data = []
         positions = election.election_positions.all().order_by('order')
         
+        # Handle case when no positions exist
+        if not positions.exists():
+            return Response({
+                'election_id': election.id,
+                'election_title': election.title,
+                'election_ended': election_ended,
+                'is_active': election.is_active_now(),
+                'total_voters': total_voters,
+                'total_ballots': total_ballots,
+                'positions': []
+            })
+        
         for election_position in positions:
             position = election_position.position
+            if not position:
+                continue
+                
             position_votes = AnonVote.objects.filter(
                 election=election,
                 position=position
@@ -345,12 +381,15 @@ class ResultsViewSet(viewsets.ViewSet):
             
             candidates_data = []
             for candidate in position_candidates:
+                if not candidate or not candidate.user:
+                    continue
+                    
                 vote_count = vote_map.get(candidate.id, 0)
                 percentage = round((vote_count / position_total_votes * 100), 2) if position_total_votes > 0 else 0
                 candidates_data.append({
                     'candidate_id': candidate.id,
-                    'candidate_name': candidate.user.get_full_name(),
-                    'party': candidate.party.name if candidate.party else None,
+                    'candidate_name': candidate.user.get_full_name() or 'Unknown',
+                    'party': candidate.party.name if (candidate.party and candidate.party.name) else None,
                     'vote_count': vote_count,
                     'percentage': percentage,
                     'is_winner': False,  # assigned after sorting
@@ -408,7 +447,7 @@ class ResultsViewSet(viewsets.ViewSet):
                 'election_title': election.title,
                 'has_voted': receipt is not None,
                 'voted_at': receipt.created_at if receipt else None,
-                'receipt_code': receipt.get_masked_receipt() if receipt else None
+                'receipt_code': receipt.get_masked_receipt() if (receipt and hasattr(receipt, 'get_masked_receipt')) else None
             })
         
         except SchoolElection.DoesNotExist:
@@ -442,8 +481,30 @@ class ResultsViewSet(viewsets.ViewSet):
         positions_data = []
         positions = election.election_positions.all().order_by('order')
         
+        # Handle case when no positions exist
+        if not positions.exists():
+            if export_format == 'csv':
+                response = HttpResponse(content_type='text/csv')
+                response['Content-Disposition'] = f'attachment; filename="election_results_{election.id}.csv"'
+                writer = csv.writer(response)
+                writer.writerow(['Election', election.title])
+                writer.writerow(['Export Date', timezone.now().strftime('%Y-%m-%d %H:%M:%S')])
+                writer.writerow(['Status', 'No positions configured for this election'])
+                return response
+            else:
+                return Response({
+                    'election_id': election.id,
+                    'election_title': election.title,
+                    'export_date': timezone.now().isoformat(),
+                    'total_voters': 0,
+                    'positions': []
+                })
+        
         for election_position in positions:
             position = election_position.position
+            if not position:
+                continue
+                
             position_votes = AnonVote.objects.filter(
                 election=election,
                 position=position
@@ -455,17 +516,24 @@ class ResultsViewSet(viewsets.ViewSet):
             total_position_votes = sum(v['vote_count'] for v in position_votes)
             
             for vote_data in position_votes:
-                candidate = Candidate.objects.get(id=vote_data['candidate'])
-                vote_count = vote_data['vote_count']
-                percentage = round((vote_count / total_position_votes * 100), 2) if total_position_votes > 0 else 0
-                
-                candidates_data.append({
-                    'candidate_id': candidate.id,
-                    'candidate_name': candidate.user.get_full_name(),
-                    'party': candidate.party.name if candidate.party else 'Independent',
-                    'vote_count': vote_count,
-                    'percentage': percentage
-                })
+                try:
+                    candidate = Candidate.objects.get(id=vote_data['candidate'])
+                    if not candidate or not candidate.user:
+                        continue
+                        
+                    vote_count = vote_data['vote_count']
+                    percentage = round((vote_count / total_position_votes * 100), 2) if total_position_votes > 0 else 0
+                    
+                    candidates_data.append({
+                        'candidate_id': candidate.id,
+                        'candidate_name': candidate.user.get_full_name() or 'Unknown',
+                        'party': candidate.party.name if (candidate.party and candidate.party.name) else 'Independent',
+                        'vote_count': vote_count,
+                        'percentage': percentage
+                    })
+                except Candidate.DoesNotExist:
+                    # Skip if candidate was deleted
+                    continue
             
             positions_data.append({
                 'position_name': position.name,
@@ -547,8 +615,30 @@ class ResultsViewSet(viewsets.ViewSet):
         
         # Get per-position statistics
         position_stats = []
-        for vote_data in stats['votes_by_position']:
-            position_id = vote_data['position_id']
+        votes_by_position = stats.get('votes_by_position', [])
+        
+        # Handle empty votes_by_position
+        if not votes_by_position:
+            # Still return statistics even if no votes
+            positions = election.election_positions.all().order_by('order')
+            for election_position in positions:
+                if election_position.position:
+                    position_stats.append({
+                        'position_id': election_position.position.id,
+                        'position_name': election_position.position.name,
+                        'total_votes': 0,
+                        'candidates_count': Candidate.objects.filter(
+                            election=election,
+                            position=election_position.position,
+                            is_active=True
+                        ).count()
+                    })
+        else:
+            for vote_data in votes_by_position:
+                position_id = vote_data.get('position_id')
+                if not position_id:
+                    continue
+                    
             candidates_count = Candidate.objects.filter(
                 election=election,
                 position_id=position_id,
@@ -557,8 +647,8 @@ class ResultsViewSet(viewsets.ViewSet):
             
             position_stats.append({
                 'position_id': position_id,
-                'position_name': vote_data['position__name'],
-                'total_votes': vote_data['vote_count'],
+                    'position_name': vote_data.get('position__name', 'Unknown'),
+                    'total_votes': vote_data.get('vote_count', 0),
                 'candidates_count': candidates_count
             })
         

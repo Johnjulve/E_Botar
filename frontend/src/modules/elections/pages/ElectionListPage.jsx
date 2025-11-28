@@ -130,7 +130,49 @@ const ElectionListPage = () => {
             <div key={election.id} className="election-card">
               <div className="election-header">
                 <h3 className="election-title">{election.title}</h3>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                 {getStatusBadge(election)}
+                  {election.election_type === 'university' ? (
+                    <div style={{
+                      padding: '0.25rem 0.75rem',
+                      borderRadius: '0.375rem',
+                      background: 'rgba(37, 99, 235, 0.15)',
+                      color: '#1e40af',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.25rem'
+                    }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                        <circle cx="9" cy="7" r="4"/>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                      </svg>
+                      USC
+                    </div>
+                  ) : (
+                    <div style={{
+                      padding: '0.25rem 0.75rem',
+                      borderRadius: '0.375rem',
+                      background: 'rgba(34, 197, 94, 0.15)',
+                      color: '#166534',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.25rem'
+                    }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 21h18"/>
+                        <path d="M5 21V7l8-4v18"/>
+                        <path d="M19 21V11l-6-4"/>
+                      </svg>
+                      {election.allowed_department_code || 'Dept'}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {election.description && (

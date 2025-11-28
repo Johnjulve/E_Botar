@@ -166,7 +166,7 @@ class CandidateApplicationViewSet(viewsets.ModelViewSet):
                     action='update',
                     resource_type='CandidateApplication',
                     resource_id=application.id,
-                    description=f"Admin {request.user.username} approved candidate application for {applicant_identifier} ({application.user.get_full_name()}) - {application.position.name} in {application.election.title}",
+                    description=f"Admin {request.user.username} approved candidate application for {applicant_identifier} ({application.user.get_full_name()}) - {application.position.name} in {application.election.title if application.election else 'Unknown Election'}",
                     ip_address=ip_address,
                     metadata={
                         'application_id': application.id,
@@ -175,7 +175,7 @@ class CandidateApplicationViewSet(viewsets.ModelViewSet):
                         'applicant_username': application.user.username,
                         'applicant_name': application.user.get_full_name(),
                         'position': application.position.name,
-                        'election': application.election.title,
+                        'election': application.election.title if application.election else 'Unknown Election',
                         'action': 'approved',
                         'admin_username': request.user.username
                     }
@@ -201,7 +201,7 @@ class CandidateApplicationViewSet(viewsets.ModelViewSet):
                     action='update',
                     resource_type='CandidateApplication',
                     resource_id=application.id,
-                    description=f"Admin {request.user.username} rejected candidate application for {applicant_identifier} ({application.user.get_full_name()}) - {application.position.name} in {application.election.title}",
+                    description=f"Admin {request.user.username} rejected candidate application for {applicant_identifier} ({application.user.get_full_name()}) - {application.position.name} in {application.election.title if application.election else 'Unknown Election'}",
                     ip_address=ip_address,
                     metadata={
                         'application_id': application.id,
@@ -209,7 +209,7 @@ class CandidateApplicationViewSet(viewsets.ModelViewSet):
                         'applicant_username': application.user.username,
                         'applicant_name': application.user.get_full_name(),
                         'position': application.position.name,
-                        'election': application.election.title,
+                        'election': application.election.title if application.election else 'Unknown Election',
                         'action': 'rejected',
                         'review_notes': review_notes,
                         'admin_username': request.user.username
@@ -272,7 +272,7 @@ class CandidateApplicationViewSet(viewsets.ModelViewSet):
                         action='update',
                         resource_type='CandidateApplication',
                         resource_id=application.id,
-                        description=f"Admin {request.user.username} bulk approved candidate application for {applicant_identifier} ({application.user.get_full_name()}) - {application.position.name} in {application.election.title}",
+                        description=f"Admin {request.user.username} bulk approved candidate application for {applicant_identifier} ({application.user.get_full_name()}) - {application.position.name} in {application.election.title if application.election else 'Unknown Election'}",
                         ip_address=ip_address,
                         metadata={
                             'application_id': application.id,
@@ -281,7 +281,7 @@ class CandidateApplicationViewSet(viewsets.ModelViewSet):
                             'applicant_username': application.user.username,
                             'applicant_name': application.user.get_full_name(),
                             'position': application.position.name,
-                            'election': application.election.title,
+                            'election': application.election.title if application.election else 'Unknown Election',
                             'action': 'bulk_approved',
                             'admin_username': request.user.username
                         }
@@ -306,7 +306,7 @@ class CandidateApplicationViewSet(viewsets.ModelViewSet):
                         action='update',
                         resource_type='CandidateApplication',
                         resource_id=application.id,
-                        description=f"Admin {request.user.username} bulk rejected candidate application for {applicant_identifier} ({application.user.get_full_name()}) - {application.position.name} in {application.election.title}",
+                        description=f"Admin {request.user.username} bulk rejected candidate application for {applicant_identifier} ({application.user.get_full_name()}) - {application.position.name} in {application.election.title if application.election else 'Unknown Election'}",
                         ip_address=ip_address,
                         metadata={
                             'application_id': application.id,
@@ -314,7 +314,7 @@ class CandidateApplicationViewSet(viewsets.ModelViewSet):
                             'applicant_username': application.user.username,
                             'applicant_name': application.user.get_full_name(),
                             'position': application.position.name,
-                            'election': application.election.title,
+                            'election': application.election.title if application.election else 'Unknown Election',
                             'action': 'bulk_rejected',
                             'review_notes': review_notes,
                             'admin_username': request.user.username

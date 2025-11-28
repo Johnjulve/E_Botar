@@ -42,6 +42,7 @@ import ApplicationReviewPage from '../modules/admin/pages/ApplicationReviewPage'
 import ApplicationsListPage from '../modules/admin/pages/ApplicationsListPage';
 import UserManagementPage from '../modules/admin/pages/UserManagementPage';
 import SystemLogsPage from '../modules/admin/pages/SystemLogsPage';
+import ProgramManagementPage from '../modules/admin/pages/ProgramManagementPage';
 
 const AppRoutes = () => {
   return (
@@ -189,6 +190,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute requireAdmin>
             <SystemLogsPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/admin/programs" 
+        element={
+          <ProtectedRoute requireStaff>
+            <ProgramManagementPage />
           </ProtectedRoute>
         } 
       />

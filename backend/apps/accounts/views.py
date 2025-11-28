@@ -1,15 +1,18 @@
 import logging
+import csv
+import io
 from rest_framework import generics, status, viewsets
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth.models import User
+from django.http import HttpResponse
 from .models import UserProfile, Program
 from apps.common.models import ActivityLog
-from apps.common.permissions import IsSuperUser
+from apps.common.permissions import IsSuperUser, IsStaffOrSuperUser
 from .serializers import (
     UserSerializer, UserProfileSerializer, UserRegistrationSerializer,
-    DepartmentSerializer, CourseSerializer
+    DepartmentSerializer, CourseSerializer, ProgramSerializer
 )
 
 logger = logging.getLogger(__name__)
@@ -84,31 +87,46 @@ def current_user(request):
             else:
                 return Response(user_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
+        # Check if user is admin/staff (academic fields optional)
+        is_admin_or_staff = user.is_staff or user.is_superuser
+        
         # Update profile fields
         profile_data = {}
         profile_fields = ['student_id', 'year_level']
         for field in profile_fields:
-            if field in request.data and request.data[field]:
-                profile_data[field] = request.data[field]
+            if field in request.data:
+                # For admins, allow empty strings to clear the field
+                if is_admin_or_staff:
+                    profile_data[field] = request.data[field] if request.data[field] else None
+                elif request.data[field]:  # For regular users, only set if value provided
+                    profile_data[field] = request.data[field]
         
         # Handle department and course separately - convert to department_id and course_id
-        if 'department' in request.data and request.data['department']:
-            try:
-                profile_data['department_id'] = int(request.data['department'])
-            except (ValueError, TypeError):
-                return Response(
-                    {'department': ['Invalid department ID']}, 
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+        if 'department' in request.data:
+            if is_admin_or_staff and (not request.data['department'] or request.data['department'] == ''):
+                # Allow admins to clear department
+                profile_data['department_id'] = None
+            elif request.data['department']:
+                try:
+                    profile_data['department_id'] = int(request.data['department'])
+                except (ValueError, TypeError):
+                    return Response(
+                        {'department': ['Invalid department ID']}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
         
-        if 'course' in request.data and request.data['course']:
-            try:
-                profile_data['course_id'] = int(request.data['course'])
-            except (ValueError, TypeError):
-                return Response(
-                    {'course': ['Invalid course ID']}, 
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+        if 'course' in request.data:
+            if is_admin_or_staff and (not request.data['course'] or request.data['course'] == ''):
+                # Allow admins to clear course
+                profile_data['course_id'] = None
+            elif request.data['course']:
+                try:
+                    profile_data['course_id'] = int(request.data['course'])
+                except (ValueError, TypeError):
+                    return Response(
+                        {'course': ['Invalid course ID']}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
         
         # Handle avatar file from request.FILES
         if 'avatar' in request.FILES:
@@ -383,3 +401,216 @@ class CourseViewSet(viewsets.ReadOnlyModelViewSet):
         if department_id:
             queryset = queryset.filter(department_id=department_id)
         return queryset
+
+
+class ProgramViewSet(viewsets.ModelViewSet):
+    """ViewSet for managing programs (departments and courses)"""
+    serializer_class = ProgramSerializer
+    permission_classes = [IsStaffOrSuperUser]
+    
+    def get_queryset(self):
+        """Filter by program_type if provided"""
+        queryset = Program.objects.all()
+        program_type = self.request.query_params.get('program_type', None)
+        if program_type:
+            queryset = queryset.filter(program_type=program_type)
+        return queryset.order_by('program_type', 'name')
+    
+    @action(detail=False, methods=['post'], url_path='import-csv')
+    def import_csv(self, request):
+        """Import programs from CSV file"""
+        if 'file' not in request.FILES:
+            return Response(
+                {'error': 'No file provided'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        file = request.FILES['file']
+        if not file.name.endswith('.csv'):
+            return Response(
+                {'error': 'File must be a CSV file'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # Read CSV file
+            decoded_file = file.read().decode('utf-8')
+            csv_reader = csv.DictReader(io.StringIO(decoded_file))
+            
+            required_fields = ['name', 'code', 'program_type']
+            imported = []
+            updated = []
+            created = []
+            errors = []
+            
+            for row_num, row in enumerate(csv_reader, start=2):  # Start at 2 (header is row 1)
+                try:
+                    # Validate required fields
+                    missing_fields = []
+                    for field in required_fields:
+                        if field not in row or not row[field].strip():
+                            missing_fields.append(field)
+                    
+                    if missing_fields:
+                        errors.append({
+                            'row': row_num,
+                            'error': f'Missing required fields: {", ".join(missing_fields)}'
+                        })
+                        continue
+                    
+                    name = row['name'].strip()
+                    code = row['code'].strip()
+                    program_type = row['program_type'].strip().lower()
+                    
+                    # Validate program_type
+                    if program_type not in ['department', 'course']:
+                        errors.append({
+                            'row': row_num,
+                            'error': f'Invalid program_type: {program_type}. Must be "department" or "course"'
+                        })
+                        continue
+                    
+                    # Handle department_id for courses
+                    department_id = None
+                    if program_type == 'course':
+                        dept_id_str = row.get('department_id', '').strip()
+                        if dept_id_str:
+                            try:
+                                department_id = int(dept_id_str)
+                                # Verify department exists
+                                if not Program.objects.filter(
+                                    id=department_id,
+                                    program_type=Program.ProgramType.DEPARTMENT
+                                ).exists():
+                                    errors.append({
+                                        'row': row_num,
+                                        'error': f'Department with ID {department_id} does not exist'
+                                    })
+                                    continue
+                            except ValueError:
+                                errors.append({
+                                    'row': row_num,
+                                    'error': f'Invalid department_id: {dept_id_str}'
+                                })
+                                continue
+                        else:
+                            errors.append({
+                                'row': row_num,
+                                'error': 'Courses must have a department_id'
+                            })
+                            continue
+                    
+                    # Prepare program data
+                    program_data = {
+                        'name': name,
+                        'code': code,
+                        'program_type': program_type,
+                        'description': row.get('description', '').strip(),
+                        'is_active': True
+                    }
+                    
+                    # Check if program already exists (by code and program_type)
+                    existing_program = Program.objects.filter(
+                        program_type=program_type,
+                        code=code
+                    ).first()
+                    
+                    if existing_program:
+                        # Update existing program (overwrite)
+                        for key, value in program_data.items():
+                            setattr(existing_program, key, value)
+                        if department_id:
+                            existing_program.department_id = department_id
+                        existing_program.save()
+                        program = existing_program
+                        action = 'updated'
+                    else:
+                        # Create new program
+                        program = Program.objects.create(**program_data)
+                        if department_id:
+                            program.department_id = department_id
+                            program.save()
+                        action = 'created'
+                    
+                    imported.append({
+                        'id': program.id,
+                        'name': program.name,
+                        'code': program.code,
+                        'program_type': program.program_type,
+                        'action': action
+                    })
+                    
+                    if action == 'updated':
+                        updated.append({
+                            'id': program.id,
+                            'name': program.name,
+                            'code': program.code,
+                            'program_type': program.program_type
+                        })
+                    else:
+                        created.append({
+                            'id': program.id,
+                            'name': program.name,
+                            'code': program.code,
+                            'program_type': program.program_type
+                        })
+                    
+                except Exception as e:
+                    errors.append({
+                        'row': row_num,
+                        'error': str(e)
+                    })
+            
+            return Response({
+                'message': f'Import completed. {len(created)} created, {len(updated)} updated, {len(errors)} errors',
+                'imported': imported,
+                'created': created,
+                'updated': updated,
+                'errors': errors
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response(
+                {'error': f'Error processing CSV file: {str(e)}'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+    
+    @action(detail=False, methods=['get'], url_path='export-csv')
+    def export_csv(self, request):
+        """Export programs to CSV file (exports template if no data)"""
+        try:
+            program_type = request.query_params.get('program_type', None)
+            
+            queryset = self.get_queryset()
+            if program_type:
+                queryset = queryset.filter(program_type=program_type)
+            
+            # Create CSV response
+            response = HttpResponse(content_type='text/csv; charset=utf-8')
+            filename = f"programs_export{('_' + program_type) if program_type else ''}.csv"
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            
+            # Add BOM for Excel compatibility with UTF-8
+            response.write('\ufeff')
+            
+            writer = csv.writer(response)
+            # Always write header
+            writer.writerow(['name', 'code', 'program_type', 'department_id'])
+            
+            # Write data (if any)
+            for program in queryset:
+                department_id = program.department_id if program.department_id else ''
+                writer.writerow([
+                    program.name,
+                    program.code,
+                    program.program_type,
+                    department_id
+                ])
+            
+            return response
+        except Exception as e:
+            logger.error(f'Error exporting CSV: {str(e)}', exc_info=True)
+            return Response(
+                {'error': f'Error exporting CSV: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

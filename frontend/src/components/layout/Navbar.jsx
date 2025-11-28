@@ -80,6 +80,17 @@ const Icon = ({ name, size = 20, className = '' }) => {
         <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
       </svg>
     ),
+    building: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <path d="M3 21h18"/>
+        <path d="M5 21V7l8-4v18"/>
+        <path d="M19 21V11l-6-4"/>
+        <line x1="9" y1="9" x2="9" y2="9"/>
+        <line x1="9" y1="12" x2="9" y2="12"/>
+        <line x1="9" y1="15" x2="9" y2="15"/>
+        <line x1="9" y1="18" x2="9" y2="18"/>
+      </svg>
+    ),
   };
 
   return icons[name] || null;
@@ -137,9 +148,10 @@ const Navbar = () => {
     // Show admin menu for staff and admins
     if (isStaffOrAdmin) {
       const adminMenuItems = [
-        { key: 'admin-dashboard', label: 'Dashboard', to: '/admin' },
-        { key: 'admin-elections', label: 'Elections', to: '/admin/elections' },
-        { key: 'admin-applications', label: 'Applications', to: '/admin/applications' },
+        { key: 'admin-dashboard', label: 'Dashboard', to: '/admin', icon: 'home' },
+        { key: 'admin-elections', label: 'Elections', to: '/admin/elections', icon: 'calendar' },
+        { key: 'admin-applications', label: 'Applications', to: '/admin/applications', icon: 'users' },
+        { key: 'admin-programs', label: 'Programs', to: '/admin/programs', icon: 'building' },
       ];
       
       // Admin-only items (superuser only)

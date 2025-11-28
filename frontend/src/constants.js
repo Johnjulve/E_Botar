@@ -4,7 +4,17 @@
  */
 
 // API Configuration
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+// NOTE: For actual API calls, use the api service (src/services/api.js)
+// This constant is for reference only and follows the same logic
+const getAPIBaseURL = () => {
+  const isDevelopment = import.meta.env.DEV;
+  if (isDevelopment) {
+    return '/api'; // Uses Vite proxy in development
+  }
+  return import.meta.env.VITE_API_BASE_URL || '/api';
+};
+
+export const API_BASE_URL = getAPIBaseURL();
 
 // Local Storage Keys
 export const STORAGE_KEYS = {

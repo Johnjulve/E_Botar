@@ -7,7 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Container } from '../../../components/layout';
 import { LoadingSpinner, Alert } from '../../../components/common';
-import { electionService } from '../../../services';
+import { electionService, programService } from '../../../services';
 import '../../../assets/styles/admin.css';
 
 // SVG Icon Component
@@ -53,17 +53,21 @@ const ElectionFormPage = () => {
   const [success, setSuccess] = useState('');
   const [availablePositions, setAvailablePositions] = useState([]);
   const [selectedPositionIds, setSelectedPositionIds] = useState([]);
+  const [departments, setDepartments] = useState([]);
 
   const [formData, setFormData] = useState({
     start_year: new Date().getFullYear(),
     end_year: new Date().getFullYear() + 1,
     description: '',
     start_date: '',
-    end_date: ''
+    end_date: '',
+    election_type: 'university',
+    allowed_department_id: null
   });
 
   useEffect(() => {
     fetchAvailablePositions();
+    fetchDepartments();
     if (isEdit) {
       fetchElection();
     }
@@ -76,6 +80,15 @@ const ElectionFormPage = () => {
     } catch (error) {
       console.error('Error fetching positions:', error);
       setError('Failed to load available positions');
+    }
+  };
+
+  const fetchDepartments = async () => {
+    try {
+      const response = await programService.getDepartments();
+      setDepartments(response.data || []);
+    } catch (error) {
+      console.error('Error fetching departments:', error);
     }
   };
 
@@ -95,7 +108,9 @@ const ElectionFormPage = () => {
         end_year: election.end_year || new Date().getFullYear() + 1,
         description: election.description || '',
         start_date: election.start_date ? election.start_date.slice(0, 16) : '',
-        end_date: election.end_date ? election.end_date.slice(0, 16) : ''
+        end_date: election.end_date ? election.end_date.slice(0, 16) : '',
+        election_type: election.election_type || 'university',
+        allowed_department_id: election.allowed_department?.id || null
       });
       
       setSelectedPositionIds(positionIds);
@@ -118,9 +133,34 @@ const ElectionFormPage = () => {
         start_year: year,
         end_year: year + 1 // Auto-set end_year to start_year + 1
       }));
+    } else if (name === 'election_type') {
+      // Clear department when switching to university type
+      setFormData(prev => ({ 
+        ...prev, 
+        [name]: value,
+        allowed_department_id: value === 'university' ? null : prev.allowed_department_id
+      }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
+  };
+
+  // Auto-generate title preview
+  const getTitlePreview = () => {
+    if (!formData.start_year || !formData.end_year) return '';
+    
+    if (formData.election_type === 'university') {
+      return `USC Election AY ${formData.start_year}-${formData.end_year}`;
+    } else if (formData.election_type === 'department') {
+      if (formData.allowed_department_id) {
+        const selectedDept = departments.find(d => d.id === formData.allowed_department_id);
+        if (selectedDept) {
+          return `${selectedDept.code} Election AY ${formData.start_year}-${formData.end_year}`;
+        }
+      }
+      return `[Department Code] Election AY ${formData.start_year}-${formData.end_year}`;
+    }
+    return '';
   };
 
   const togglePositionSelection = (positionId) => {
@@ -166,7 +206,8 @@ const ElectionFormPage = () => {
       // Prepare data with position_ids
       const dataToSubmit = {
         ...formData,
-        position_ids: selectedPositionIds
+        position_ids: selectedPositionIds,
+        allowed_department_id: formData.election_type === 'department' ? formData.allowed_department_id : null
       };
 
       if (isEdit) {
@@ -232,29 +273,29 @@ const ElectionFormPage = () => {
           </h5>
 
           {/* School Year Section */}
-          <div style={{
-            background: '#f0f9ff',
-            border: '1px solid #bfdbfe',
-            borderRadius: '0.5rem',
-            padding: '1rem',
-            marginBottom: '1.25rem'
-          }}>
-            <p style={{
-              margin: '0 0 0.75rem',
-              fontSize: '0.9rem',
-              fontWeight: 600,
-              color: '#1e40af'
+            <div style={{
+              background: '#f0f9ff',
+              border: '1px solid #bfdbfe',
+              borderRadius: '0.5rem',
+              padding: '1rem',
+              marginBottom: '1.25rem'
             }}>
-              Election Title: SY {formData.start_year}-{formData.end_year}
-            </p>
-            <p style={{
-              margin: 0,
-              fontSize: '0.85rem',
-              color: '#1e3a8a'
-            }}>
-              The title is automatically generated from the school year you select below.
-            </p>
-          </div>
+              <p style={{
+                margin: '0 0 0.75rem',
+                fontSize: '0.9rem',
+                fontWeight: 600,
+                color: '#1e40af'
+              }}>
+                Academic Year: AY {formData.start_year}-{formData.end_year}
+              </p>
+              <p style={{
+                margin: 0,
+                fontSize: '0.85rem',
+                color: '#1e3a8a'
+              }}>
+                The election title will be auto-generated based on the election type and academic year you select below.
+              </p>
+            </div>
 
           <div style={{
             display: 'grid',
@@ -366,6 +407,143 @@ const ElectionFormPage = () => {
               placeholder="Brief description of the election..."
             />
           </div>
+
+          {/* Election Type Selection */}
+          <div style={{ marginBottom: '1.25rem' }}>
+            <label style={{
+              display: 'block',
+              fontWeight: 600,
+              marginBottom: '0.75rem',
+              color: '#374151'
+            }}>
+              Election Type / Council Type *
+            </label>
+            <div style={{
+              display: 'flex',
+              gap: '1.5rem',
+              flexWrap: 'wrap'
+            }}>
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                cursor: 'pointer',
+                padding: '0.75rem',
+                border: `2px solid ${formData.election_type === 'university' ? '#2563eb' : '#d1d5db'}`,
+                borderRadius: '0.5rem',
+                background: formData.election_type === 'university' ? '#eff6ff' : 'white',
+                flex: 1,
+                minWidth: '200px'
+              }}>
+                <input
+                  type="radio"
+                  name="election_type"
+                  value="university"
+                  checked={formData.election_type === 'university'}
+                  onChange={handleChange}
+                  style={{ cursor: 'pointer' }}
+                />
+                <div>
+                  <div style={{ fontWeight: 600, color: '#1f2937' }}>University Student Council (USC)</div>
+                  <small style={{ color: '#6b7280', fontSize: '0.85rem' }}>All students can vote</small>
+                </div>
+              </label>
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                cursor: 'pointer',
+                padding: '0.75rem',
+                border: `2px solid ${formData.election_type === 'department' ? '#2563eb' : '#d1d5db'}`,
+                borderRadius: '0.5rem',
+                background: formData.election_type === 'department' ? '#eff6ff' : 'white',
+                flex: 1,
+                minWidth: '200px'
+              }}>
+                <input
+                  type="radio"
+                  name="election_type"
+                  value="department"
+                  checked={formData.election_type === 'department'}
+                  onChange={handleChange}
+                  style={{ cursor: 'pointer' }}
+                />
+                <div>
+                  <div style={{ fontWeight: 600, color: '#1f2937' }}>Department Election</div>
+                  <small style={{ color: '#6b7280', fontSize: '0.85rem' }}>Specific department only</small>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* Title Preview */}
+          <div style={{
+            background: '#f0f9ff',
+            border: '1px solid #bfdbfe',
+            borderRadius: '0.5rem',
+            padding: '1rem',
+            marginBottom: '1.25rem'
+          }}>
+            <p style={{
+              margin: '0 0 0.5rem',
+              fontSize: '0.9rem',
+              fontWeight: 600,
+              color: '#1e40af'
+            }}>
+              Election Title Preview (Auto-generated):
+            </p>
+            <p style={{
+              margin: 0,
+              fontSize: '0.95rem',
+              color: '#1e3a8a',
+              fontWeight: 500
+            }}>
+              {getTitlePreview() || 'Enter start and end year to see title preview'}
+            </p>
+          </div>
+
+          {/* Department Selection (only for Department Election) */}
+          {formData.election_type === 'department' && (
+            <div style={{ marginBottom: '1.25rem' }}>
+              <label style={{
+                display: 'block',
+                fontWeight: 600,
+                marginBottom: '0.5rem',
+                color: '#374151'
+              }}>
+                Department *
+              </label>
+              <select
+                name="allowed_department_id"
+                value={formData.allowed_department_id || ''}
+                onChange={handleChange}
+                required={formData.election_type === 'department'}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '0.5rem',
+                  fontSize: '0.95rem',
+                  fontFamily: 'inherit'
+                }}
+              >
+                <option value="">Select Department</option>
+                {departments.map(dept => (
+                  <option key={dept.id} value={dept.id}>
+                    {dept.name} ({dept.code})
+                  </option>
+                ))}
+              </select>
+              <small style={{
+                display: 'block',
+                marginTop: '0.25rem',
+                color: '#6b7280',
+                fontSize: '0.85rem'
+              }}>
+                Only students from the selected department can vote and apply as candidates.
+              </small>
+            </div>
+          )}
 
           <div style={{
             display: 'grid',

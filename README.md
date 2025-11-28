@@ -1,6 +1,6 @@
 # E-Botar - Blockchain-Inspired Electronic Voting System
 
-**Version 0.7.1** | A secure, privacy-preserving electronic voting platform for student government elections
+**Version 0.7.3** | A secure, privacy-preserving electronic voting platform for student government elections
 
 [![Django](https://img.shields.io/badge/Django-5.2.8-green.svg)](https://www.djangoproject.com/)
 [![DRF](https://img.shields.io/badge/DRF-3.16.1-red.svg)](https://www.django-rest-framework.org/)
@@ -11,7 +11,7 @@
 
 ## 📖 Table of Contents
 
-- [Release Highlights (0.7.1)](#-release-highlights-071)
+- [Release Highlights (0.7.2)](#-release-highlights-072)
 - [Quick Start](#quick-start)
 - [Key Features](#key-features)
 - [Role-Based Access Control](#role-based-access-control)
@@ -22,8 +22,50 @@
 
 ---
 
-## 🚀 Release Highlights (0.7.1)
+## 🚀 Release Highlights (0.7.3)
 
+- **Election Type System**: Support for University Student Council (USC) and Department Elections
+  - **USC Elections**: Open to all students across all departments
+  - **Department Elections**: Restricted to specific departments only
+  - Auto-generated titles: "USC Election AY 2025-2026" or "[DEPT_CODE] Election AY 2025-2026"
+  - Academic Year (AY) format instead of School Year (SY)
+  - Eligibility checks for voting and candidate applications
+  - Visual badges showing election type on all election pages
+
+- **Enhanced Profile Management**: Academic information optional for administrators
+  - Admins/Staff can leave academic fields blank (Student ID, Year Level, Department, Course)
+  - Students still require all academic information
+  - Clear UI indicators showing optional fields for admins
+  - Improved profile display logic for different user roles
+
+- **Program Management Module**: Complete admin interface for managing departments and courses
+  - Full CRUD operations (Create, Read, Update, Delete)
+  - Filter by program type (All, Departments, Courses)
+  - CSV Import/Export with overwrite functionality
+  - Integrated into admin sidebar navigation
+
+- **Robust Empty Data Handling**: System now gracefully handles empty databases and missing data
+  - All API endpoints return empty arrays/zeros instead of errors when data is missing
+  - Safe handling of missing ballots, positions, candidates, and elections
+  - Division by zero protection in all percentage calculations
+  - Backend fully functional with completely empty database
+  - Comprehensive error handling prevents crashes from null/empty data
+
+- **Production Database Resilience**: Fixed production errors when security/activity logging tables are missing
+  - Admin interface handles missing `SecurityEvent` and `ActivityLog` tables gracefully
+  - Security logging middleware continues to function even if tables don't exist
+  - Login/logout signal handlers handle missing tables without crashing
+  - System remains fully operational even when audit logging tables are unavailable
+
+### Previous Highlights (0.7.2)
+- **CSV Import/Export**: Bulk management of programs via CSV files
+  - Export programs as CSV (includes template even with no data)
+  - Import CSV to bulk import/update programs
+  - Automatically overwrites existing programs (matching code + program_type)
+  - Detailed import results showing created vs updated programs
+  - Excel-compatible format with comprehensive error reporting
+
+### Previous Highlights (0.7.1)
 - **Production API Fixes**: Fixed `/me` endpoint access issues in production with enhanced error handling, automatic token refresh, and improved CORS configuration.
 - **Backend Error Resolution**: Resolved 500 Internal Server Error on `/me` endpoint by fixing serializer handling of None values and adding comprehensive error handling.
 - **Database Migration Fixes**: Fixed "no such table" errors by adding explicit table names to all models across all apps, ensuring consistent database schema in production.
@@ -106,13 +148,27 @@ The system architecture is informed by academic research on:
 - **JWT Authentication**: Stateless token-based authentication for scalability
 - **Role-Based Access Control**: Three-tier role system (Student, Staff, Admin) with granular permissions
 - **Student Profiles**: Complete academic information (department, course, year level)
-- **Auto-Generated Student IDs**: Format YYYY-XXXXX (year + random digits)
+- **Admin Profile Flexibility**: Academic information optional for administrators and staff
+  - Admins can leave Student ID, Year Level, Department, and Course blank
+  - Students still require all academic information
+  - Clear UI indicators for optional vs required fields
+- **Auto-Generated Student IDs**: Format YYYY-XXXXX (year + random digits) - only for students
+- **Program Management**: Admin interface for managing departments and courses with CSV import/export
 - **Program Hierarchy**: Unified department/course structure with direct department linkage for courses
 - **Profile Verification**: Admin-controlled verification system
 - **Avatar Support**: Profile photo uploads with validation
 - **Role Management**: Admins can change user roles through the user management interface
 
 ### 🏛️ **Flexible Election Management**
+- **Election Types**: University Student Council (USC) and Department Elections
+  - **USC Elections**: All students can vote and apply as candidates
+  - **Department Elections**: Restricted to specific departments
+  - Auto-generated titles based on election type and academic year
+  - Academic Year (AY) format: "USC Election AY 2025-2026" or "[DEPT_CODE] Election AY 2025-2026"
+- **Eligibility System**: Automatic checks for voting and candidate applications
+  - Department-based eligibility enforcement
+  - Clear error messages for ineligible users
+  - Visual indicators on election pages
 - **Multi-Election Support**: Manage concurrent and sequential elections
 - **Precise Scheduling**: Start/end date-time with timezone support
 - **Position Management**: Flexible position creation with custom ordering (no predefined type categories)
@@ -398,7 +454,7 @@ python manage.py check
 
 ---
 
-**E-Botar v0.7.1** | Last Updated: December 2025  
+**E-Botar v0.7.3** | Last Updated: December 2025  
 **Status**: Production Ready | Full Stack Complete
 
 > 📖 **For complete documentation**, see [Information.md](Information.md)

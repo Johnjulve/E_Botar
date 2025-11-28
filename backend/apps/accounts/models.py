@@ -89,12 +89,26 @@ class UserProfile(models.Model):
         return f"{self.user.get_full_name()} ({self.student_id})"
     
     def save(self, *args, **kwargs):
-        """Auto-generate student ID if not provided"""
-        if not self.student_id:
+        """Auto-generate student ID if not provided (only for non-admin users)"""
+        # Only auto-generate student_id for non-staff users
+        if not self.student_id and not (self.user.is_staff or self.user.is_superuser):
             year = timezone.now().year
             random_digits = ''.join(random.choices(string.digits, k=5))
             self.student_id = f"{year}-{random_digits}"
         super().save(*args, **kwargs)
+    
+    def clean(self):
+        """Validate profile data"""
+        # For staff/admin users, academic fields are optional
+        is_admin_or_staff = self.user.is_staff or self.user.is_superuser
+        
+        if not is_admin_or_staff:
+            # For regular users, validate that academic fields are provided
+            # Note: These validations are soft - we allow None for flexibility
+            # Frontend validation will enforce required fields for students
+            pass
+        
+        super().clean()
     
     class Meta:
         db_table = 'accounts_userprofile'

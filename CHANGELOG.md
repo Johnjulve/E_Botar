@@ -9,6 +9,187 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.3] - 2025-12-XX
+### Added
+- **Election Type System**: Support for University Student Council (USC) and Department Elections
+  - New `election_type` field in `SchoolElection` model with choices: 'university' or 'department'
+  - New `allowed_department` field for Department Elections (single department restriction)
+  - Auto-generated election titles based on type:
+    - USC: "USC Election AY 2025-2026"
+    - Department: "[DEPT_CODE] Election AY 2025-2026" (e.g., "CCIS Election AY 2025-2026")
+  - Academic Year (AY) format instead of School Year (SY) format
+  - Title preview in election creation form
+  - Visual badges on election cards showing election type (USC or Department Code)
+
+- **Eligibility System**: Automatic checks for voting and candidate applications
+  - `is_user_eligible()` method checks if user can vote in election
+  - `is_user_eligible_to_apply()` method checks if user can apply as candidate
+  - Department-based eligibility enforcement for Department Elections
+  - Eligibility checks in voting serializer (prevents ineligible votes)
+  - Eligibility checks in candidate application serializer (prevents ineligible applications)
+  - Frontend eligibility warnings on election details page
+  - Vote button hidden for ineligible users
+
+- **Admin Profile Flexibility**: Academic information optional for administrators
+  - Academic fields (Student ID, Year Level, Department, Course) are optional for staff/admin users
+  - Students still require all academic information
+  - Clear UI indicators showing "(Optional for Administrators)" label
+  - Help text explaining optional nature for admins
+  - Profile display conditionally shows academic section based on user role and data availability
+  - Backend validation allows empty academic fields for staff/admin users
+  - No auto-generated student ID for admin/staff users
+
+### Changed
+- **Election Title Format**: Changed from "SY" (School Year) to "AY" (Academic Year)
+  - All new elections use AY format: "AY 2025-2026"
+  - Existing elections can be migrated using `migrate_sy_to_ay` command
+  - Title auto-generation updated to use AY format
+
+- **Election Model**: Enhanced with election type and department restrictions
+  - Added `election_type` field (default: 'university')
+  - Added `allowed_department` ForeignKey for Department Elections
+  - Updated `save()` method to auto-generate titles based on election type
+  - Added eligibility checking methods
+
+- **Profile Model**: Updated to handle optional academic info for admins
+  - `save()` method skips auto-generating student_id for staff/admin users
+  - Added `clean()` method for validation flexibility
+
+- **Profile Serializers**: Enhanced validation for admin users
+  - Academic fields validation made conditional based on user role
+  - Staff/admin users can submit empty academic fields
+
+- **Profile Views**: Updated to handle empty academic fields for admins
+  - Profile update logic allows clearing academic fields for staff/admin
+  - Empty strings converted to None for admin users
+
+- **Frontend Election Forms**: Enhanced with election type selection
+  - Radio button selection for election type (USC or Department Election)
+  - Department dropdown appears when "Department Election" is selected
+  - Real-time title preview showing auto-generated title
+  - Form validation requires department for Department Election type
+
+- **Frontend Election Display**: Added election type indicators
+  - Election list page shows type badges (USC or Department Code)
+  - Election details page shows council type and allowed departments
+  - Eligibility warnings for ineligible users
+  - Admin election management page shows type badges
+
+### Fixed
+- **Empty Data Handling**: Comprehensive fixes for handling empty databases and missing data
+  - Voting views (`apps/voting/views.py`): Added checks for missing ballots before access
+  - Election results: Handle elections with no positions or candidates gracefully
+  - Election statistics services: Safe handling of missing elections and empty querysets
+  - Serializers: Added null checks before accessing related objects
+  - Division by zero protection: All percentage calculations check for zero denominators
+  - Export functionality: Handles empty elections without errors
+  - All endpoints return empty arrays/zeros instead of errors when data is missing
+  - Backend now fully functional with completely empty database
+
+- **SecurityEvent Production Issue**: Fixed production errors when `common_securityevent` table doesn't exist
+  - Admin interface (`apps/common/admin.py`): Added error handling in `get_queryset()` for both `SecurityEventAdmin` and `ActivityLogAdmin`
+  - Admin now returns empty querysets instead of crashing when tables are missing
+  - Middleware (`apps/common/middleware.py`): Added `OperationalError` and `ProgrammingError` handling
+  - Security logging gracefully skips when tables don't exist (debug logs only)
+  - Signal handlers (`log_user_login`, `log_failed_login`) handle missing tables gracefully
+  - Utility functions (`apps/common/utils.py`): `log_security_event()` and `log_activity()` handle missing tables
+  - System continues to function normally even if security/activity logging tables are unavailable
+
+### Technical Details
+- **Backend Changes**:
+  - `apps/elections/models.py`: Added `election_type` and `allowed_department` fields
+  - `apps/elections/serializers.py`: Added election type fields to all serializers, added null safety checks
+  - `apps/elections/migrations/0003_add_missing_election_fields.py`: Migration to add new fields
+  - `apps/elections/services.py`: Added error handling for missing elections and empty data
+  - `apps/voting/serializers.py`: Added eligibility check in ballot validation
+  - `apps/voting/views.py`: Added comprehensive empty data handling for ballots, votes, and results
+  - `apps/voting/services.py`: Added error handling for missing elections and empty statistics
+  - `apps/candidates/serializers.py`: Added eligibility check in application validation
+  - `apps/accounts/models.py`: Updated profile save logic for admins
+  - `apps/accounts/serializers.py`: Added conditional validation for academic fields
+  - `apps/accounts/views.py`: Updated profile update to handle empty values for admins
+  - `apps/common/admin.py`: Added error handling for missing `SecurityEvent` and `ActivityLog` tables in admin interface
+  - `apps/common/middleware.py`: Added graceful handling of missing security/activity logging tables
+  - `apps/common/utils.py`: Added error handling for missing tables in security and activity logging functions
+
+- **Frontend Changes**:
+  - `modules/admin/pages/ElectionFormPage.jsx`: Added election type selector and department dropdown
+  - `modules/elections/pages/ElectionListPage.jsx`: Added election type badges
+  - `modules/elections/pages/ElectionDetailsPage.jsx`: Added eligibility checks and warnings
+  - `modules/admin/pages/ElectionManagementPage.jsx`: Added type badges to election cards
+  - `modules/profile/pages/ProfileEditPage.jsx`: Made academic fields optional for admins
+  - `modules/profile/pages/ProfilePage.jsx`: Conditional display of academic information
+
+- **API Endpoints**:
+  - All election endpoints now return `election_type` and `allowed_department` fields
+  - Election creation/update accepts `election_type` and `allowed_department_id`
+  - Profile update accepts empty academic fields for staff/admin users
+
+---
+
+## [0.7.2] - 2025-12-XX
+### Added
+- **Program Management Module**: Complete CRUD interface for managing departments and courses
+  - New admin page at `/admin/programs` for managing programs (departments and courses)
+  - Full CRUD operations: Create, Read, Update, Delete programs
+  - Filter by program type (All, Departments, Courses)
+  - Form validation with error handling
+  - Real-time updates and data refresh
+
+- **CSV Import/Export Functionality**: Bulk import and export of programs
+  - **CSV Export**: Download programs as CSV file with format: `name, code, program_type, department_id`
+  - Exports template (header row) even when no data exists
+  - Filtered export by program type (all, department, course)
+  - Excel-compatible format with UTF-8 BOM encoding
+  
+  - **CSV Import**: Upload CSV files to bulk import/update programs
+  - Overwrites existing programs (matching code and program_type)
+  - Creates new programs if they don't exist
+  - Detailed import results showing created vs updated programs
+  - Comprehensive error reporting with row numbers and error messages
+  - Validates required fields, program types, and department relationships
+
+- **Admin Sidebar Navigation**: Added "Programs" menu item to admin sidebar
+  - Accessible to all staff and admin users
+  - Integrated with existing admin navigation structure
+
+### Changed
+- **CSV Import Behavior**: Changed from skip-duplicates to overwrite-existing
+  - Previously: Duplicate programs (same code + program_type) were skipped with error
+  - Now: Existing programs are automatically updated/overwritten with CSV data
+  - Provides better bulk update capabilities for program management
+
+- **Program Service API**: Updated all endpoints to use `/auth/` prefix
+  - Fixed URL paths to match backend routing (`/api/auth/programs/`)
+  - All program-related API calls now use correct endpoint structure
+
+### Technical Details
+- **Backend Changes**:
+  - Added `ProgramViewSet` with full CRUD operations in `apps/accounts/views.py`
+  - Implemented `import_csv` action with overwrite logic
+  - Implemented `export_csv` action with template support
+  - Added `ProgramSerializer` for complete program management
+  - Enhanced `CourseSerializer` to handle `department_id` for write operations
+  - Permission: `IsStaffOrSuperUser` (staff and admins can manage programs)
+
+- **Frontend Changes**:
+  - Created `ProgramManagementPage` component with table view and forms
+  - Added `programService` for all program-related API calls
+  - Enhanced error handling for CSV import/export operations
+  - Improved blob response handling for CSV downloads
+  - Added detailed import result display (created vs updated)
+
+- **API Endpoints**:
+  - `GET /api/auth/programs/` - List all programs (with optional filtering)
+  - `POST /api/auth/programs/` - Create new program
+  - `GET /api/auth/programs/{id}/` - Get program details
+  - `PUT /api/auth/programs/{id}/` - Update program
+  - `DELETE /api/auth/programs/{id}/` - Delete program
+  - `POST /api/auth/programs/import-csv/` - Import programs from CSV
+  - `GET /api/auth/programs/export-csv/` - Export programs to CSV
+
+---
+
 ## [0.7.1] - 2025-12-XX
 ### Fixed
 - **Production API Access**: Fixed `/me` endpoint access issues in production mode

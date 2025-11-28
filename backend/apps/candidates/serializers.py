@@ -179,6 +179,19 @@ class CandidateApplicationCreateSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         election = data.get('election')
         
+        # Check eligibility to apply (skip for staff/admin)
+        if election and not (user.is_staff or user.is_superuser):
+            if not election.is_user_eligible_to_apply(user):
+                if election.election_type == 'department':
+                    dept_name = election.allowed_department.name if election.allowed_department else 'selected department'
+                    raise serializers.ValidationError({
+                        'election': f'You are not eligible to apply for this election. This is a Department Election restricted to {dept_name} students only.'
+                    })
+                else:
+                    raise serializers.ValidationError({
+                        'election': 'You are not eligible to apply for this election.'
+                    })
+        
         # Check if user already has an active application for this election
         if election:
             existing_application = CandidateApplication.objects.filter(
