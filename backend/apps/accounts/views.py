@@ -1,3 +1,4 @@
+import logging
 from rest_framework import generics, status, viewsets
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
@@ -10,6 +11,8 @@ from .serializers import (
     UserSerializer, UserProfileSerializer, UserRegistrationSerializer,
     DepartmentSerializer, CourseSerializer
 )
+
+logger = logging.getLogger(__name__)
 
 
 @api_view(['GET'])
@@ -28,22 +31,35 @@ def health_check(request):
 def current_user(request):
     """Get or update current authenticated user's profile"""
     if request.method == 'GET':
-        user_serializer = UserSerializer(request.user, context={'request': request})
         try:
-            profile = request.user.profile
-            profile_serializer = UserProfileSerializer(profile, context={'request': request})
-            return Response({
-                'user': user_serializer.data,
-                'profile': profile_serializer.data
-            })
-        except UserProfile.DoesNotExist:
-            # Create profile if it doesn't exist
-            profile = UserProfile.objects.create(user=request.user)
-            profile_serializer = UserProfileSerializer(profile, context={'request': request})
-            return Response({
-                'user': user_serializer.data,
-                'profile': profile_serializer.data
-            })
+            user_serializer = UserSerializer(request.user, context={'request': request})
+            try:
+                profile = request.user.profile
+            except UserProfile.DoesNotExist:
+                # Create profile if it doesn't exist
+                profile = UserProfile.objects.create(user=request.user)
+            
+            # Serialize profile with proper error handling
+            try:
+                profile_serializer = UserProfileSerializer(profile, context={'request': request})
+                return Response({
+                    'user': user_serializer.data,
+                    'profile': profile_serializer.data
+                })
+            except Exception as e:
+                # Log the error for debugging
+                logger.error(f"Error serializing profile for user {request.user.id}: {str(e)}", exc_info=True)
+                return Response(
+                    {'error': 'Error retrieving profile data', 'detail': str(e)},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+        except Exception as e:
+            # Log the error for debugging
+            logger.error(f"Error in current_user view for user {request.user.id}: {str(e)}", exc_info=True)
+            return Response(
+                {'error': 'Error retrieving user data', 'detail': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     
     elif request.method in ['PATCH', 'PUT']:
         # Update user and profile data

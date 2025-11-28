@@ -25,6 +25,7 @@
 ## 🚀 Release Highlights (0.7.1)
 
 - **Production API Fixes**: Fixed `/me` endpoint access issues in production with enhanced error handling, automatic token refresh, and improved CORS configuration.
+- **Backend Error Resolution**: Resolved 500 Internal Server Error on `/me` endpoint by fixing serializer handling of None values and adding comprehensive error handling.
 - **Automatic Token Refresh**: API service now automatically refreshes expired JWT tokens, providing seamless user experience without manual re-authentication.
 - **Enhanced CORS Support**: Backend now properly supports multiple frontend URLs and improved production deployment configuration.
 

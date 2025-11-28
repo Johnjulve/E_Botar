@@ -30,8 +30,9 @@
 ## 🚀 Release Highlights (0.7.1)
 
 - **Production API Fixes**: Fixed `/me` endpoint access issues in production with enhanced error handling, automatic token refresh, and improved CORS configuration for multiple frontend URLs.
+- **Backend Error Resolution**: Resolved 500 Internal Server Error on `/me` endpoint by fixing serializer handling of None values (department, course) and adding comprehensive error handling with logging.
 - **Automatic Token Refresh**: API service now automatically refreshes expired JWT tokens, providing seamless user experience without manual re-authentication.
-- **Enhanced Production Deployment**: Improved CORS configuration, environment variable handling, and production-ready error messages.
+- **Enhanced Production Deployment**: Improved CORS configuration, environment variable handling, and production-ready error messages with detailed logging for troubleshooting.
 
 ### Previous Highlights (0.7.0)
 - **Production Deployment Configuration**: Added Vercel deployment configuration and production-ready build settings for both frontend and backend.
