@@ -19,6 +19,7 @@ def log_activity(user, action, resource_type, resource_id=None, description='', 
         metadata: Additional metadata dict (optional)
     """
     try:
+        from django.db import OperationalError, ProgrammingError
         ActivityLog.objects.create(
             user=user,
             action=action,
@@ -28,6 +29,9 @@ def log_activity(user, action, resource_type, resource_id=None, description='', 
             ip_address=ip_address,
             metadata=metadata or {}
         )
+    except (OperationalError, ProgrammingError) as e:
+        # Table doesn't exist - silently skip logging
+        logger.debug(f"ActivityLog table not available, skipping log: {e}")
     except Exception as e:
         logger.error(f"Failed to log activity: {e}")
 
@@ -46,6 +50,7 @@ def log_security_event(user, event_type, severity, description, ip_address=None,
         metadata: Additional metadata dict (optional)
     """
     try:
+        from django.db import OperationalError, ProgrammingError
         SecurityEvent.objects.create(
             user=user,
             event_type=event_type,
@@ -55,6 +60,9 @@ def log_security_event(user, event_type, severity, description, ip_address=None,
             user_agent=user_agent,
             metadata=metadata or {}
         )
+    except (OperationalError, ProgrammingError) as e:
+        # Table doesn't exist - silently skip logging
+        logger.debug(f"SecurityEvent table not available, skipping log: {e}")
     except Exception as e:
         logger.error(f"Failed to log security event: {e}")
 

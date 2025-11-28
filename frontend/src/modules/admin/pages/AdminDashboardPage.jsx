@@ -80,6 +80,22 @@ const Icon = ({ name, size = 20, className = '' }) => {
         <polyline points="9 18 15 12 9 6"/>
       </svg>
     ),
+    building: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <path d="M3 21h18"/>
+        <path d="M5 21V7l8-4v18"/>
+        <path d="M19 21V11l-6-4"/>
+        <line x1="9" y1="9" x2="9" y2="9"/>
+        <line x1="9" y1="12" x2="9" y2="12"/>
+        <line x1="9" y1="15" x2="9" y2="15"/>
+        <line x1="9" y1="18" x2="9" y2="18"/>
+      </svg>
+    ),
+    activity: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
+    ),
   };
 
   return icons[name] || null;
@@ -254,6 +270,10 @@ const AdminDashboardPage = () => {
           <Link to="/admin/logs" className="admin-btn">
             <Icon name="activity" size={16} />
             System Logs
+          </Link>
+          <Link to="/admin/programs" className="admin-btn">
+            <Icon name="building" size={16} />
+            Manage Programs
           </Link>
         </div>
       </div>

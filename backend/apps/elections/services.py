@@ -65,20 +65,26 @@ class ElectionDataService:
             
         Returns:
             SchoolElection instance with prefetched related data
+            
+        Raises:
+            SchoolElection.DoesNotExist: If election not found
         """
-        return SchoolElection.objects.select_related(
-            'created_by'
-        ).prefetch_related(
-            Prefetch(
-                'candidates',
-                queryset=Candidate.objects.select_related(
-                    'user',
-                    'position',
-                    'party',
-                    'approved_application'
-                ).filter(is_active=True)
-            )
-        ).get(id=election_id)
+        try:
+            return SchoolElection.objects.select_related(
+                'created_by', 'allowed_department'
+            ).prefetch_related(
+                Prefetch(
+                    'candidates',
+                    queryset=Candidate.objects.select_related(
+                        'user',
+                        'position',
+                        'party',
+                        'approved_application'
+                    ).filter(is_active=True)
+                )
+            ).get(id=election_id)
+        except SchoolElection.DoesNotExist:
+            raise
     
     @staticmethod
     @cache_result(120)  # Cache for 2 minutes
@@ -111,7 +117,18 @@ class ElectionDataService:
         """
         from apps.voting.models import AnonVote, Ballot
         
-        election = SchoolElection.objects.get(id=election_id)
+        try:
+            election = SchoolElection.objects.get(id=election_id)
+        except SchoolElection.DoesNotExist:
+            return {
+                'election_id': election_id,
+                'total_votes': 0,
+                'total_voters': 0,
+                'total_candidates': 0,
+                'total_positions': 0,
+                'candidates_by_position': [],
+                'turnout_percentage': 0
+            }
         
         # Count total votes
         total_votes = AnonVote.objects.filter(election=election).count()
@@ -133,10 +150,12 @@ class ElectionDataService:
             is_active=True
         ).count()
         
-        # Count total positions
-        total_positions = SchoolPosition.objects.filter(
-            is_active=True
-        ).count()
+        # Count total positions in this election
+        total_positions = election.election_positions.filter(is_enabled=True).count()
+        
+        # Calculate turnout safely
+        ballots_count = election.ballots.count() if hasattr(election, 'ballots') else 0
+        turnout_percentage = (total_voters / ballots_count * 100) if ballots_count > 0 else 0
         
         return {
             'election_id': election_id,
@@ -145,7 +164,7 @@ class ElectionDataService:
             'total_candidates': total_candidates,
             'total_positions': total_positions,
             'candidates_by_position': list(candidates_by_position),
-            'turnout_percentage': (total_voters / election.ballots.count() * 100) if election.ballots.exists() else 0
+            'turnout_percentage': round(turnout_percentage, 2)
         }
     
     @staticmethod

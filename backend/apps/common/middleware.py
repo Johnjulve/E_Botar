@@ -67,6 +67,8 @@ class SecurityLoggingMiddleware(MiddlewareMixin):
     def process_exception(self, request, exception):
         """Log exceptions for security analysis"""
         try:
+            from django.db import OperationalError, ProgrammingError
+            # Check if table exists before trying to create
             SecurityEvent.objects.create(
                 user=request.user if request.user.is_authenticated else None,
                 event_type='suspicious_activity',
@@ -76,6 +78,9 @@ class SecurityLoggingMiddleware(MiddlewareMixin):
                 user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
                 metadata={'exception_type': type(exception).__name__}
             )
+        except (OperationalError, ProgrammingError) as e:
+            # Table doesn't exist - silently skip logging
+            logger.debug(f"SecurityEvent table not available, skipping log: {e}")
         except Exception as e:
             logger.error(f"Failed to log exception event: {e}")
         
@@ -94,6 +99,7 @@ class SecurityLoggingMiddleware(MiddlewareMixin):
     def log_unauthorized_access(self, request, status_code):
         """Log unauthorized access attempts"""
         try:
+            from django.db import OperationalError, ProgrammingError
             SecurityEvent.objects.create(
                 user=request.user if request.user.is_authenticated else None,
                 event_type='unauthorized_access',
@@ -107,6 +113,9 @@ class SecurityLoggingMiddleware(MiddlewareMixin):
                     'status_code': status_code
                 }
             )
+        except (OperationalError, ProgrammingError) as e:
+            # Table doesn't exist - silently skip logging
+            logger.debug(f"SecurityEvent table not available, skipping log: {e}")
         except Exception as e:
             logger.error(f"Failed to log unauthorized access: {e}")
 
@@ -116,27 +125,36 @@ class SecurityLoggingMiddleware(MiddlewareMixin):
 def log_user_login(sender, request, user, **kwargs):
     """Log successful user login"""
     try:
+        from django.db import OperationalError, ProgrammingError
         ip_address = SecurityLoggingMiddleware.get_client_ip(request)
         
         # Log security event
-        SecurityEvent.objects.create(
-            user=user,
-            event_type='login_attempt',
-            severity='low',
-            description=f"User {user.username} logged in successfully",
-            ip_address=ip_address,
-            user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
-            metadata={'status': 'success'}
-        )
+        try:
+            SecurityEvent.objects.create(
+                user=user,
+                event_type='login_attempt',
+                severity='low',
+                description=f"User {user.username} logged in successfully",
+                ip_address=ip_address,
+                user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
+                metadata={'status': 'success'}
+            )
+        except (OperationalError, ProgrammingError):
+            # Table doesn't exist - skip security event logging
+            logger.debug("SecurityEvent table not available, skipping security log")
         
         # Log activity
-        ActivityLog.objects.create(
-            user=user,
-            action='login',
-            resource_type='auth',
-            description=f"User logged in from {ip_address}",
-            ip_address=ip_address
-        )
+        try:
+            ActivityLog.objects.create(
+                user=user,
+                action='login',
+                resource_type='auth',
+                description=f"User logged in from {ip_address}",
+                ip_address=ip_address
+            )
+        except (OperationalError, ProgrammingError):
+            # Table doesn't exist - skip activity logging
+            logger.debug("ActivityLog table not available, skipping activity log")
     except Exception as e:
         logger.error(f"Failed to log user login: {e}")
 
@@ -163,23 +181,28 @@ def log_user_logout(sender, request, user, **kwargs):
 def log_failed_login(sender, credentials, request, **kwargs):
     """Log failed login attempt"""
     try:
+        from django.db import OperationalError, ProgrammingError
         ip_address = SecurityLoggingMiddleware.get_client_ip(request)
         username = credentials.get('username', 'Unknown')
         
         # Log security event
-        SecurityEvent.objects.create(
-            user=None,
-            event_type='failed_login',
-            severity='medium',
-            description=f"Failed login attempt for username: {username}",
-            ip_address=ip_address,
-            user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
-            metadata={
-                'username': username,
-                'status': 'failed',
-                'reason': 'invalid_credentials'
-            }
-        )
+        try:
+            SecurityEvent.objects.create(
+                user=None,
+                event_type='failed_login',
+                severity='medium',
+                description=f"Failed login attempt for username: {username}",
+                ip_address=ip_address,
+                user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
+                metadata={
+                    'username': username,
+                    'status': 'failed',
+                    'reason': 'invalid_credentials'
+                }
+            )
+        except (OperationalError, ProgrammingError):
+            # Table doesn't exist - skip logging
+            logger.debug("SecurityEvent table not available, skipping failed login log")
     except Exception as e:
         logger.error(f"Failed to log failed login: {e}")
 

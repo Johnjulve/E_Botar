@@ -14,7 +14,7 @@ import './profile.css';
 
 const ProfileEditPage = () => {
   const navigate = useNavigate();
-  const { updateUser } = useAuth();
+  const { updateUser, user: authUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -24,6 +24,9 @@ const ProfileEditPage = () => {
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [avatarFile, setAvatarFile] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
+  
+  // Check if user is admin/staff
+  const isAdmin = authUser?.user?.is_superuser || authUser?.user?.is_staff || false;
   
   const [formData, setFormData] = useState({
     first_name: '',
@@ -410,11 +413,23 @@ const ProfileEditPage = () => {
 
           {/* Academic Information */}
           <div className="form-section">
-            <h3 className="section-title">Academic Information</h3>
+            <h3 className="section-title">
+              Academic Information
+              {isAdmin && (
+                <span style={{ 
+                  fontSize: '0.875rem', 
+                  fontWeight: 'normal', 
+                  color: '#6b7280',
+                  marginLeft: '0.5rem'
+                }}>
+                  (Optional for Administrators)
+                </span>
+              )}
+            </h3>
             <div className="form-grid">
               <div className="form-group">
                 <label htmlFor="student_id" className="form-label">
-                  Student ID <span className="required">*</span>
+                  Student ID {!isAdmin && <span className="required">*</span>}
                 </label>
                 <input
                   type="text"
@@ -423,14 +438,19 @@ const ProfileEditPage = () => {
                   name="student_id"
                   value={formData.student_id}
                   onChange={handleChange}
-                  required
+                  required={!isAdmin}
                   placeholder="e.g., 2021-12345"
                 />
+                {isAdmin && (
+                  <small className="form-help">
+                    Optional for administrators. Leave blank if not applicable.
+                  </small>
+                )}
               </div>
 
               <div className="form-group">
                 <label htmlFor="year_level" className="form-label">
-                  Year Level <span className="required">*</span>
+                  Year Level {!isAdmin && <span className="required">*</span>}
                 </label>
                 <select
                   className="form-select"
@@ -438,7 +458,7 @@ const ProfileEditPage = () => {
                   name="year_level"
                   value={formData.year_level}
                   onChange={handleChange}
-                  required
+                  required={!isAdmin}
                 >
                   <option value="">Select Year Level</option>
                   <option value="1st Year">1st Year</option>
@@ -451,7 +471,7 @@ const ProfileEditPage = () => {
 
               <div className="form-group">
                 <label htmlFor="department" className="form-label">
-                  Department <span className="required">*</span>
+                  Department {!isAdmin && <span className="required">*</span>}
                 </label>
                 <select
                   className="form-select"
@@ -459,7 +479,7 @@ const ProfileEditPage = () => {
                   name="department"
                   value={formData.department}
                   onChange={handleChange}
-                  required
+                  required={!isAdmin}
                 >
                   <option value="">Select Department</option>
                   {departments.map(dept => (
@@ -472,7 +492,7 @@ const ProfileEditPage = () => {
 
               <div className="form-group">
                 <label htmlFor="course" className="form-label">
-                  Course <span className="required">*</span>
+                  Course {!isAdmin && <span className="required">*</span>}
                 </label>
                 <select
                   className="form-select"
@@ -480,7 +500,7 @@ const ProfileEditPage = () => {
                   name="course"
                   value={formData.course}
                   onChange={handleChange}
-                  required
+                  required={!isAdmin}
                   disabled={!formData.department}
                 >
                   <option value="">

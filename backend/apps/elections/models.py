@@ -46,9 +46,29 @@ class SchoolPosition(models.Model):
 
 class SchoolElection(models.Model):
     """Model for school election periods"""
+    ELECTION_TYPE_CHOICES = [
+        ('university', 'University Student Council (USC)'),
+        ('department', 'Department Election'),
+    ]
+    
     title = models.CharField(max_length=200)
-    start_year = models.IntegerField(null=True, blank=True, help_text="Start year for SY format (e.g., 2025 for SY 2025-2026)")
-    end_year = models.IntegerField(null=True, blank=True, help_text="End year for SY format (e.g., 2026 for SY 2025-2026)")
+    election_type = models.CharField(
+        max_length=20,
+        choices=ELECTION_TYPE_CHOICES,
+        default='university',
+        help_text="Type of council election"
+    )
+    allowed_department = models.ForeignKey(
+        'accounts.Program',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        limit_choices_to={'program_type': 'department'},
+        related_name='department_elections',
+        help_text="Department allowed to vote (only for Department Election type)"
+    )
+    start_year = models.IntegerField(null=True, blank=True, help_text="Start year for AY format (e.g., 2025 for AY 2025-2026)")
+    end_year = models.IntegerField(null=True, blank=True, help_text="End year for AY format (e.g., 2026 for AY 2025-2026)")
     description = models.TextField(blank=True)
     start_date = models.DateTimeField()
     end_date = models.DateTimeField()
@@ -58,9 +78,17 @@ class SchoolElection(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     def save(self, *args, **kwargs):
-        # Auto-generate title from years if provided
+        # Auto-generate title based on election type
         if self.start_year and self.end_year:
-            self.title = f"SY {self.start_year}-{self.end_year}"
+            if self.election_type == 'university':
+                self.title = f"USC Election AY {self.start_year}-{self.end_year}"
+            elif self.election_type == 'department' and self.allowed_department:
+                # Use department code for title
+                dept_code = self.allowed_department.code
+                self.title = f"{dept_code} Election AY {self.start_year}-{self.end_year}"
+            else:
+                # Fallback (shouldn't happen in normal flow)
+                self.title = f"Election AY {self.start_year}-{self.end_year}"
         super().save(*args, **kwargs)
     
     def clean(self):
@@ -85,6 +113,26 @@ class SchoolElection(models.Model):
         """Check if election has finished"""
         now = timezone.now()
         return now > self.end_date
+    
+    def is_user_eligible(self, user):
+        """Check if user is eligible to vote in this election"""
+        if self.election_type == 'university':
+            return True  # All students can vote in USC elections
+        elif self.election_type == 'department':
+            if not hasattr(user, 'profile') or not user.profile.department:
+                return False
+            return self.allowed_department and self.allowed_department.id == user.profile.department.id
+        return False
+    
+    def is_user_eligible_to_apply(self, user):
+        """Check if user is eligible to apply as candidate in this election"""
+        if self.election_type == 'university':
+            return True  # All students can apply for USC elections
+        elif self.election_type == 'department':
+            if not hasattr(user, 'profile') or not user.profile.department:
+                return False
+            return self.allowed_department and self.allowed_department.id == user.profile.department.id
+        return False
     
     def auto_reject_pending_applications(self):
         """Auto-reject all pending applications when election starts"""

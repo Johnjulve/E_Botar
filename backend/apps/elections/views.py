@@ -1,3 +1,4 @@
+import logging
 from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
@@ -6,6 +7,8 @@ from django.utils import timezone
 from apps.common.models import ActivityLog
 from apps.common.permissions import IsSuperUser, IsStaffOrSuperUser
 from .models import Party, SchoolPosition, SchoolElection, ElectionPosition
+
+logger = logging.getLogger(__name__)
 from .serializers import (
     PartySerializer, SchoolPositionSerializer,
     SchoolElectionListSerializer, SchoolElectionDetailSerializer,
@@ -186,26 +189,38 @@ class SchoolElectionViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def active(self, request):
         """Get currently active elections (cached)"""
-        active_elections = ElectionDataService.get_all_active_elections()
-        serializer = self.get_serializer(active_elections, many=True)
-        return Response(serializer.data)
+        try:
+            active_elections = ElectionDataService.get_all_active_elections()
+            serializer = self.get_serializer(active_elections, many=True)
+            return Response(serializer.data if serializer.data is not None else [])
+        except Exception as e:
+            logger.error(f"Error getting active elections: {str(e)}", exc_info=True)
+            return Response([], status=status.HTTP_200_OK)
     
     @action(detail=False, methods=['get'])
     def upcoming(self, request):
         """Get upcoming elections (cached)"""
-        upcoming_elections = ElectionDataService.get_upcoming_elections()
-        serializer = self.get_serializer(upcoming_elections, many=True)
-        return Response(serializer.data)
+        try:
+            upcoming_elections = ElectionDataService.get_upcoming_elections()
+            serializer = self.get_serializer(upcoming_elections, many=True)
+            return Response(serializer.data if serializer.data is not None else [])
+        except Exception as e:
+            logger.error(f"Error getting upcoming elections: {str(e)}", exc_info=True)
+            return Response([], status=status.HTTP_200_OK)
     
     @action(detail=False, methods=['get'])
     def finished(self, request):
         """Get finished elections"""
-        now = timezone.now()
-        finished_elections = self.queryset.filter(
-            end_date__lt=now
-        )
-        serializer = self.get_serializer(finished_elections, many=True)
-        return Response(serializer.data)
+        try:
+            now = timezone.now()
+            finished_elections = self.queryset.filter(
+                end_date__lt=now
+            )
+            serializer = self.get_serializer(finished_elections, many=True)
+            return Response(serializer.data if serializer.data is not None else [])
+        except Exception as e:
+            logger.error(f"Error getting finished elections: {str(e)}", exc_info=True)
+            return Response([], status=status.HTTP_200_OK)
     
     @action(detail=True, methods=['post'])
     def add_position(self, request, pk=None):
