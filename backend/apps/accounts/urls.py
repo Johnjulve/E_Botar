@@ -9,6 +9,7 @@ router = DefaultRouter()
 router.register(r'profiles', views.UserProfileViewSet, basename='profile')
 router.register(r'departments', views.DepartmentViewSet, basename='department')
 router.register(r'courses', views.CourseViewSet, basename='course')
+router.register(r'programs', views.ProgramViewSet, basename='program')
 
 urlpatterns = [
     # Health check

@@ -1,15 +1,41 @@
 import axios from 'axios';
 import { STORAGE_KEYS } from '../constants';
 
-// Get base URL with proper fallback
+/**
+ * Get base URL for API requests
+ * 
+ * DEVELOPMENT: Uses relative URL '/api' which is proxied by Vite to localhost:8000
+ * PRODUCTION: Uses VITE_API_BASE_URL environment variable (REQUIRED in production)
+ * 
+ * @returns {string} Base URL for API requests
+ */
 const getBaseURL = () => {
+  // In development, use relative URL to leverage Vite proxy (see vite.config.js)
+  const isDevelopment = import.meta.env.DEV;
+  if (isDevelopment) {
+    return '/api';
+  }
+  
+  // In production, VITE_API_BASE_URL MUST be set
+  // This is set during build time via environment variables
   const envURL = import.meta.env.VITE_API_BASE_URL;
   if (envURL) {
     // Ensure it ends with /api if not already
-    return envURL.endsWith('/api') ? envURL : envURL.replace(/\/api\/?$/, '') + '/api';
+    const baseURL = envURL.endsWith('/api') ? envURL : envURL.replace(/\/api\/?$/, '') + '/api';
+    return baseURL;
   }
-  // Fallback for development
-  return 'http://localhost:8000/api';
+  
+  // Production fallback - warn if not set
+  if (import.meta.env.PROD) {
+    console.error(
+      '⚠️ VITE_API_BASE_URL is not set in production! ' +
+      'Set this environment variable during build. ' +
+      'Falling back to relative URL which may not work.'
+    );
+  }
+  
+  // Fallback (only works if backend is on same domain)
+  return '/api';
 };
 
 const api = axios.create({
@@ -37,6 +63,10 @@ api.interceptors.request.use(
 // Response interceptor - Handle errors and token refresh
 api.interceptors.response.use(
   (response) => {
+    // Don't process blob responses - return as-is
+    if (response.config.responseType === 'blob') {
+      return response;
+    }
     return response;
   },
   async (error) => {
@@ -49,6 +79,29 @@ api.interceptors.response.use(
         ...error,
         message: 'Network error. Please check your connection and try again.',
       });
+    }
+
+    // Handle blob error responses (e.g., CSV export errors)
+    if (originalRequest.responseType === 'blob' && error.response?.data instanceof Blob) {
+      // Convert blob error to readable format for the caller
+      try {
+        const text = await error.response.data.text();
+        try {
+          const errorData = JSON.parse(text);
+          error.response.data = errorData;
+        } catch (e) {
+          // If not JSON, keep as text
+          error.response.data = text;
+        }
+      } catch (blobError) {
+        // If we can't read the blob, create a generic error
+        error.response.data = {
+          error: `HTTP ${error.response.status}: ${error.response.statusText}`,
+          detail: 'Failed to read error response'
+        };
+      }
+      // Return the modified error
+      return Promise.reject(error);
     }
 
     // Handle 401 Unauthorized - Token expired or invalid

@@ -174,7 +174,32 @@ const ElectionManagementPage = () => {
               <div key={election.id} className="admin-card">
                 <div className="admin-card-header">
                   <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
                     <h3 className="admin-card-title">{election.title}</h3>
+                      {election.election_type === 'university' ? (
+                        <span style={{
+                          padding: '0.125rem 0.5rem',
+                          borderRadius: '0.25rem',
+                          background: 'rgba(37, 99, 235, 0.15)',
+                          color: '#1e40af',
+                          fontSize: '0.75rem',
+                          fontWeight: 600
+                        }}>
+                          USC
+                        </span>
+                      ) : (
+                        <span style={{
+                          padding: '0.125rem 0.5rem',
+                          borderRadius: '0.25rem',
+                          background: 'rgba(34, 197, 94, 0.15)',
+                          color: '#166534',
+                          fontSize: '0.75rem',
+                          fontWeight: 600
+                        }}>
+                          {election.allowed_department_code || 'Dept'}
+                        </span>
+                      )}
+                    </div>
                     {election.description && (
                       <p className="admin-card-subtitle">{election.description.substring(0, 60)}{election.description.length > 60 ? '...' : ''}</p>
                     )}

@@ -91,6 +91,18 @@ class BallotSubmissionSerializer(serializers.Serializer):
         if not election.is_active_now() and not user.is_staff:
             raise serializers.ValidationError({'election_id': 'This election is not currently active'})
         
+        # Check eligibility (skip for staff/admin)
+        if not user.is_staff and not election.is_user_eligible(user):
+            if election.election_type == 'department':
+                dept_name = election.allowed_department.name if election.allowed_department else 'selected department'
+                raise serializers.ValidationError({
+                    'election_id': f'You are not eligible to vote in this election. This is a Department Election restricted to {dept_name} students only.'
+                })
+            else:
+                raise serializers.ValidationError({
+                    'election_id': 'You are not eligible to vote in this election.'
+                })
+        
         # Check if user has already voted
         if Ballot.objects.filter(user=user, election=election).exists():
             raise serializers.ValidationError('You have already submitted a ballot for this election')

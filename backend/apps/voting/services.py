@@ -121,6 +121,20 @@ class VotingDataService:
         """
         from django.contrib.auth.models import User
         
+        # Check if election exists
+        try:
+            election = SchoolElection.objects.get(id=election_id)
+        except SchoolElection.DoesNotExist:
+            return {
+                'election_id': election_id,
+                'total_registered_voters': 0,
+                'total_votes_cast': 0,
+                'unique_voters': 0,
+                'completed_ballots': 0,
+                'turnout_percentage': 0,
+                'votes_by_position': []
+            }
+        
         # Total registered voters (users with profiles)
         total_registered = User.objects.filter(
             profile__isnull=False,
@@ -147,7 +161,7 @@ class VotingDataService:
             vote_count=Count('id')
         ).order_by('position__display_order')
         
-        # Calculate turnout
+        # Calculate turnout safely
         turnout_percentage = (total_voters / total_registered * 100) if total_registered > 0 else 0
         
         return {

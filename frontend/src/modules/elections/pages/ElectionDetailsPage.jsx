@@ -9,13 +9,27 @@ import { Container } from '../../../components/layout';
 import { LoadingSpinner, EmptyState } from '../../../components/common';
 import { electionService, candidateService } from '../../../services';
 import { formatDate, getElectionStatus } from '../../../utils/formatters';
+import { useAuth } from '../../../hooks/useAuth';
 import '../elections.css';
 
 const ElectionDetailsPage = () => {
   const { id } = useParams();
+  const { user } = useAuth();
   const [election, setElection] = useState(null);
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Check if user is eligible to vote
+  const isEligible = () => {
+    if (!election || !user) return false;
+    if (election.election_type === 'university') return true;
+    if (election.election_type === 'department') {
+      const userDeptId = user?.profile?.department?.id;
+      const allowedDeptId = election.allowed_department?.id || election.allowed_department;
+      return allowedDeptId && allowedDeptId === userDeptId;
+    }
+    return false;
+  };
 
   useEffect(() => {
     fetchElectionDetails();
@@ -162,6 +176,35 @@ const ElectionDetailsPage = () => {
             <div className="info-item-content">
               <div className="info-item-label">Total Candidates</div>
               <div className="info-item-value">{candidates.length}</div>
+            </div>
+          </div>
+
+          <div className="info-item">
+            <div className="info-item-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                {election.election_type === 'university' ? (
+                  <>
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                  </>
+                ) : (
+                  <>
+                    <path d="M3 21h18"/>
+                    <path d="M5 21V7l8-4v18"/>
+                    <path d="M19 21V11l-6-4"/>
+                  </>
+                )}
+              </svg>
+            </div>
+            <div className="info-item-content">
+              <div className="info-item-label">Council Type</div>
+              <div className="info-item-value">
+                {election.election_type === 'university' 
+                  ? 'University Student Council (USC)'
+                  : `Department Election - ${election.allowed_department_name || election.allowed_department_code || 'N/A'}`}
+              </div>
             </div>
           </div>
         </div>

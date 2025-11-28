@@ -16,15 +16,84 @@ class CourseSerializer(serializers.ModelSerializer):
     """Serializer for course-type programs"""
     department = serializers.IntegerField(source='department_id', read_only=True)
     department_name = serializers.CharField(source='department.name', read_only=True)
+    department_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
     
     class Meta:
         model = Program
         fields = [
-            'id', 'department', 'department_name',
-            'name', 'code', 'description',
+            'id', 'department', 'department_id', 'department_name',
+            'name', 'code', 'program_type', 'description',
+            'is_active', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['created_at', 'updated_at', 'department', 'department_name', 'program_type']
+    
+    def create(self, validated_data):
+        """Override create to handle department_id"""
+        department_id = validated_data.pop('department_id', None)
+        validated_data['program_type'] = Program.ProgramType.COURSE
+        program = Program.objects.create(**validated_data)
+        if department_id:
+            program.department_id = department_id
+            program.save()
+        return program
+    
+    def update(self, instance, validated_data):
+        """Override update to handle department_id"""
+        department_id = validated_data.pop('department_id', None)
+        if department_id is not None:
+            instance.department_id = department_id
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        return instance
+
+
+class ProgramSerializer(serializers.ModelSerializer):
+    """Full serializer for Program model with all fields"""
+    department = serializers.IntegerField(source='department_id', read_only=True)
+    department_name = serializers.CharField(source='department.name', read_only=True, allow_null=True)
+    department_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+    
+    class Meta:
+        model = Program
+        fields = [
+            'id', 'name', 'code', 'program_type', 'description',
+            'department', 'department_id', 'department_name',
             'is_active', 'created_at', 'updated_at'
         ]
         read_only_fields = ['created_at', 'updated_at', 'department', 'department_name']
+    
+    def validate(self, data):
+        """Validate that courses have a department"""
+        program_type = data.get('program_type', self.instance.program_type if self.instance else None)
+        department_id = data.get('department_id')
+        
+        if program_type == Program.ProgramType.COURSE and not department_id:
+            # If updating, check if instance has department
+            if not self.instance or not self.instance.department_id:
+                raise serializers.ValidationError({
+                    'department_id': 'Courses must have a department assigned.'
+                })
+        return data
+    
+    def create(self, validated_data):
+        """Override create to handle department_id"""
+        department_id = validated_data.pop('department_id', None)
+        program = Program.objects.create(**validated_data)
+        if department_id:
+            program.department_id = department_id
+            program.save()
+        return program
+    
+    def update(self, instance, validated_data):
+        """Override update to handle department_id"""
+        department_id = validated_data.pop('department_id', None)
+        if department_id is not None:
+            instance.department_id = department_id
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        return instance
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -93,6 +162,24 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'is_verified', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'avatar_url', 'department', 'course']
+    
+    def validate(self, data):
+        """Validate profile data - make academic fields optional for staff/admin"""
+        request = self.context.get('request')
+        user = request.user if request else None
+        
+        # Check if user is staff or admin
+        is_admin_or_staff = user and (user.is_staff or user.is_superuser)
+        
+        # If not admin/staff, validate required academic fields
+        if not is_admin_or_staff:
+            # For regular users, these fields should be provided if profile is being created
+            # But we'll allow them to be optional during updates
+            if not self.instance:  # Creating new profile
+                # These validations are handled at the model level or frontend
+                pass
+        
+        return data
     
     def to_representation(self, instance):
         """Override to handle None values for department and course"""

@@ -8,14 +8,19 @@ import { Link } from 'react-router-dom';
 import { Container } from '../../../components/layout';
 import { LoadingSpinner } from '../../../components/common';
 import { authService } from '../../../services';
+import { useAuth } from '../../../hooks/useAuth';
 import { formatDate } from '../../../utils/formatters';
 import { getInitials } from '../../../utils/helpers';
 import './profile.css';
 
 const ProfilePage = () => {
+  const { user: authUser } = useAuth();
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  
+  // Check if user is admin/staff
+  const isAdmin = authUser?.user?.is_superuser || authUser?.user?.is_staff || false;
 
   useEffect(() => {
     fetchProfile();
@@ -116,28 +121,45 @@ const ProfilePage = () => {
             </div>
           </div>
 
-          {/* Academic Information */}
+          {/* Academic Information - Only show if user has academic info or is not admin */}
+          {(profile?.student_id || profile?.department || profile?.course || profile?.year_level || !isAdmin) && (
           <div className="profile-section">
             <h3 className="section-title">Academic Information</h3>
             <div className="profile-info-grid">
+                {profile?.student_id && (
               <div className="info-item">
                 <span className="info-label">Student ID</span>
-                <span className="info-value">{profile?.student_id || 'Not specified'}</span>
+                    <span className="info-value">{profile.student_id}</span>
               </div>
+                )}
+                {profile?.year_level && (
               <div className="info-item">
                 <span className="info-label">Year Level</span>
-                <span className="info-value">{profile?.year_level || 'Not specified'}</span>
+                    <span className="info-value">{profile.year_level}</span>
               </div>
+                )}
+                {profile?.department && (
               <div className="info-item">
                 <span className="info-label">College</span>
-                <span className="info-value">{profile?.department?.name || 'Not specified'}</span>
+                    <span className="info-value">{profile.department.name}</span>
               </div>
+                )}
+                {profile?.course && (
               <div className="info-item">
                 <span className="info-label">Course</span>
-                <span className="info-value">{profile?.course?.name || 'Not specified'}</span>
+                    <span className="info-value">{profile.course.name}</span>
+                  </div>
+                )}
+                {isAdmin && !profile?.student_id && !profile?.department && !profile?.course && !profile?.year_level && (
+                  <div className="info-item" style={{ gridColumn: '1 / -1' }}>
+                    <span className="info-value" style={{ color: '#6b7280', fontStyle: 'italic' }}>
+                      No academic information provided (optional for administrators)
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
-          </div>
+          )}
 
           {/* Personal Information */}
           <div className="profile-section">
