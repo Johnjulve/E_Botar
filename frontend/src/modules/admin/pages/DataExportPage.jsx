@@ -22,11 +22,14 @@ const DataExportPage = () => {
   
   // Student export state
   const [departments, setDepartments] = useState([]);
-  const [courses, setCourses] = useState([]);
+  const [allCourses, setAllCourses] = useState([]); // All courses for mock data generation
+  const [courses, setCourses] = useState([]); // Filtered courses for dropdown
   const [selectedDept, setSelectedDept] = useState('');
   const [selectedCourse, setSelectedCourse] = useState('');
   const [students, setStudents] = useState([]);
   const [filteredStudents, setFilteredStudents] = useState({});
+  const [selectedElectionForStudents, setSelectedElectionForStudents] = useState(''); // Election selection for student data export
+  const [electionForStudents, setElectionForStudents] = useState(null); // Election details for student data export
   
   // Results export state
   const [elections, setElections] = useState([]);
@@ -59,7 +62,57 @@ const DataExportPage = () => {
 
   useEffect(() => {
     filterStudents();
-  }, [selectedDept, selectedCourse, students]);
+  }, [selectedDept, selectedCourse, students, selectedElectionForStudents, electionForStudents]);
+  
+  // Fetch election details when election is selected for student data
+  useEffect(() => {
+    if (selectedElectionForStudents) {
+      const fetchElectionForStudents = async () => {
+        try {
+          const electionResponse = await electionService.getById(selectedElectionForStudents);
+          if (electionResponse && electionResponse.data) {
+            const electionData = electionResponse.data;
+            setElectionForStudents(electionData);
+            
+            // If it's a department election, automatically set and lock the department
+            if (electionData.election_type === 'department' && electionData.allowed_department) {
+              const allowedDeptId = typeof electionData.allowed_department === 'object' 
+                ? electionData.allowed_department.id 
+                : electionData.allowed_department;
+              
+              if (allowedDeptId) {
+                const deptIdStr = String(allowedDeptId);
+                setSelectedDept(deptIdStr);
+                // Fetch courses for this department
+                try {
+                  const coursesResponse = await programService.getCourses(allowedDeptId);
+                  setCourses(coursesResponse.data || []);
+                } catch (courseError) {
+                  console.error('Error fetching courses:', courseError);
+                  setCourses([]);
+                }
+              }
+            } else {
+              // For university elections, clear department selection
+              setSelectedDept('');
+              setSelectedCourse('');
+              setCourses([]);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching election for student data:', error);
+          setElectionForStudents(null);
+        }
+      };
+      fetchElectionForStudents();
+    } else {
+      setElectionForStudents(null);
+      // Clear department/course filters when no election is selected
+      setSelectedDept('');
+      setSelectedCourse('');
+      setCourses([]);
+    }
+  }, [selectedElectionForStudents]);
 
   // Fetch votes by category function (defined before fetchElectionResults)
   const fetchVotesByCategory = useCallback(async (electionId, electionData, allProfiles) => {
@@ -207,10 +260,7 @@ const DataExportPage = () => {
               // Convert to number for comparison to handle string/number mismatches
               return profileDeptId && Number(profileDeptId) === deptIdNum;
             });
-            console.log(`Filtered students for department election. Department ID: ${deptIdNum}, Students found: ${studentList.length}`);
           }
-        } else {
-          console.log(`University election - including all students. Total: ${studentList.length}`);
         }
         // For university elections, include all students (no additional filtering needed)
         
@@ -261,7 +311,7 @@ const DataExportPage = () => {
           setVotesByCategory({});
         }
       } catch (profileError) {
-        console.log('Cannot fetch student count:', profileError);
+        // Cannot fetch student count, using fallback
         setTotalStudents(resultsData.total_voters || 0);
         setStudentsByDept({});
         setVotesByCategory({});
@@ -303,9 +353,16 @@ const DataExportPage = () => {
     try {
       setLoading(true);
       
-      // Fetch departments
-      const deptResponse = await programService.getDepartments();
-      setDepartments(deptResponse.data || []);
+      // Fetch all programs and filter by type (more reliable than separate endpoints)
+      const allProgramsResponse = await programService.getAll();
+      const allPrograms = allProgramsResponse.data || [];
+      
+      // Filter departments and courses
+      const deptList = allPrograms.filter(prog => prog.program_type === 'department' && prog.is_active !== false);
+      const courseList = allPrograms.filter(prog => prog.program_type === 'course' && prog.is_active !== false);
+      
+      setDepartments(deptList);
+      setAllCourses(courseList);
       
       // Fetch all students
       const profilesResponse = await authService.getAllProfiles();
@@ -343,6 +400,26 @@ const DataExportPage = () => {
   const filterStudents = () => {
     let filtered = [...students];
     
+    // Filter by election first (if election is selected)
+    if (selectedElectionForStudents && electionForStudents) {
+      // If this is a department-specific election, filter by department
+      if (electionForStudents.election_type === 'department' && electionForStudents.allowed_department) {
+        const allowedDeptId = typeof electionForStudents.allowed_department === 'object' 
+          ? electionForStudents.allowed_department.id 
+          : electionForStudents.allowed_department;
+        
+        if (allowedDeptId) {
+          const deptIdNum = Number(allowedDeptId);
+          filtered = filtered.filter(student => {
+            const studentDeptId = student.department?.id;
+            return studentDeptId && Number(studentDeptId) === deptIdNum;
+          });
+        }
+      }
+      // For university elections, include all students (no additional filtering needed)
+    }
+    
+    // Then apply manual department/course filters (if any)
     if (selectedDept) {
       filtered = filtered.filter(student => 
         student.department?.id === parseInt(selectedDept)
@@ -394,26 +471,28 @@ const DataExportPage = () => {
     setFilteredStudents(organized);
   };
 
-  // Generate mock students for testing
+  // Generate mock students for testing - uses actual departments and courses from database
   const generateMockStudents = (count = 150) => {
-    const departments = [
-      { id: 1, name: 'College of Computing and Information Sciences' },
-      { id: 2, name: 'College of Engineering' },
-      { id: 3, name: 'College of Education' },
-      { id: 4, name: 'College of Business Administration' }
-    ];
-
-    const courses = [
-      { id: 1, name: 'Bachelor of Science in Computer Science', code: 'BSCS', deptId: 1 },
-      { id: 2, name: 'Bachelor of Science in Information Technology', code: 'BSIT', deptId: 1 },
-      { id: 3, name: 'Bachelor of Science in Information Systems', code: 'BSIS', deptId: 1 },
-      { id: 4, name: 'Bachelor of Science in Civil Engineering', code: 'BSCE', deptId: 2 },
-      { id: 5, name: 'Bachelor of Science in Electrical Engineering', code: 'BSEE', deptId: 2 },
-      { id: 6, name: 'Bachelor of Elementary Education', code: 'BEED', deptId: 3 },
-      { id: 7, name: 'Bachelor of Secondary Education', code: 'BSED', deptId: 3 },
-      { id: 8, name: 'Bachelor of Science in Business Administration', code: 'BSBA', deptId: 4 },
-      { id: 9, name: 'Bachelor of Science in Accountancy', code: 'BSA', deptId: 4 }
-    ];
+    // Use actual departments and courses from database
+    const availableDepartments = departments.filter(dept => dept.program_type === 'department');
+    const availableCourses = allCourses.filter(course => course.program_type === 'course');
+    
+    // If no departments or courses available, return empty array
+    if (availableDepartments.length === 0 || availableCourses.length === 0) {
+      return [];
+    }
+    
+    // Build a map of courses by department ID for quick lookup
+    const coursesByDept = {};
+    availableCourses.forEach(course => {
+      const deptId = course.department?.id || course.department;
+      if (deptId) {
+        if (!coursesByDept[deptId]) {
+          coursesByDept[deptId] = [];
+        }
+        coursesByDept[deptId].push(course);
+      }
+    });
 
     const firstNames = [
       'John', 'Maria', 'Michael', 'Sarah', 'David', 'Jennifer', 'James', 'Lisa', 'Robert', 'Emily',
@@ -436,9 +515,26 @@ const DataExportPage = () => {
     const mockStudents = [];
     const currentYear = new Date().getFullYear();
     
+    // Only generate if we have departments with courses
+    const departmentsWithCourses = availableDepartments.filter(dept => {
+      const deptId = dept.id;
+      return coursesByDept[deptId] && coursesByDept[deptId].length > 0;
+    });
+    
+    if (departmentsWithCourses.length === 0) {
+      return [];
+    }
+    
     for (let i = 0; i < count; i++) {
-      const dept = departments[Math.floor(Math.random() * departments.length)];
-      const deptCourses = courses.filter(c => c.deptId === dept.id);
+      // Pick a random department that has courses
+      const dept = departmentsWithCourses[Math.floor(Math.random() * departmentsWithCourses.length)];
+      const deptId = dept.id;
+      const deptCourses = coursesByDept[deptId] || [];
+      
+      if (deptCourses.length === 0) {
+        continue; // Skip if no courses for this department
+      }
+      
       const course = deptCourses[Math.floor(Math.random() * deptCourses.length)];
       
       const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
@@ -467,7 +563,19 @@ const DataExportPage = () => {
   };
 
   const loadMockStudents = () => {
+    // Check if data is loaded
+    if (departments.length === 0 || allCourses.length === 0) {
+      alert('Please wait for data to load, or ensure departments and courses are added in Program Management.');
+      return;
+    }
+    
     const mockStudents = generateMockStudents(150);
+    
+    // If no mock students generated (no programs available), show empty template
+    if (mockStudents.length === 0) {
+      alert('No departments or courses available in the database. Please add programs first before generating mock data.');
+      return;
+    }
     
     // Organize by department, course, and year level (same structure as election results)
     const organized = {};
@@ -516,7 +624,19 @@ const DataExportPage = () => {
   };
 
   const loadMockStudentsForElection = () => {
+    // Check if data is loaded
+    if (departments.length === 0 || allCourses.length === 0) {
+      alert('Please wait for data to load, or ensure departments and courses are added in Program Management.');
+      return;
+    }
+    
     const mockStudents = generateMockStudents(150);
+    
+    // If no mock students generated (no programs available), show empty template
+    if (mockStudents.length === 0) {
+      alert('No departments or courses available in the database. Please add programs first before generating mock data.');
+      return;
+    }
     
     // Organize by department, course, and year level for election results
     const deptMap = {};
@@ -990,20 +1110,30 @@ const DataExportPage = () => {
       }
 
       // Add Student Statistics by Department/Course on new page
-      if (studentsDataToUse && Object.keys(studentsDataToUse).length > 0) {
-        doc.addPage();
-        yPosition = margin;
+      // Show blank template if no data available
+      doc.addPage();
+      yPosition = margin;
         
-        doc.setFillColor(11, 110, 59);
-        doc.rect(0, 0, pageWidth, 40, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(16);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Student Statistics by Department', pageWidth / 2, 25, { align: 'center' });
-        
-        yPosition = 50;
-        doc.setTextColor(0, 0, 0);
-        
+      doc.setFillColor(11, 110, 59);
+      doc.rect(0, 0, pageWidth, 40, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Student Statistics by Department', pageWidth / 2, 25, { align: 'center' });
+      
+      yPosition = 50;
+      doc.setTextColor(0, 0, 0);
+      
+      // If no data, show blank template message
+      if (!studentsDataToUse || Object.keys(studentsDataToUse).length === 0) {
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(107, 114, 128);
+        doc.text('No student data available.', pageWidth / 2, yPosition, { align: 'center' });
+        yPosition += 10;
+        doc.setFontSize(10);
+        doc.text('Please add departments and courses in Program Management to generate data.', pageWidth / 2, yPosition, { align: 'center' });
+      } else {
         Object.keys(studentsDataToUse).sort().forEach(deptName => {
           checkPageBreak(40);
           
@@ -1127,13 +1257,20 @@ const DataExportPage = () => {
   };
 
   const exportStudentDataToPDF = (mockStudentsData = null) => {
+    // Check if election is selected (unless using mock data)
+    if (!selectedElectionForStudents && !mockStudentsData) {
+      alert('Please select an election first to export student data.');
+      return;
+    }
+    
     // Use mock data if provided, otherwise use state
     const studentsDataToUse = mockStudentsData || filteredStudents;
     
-    if (Object.keys(studentsDataToUse).length === 0) {
-      alert('No students to export. Please adjust your filters.');
-      return;
-    }
+    // Allow export even with empty data to show blank template
+    // if (Object.keys(studentsDataToUse).length === 0) {
+    //   alert('No students to export. Please adjust your filters.');
+    //   return;
+    // }
 
     setExporting(true);
     try {
@@ -1155,7 +1292,7 @@ const DataExportPage = () => {
 
       // Header
       doc.setFillColor(11, 110, 59);
-      doc.rect(0, 0, pageWidth, 50, 'F');
+      doc.rect(0, 0, pageWidth, electionForStudents ? 60 : 50, 'F');
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(20);
       doc.setFont('helvetica', 'bold');
@@ -1163,6 +1300,19 @@ const DataExportPage = () => {
       
       doc.setFontSize(12);
       doc.setFont('helvetica', 'normal');
+      
+      // Show election context if available
+      if (electionForStudents) {
+        doc.text(`Election: ${electionForStudents.title || 'N/A'}`, pageWidth / 2, 35, { align: 'center' });
+        if (electionForStudents.election_type === 'department' && electionForStudents.allowed_department) {
+          const deptName = typeof electionForStudents.allowed_department === 'object' 
+            ? electionForStudents.allowed_department.name 
+            : 'Department Election';
+          doc.setFontSize(10);
+          doc.text(`Department: ${deptName}`, pageWidth / 2, 42, { align: 'center' });
+        }
+      }
+      
       const exportDate = new Date().toLocaleString('en-US', {
         year: 'numeric',
         month: 'long',
@@ -1170,27 +1320,39 @@ const DataExportPage = () => {
         hour: '2-digit',
         minute: '2-digit'
       });
-      doc.text(`Exported on: ${exportDate}`, pageWidth / 2, 35, { align: 'center' });
+      doc.setFontSize(10);
+      doc.text(`Exported on: ${exportDate}`, pageWidth / 2, electionForStudents ? 49 : 35, { align: 'center' });
 
       yPosition = 60;
 
       // Student data by department and course
-      Object.keys(studentsDataToUse).sort().forEach(deptName => {
-        checkPageBreak(50);
-        
-        doc.setFillColor(11, 110, 59);
-        doc.rect(margin, yPosition - 5, contentWidth, 8, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        doc.text(deptName, margin + 3, yPosition);
-        
-        yPosition += 12;
-        doc.setTextColor(0, 0, 0);
-
-        const courses = studentsDataToUse[deptName];
-        Object.keys(courses).sort().forEach(courseName => {
+      // If no data, show blank template message
+      if (!studentsDataToUse || Object.keys(studentsDataToUse).length === 0) {
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(107, 114, 128);
+        doc.text('No student data available.', pageWidth / 2, yPosition, { align: 'center' });
+        yPosition += 10;
+        doc.setFontSize(10);
+        doc.text('Please add departments and courses in Program Management to generate data.', pageWidth / 2, yPosition, { align: 'center' });
+      } else {
+        Object.keys(studentsDataToUse).sort().forEach(deptName => {
           checkPageBreak(50);
+          
+          doc.setFillColor(11, 110, 59);
+          doc.rect(margin, yPosition - 5, contentWidth, 8, 'F');
+          doc.setTextColor(255, 255, 255);
+          doc.setFontSize(14);
+          doc.setFont('helvetica', 'bold');
+          doc.text(deptName, margin + 3, yPosition);
+          
+          yPosition += 12;
+          doc.setTextColor(0, 0, 0);
+
+          const courses = studentsDataToUse[deptName];
+          if (courses && typeof courses === 'object') {
+            Object.keys(courses).sort().forEach(courseName => {
+              checkPageBreak(50);
           
           const courseData = courses[courseName];
           
@@ -1248,10 +1410,12 @@ const DataExportPage = () => {
           }
           
           yPosition += 5;
+            });
+          }
+          
+          yPosition += 5;
         });
-        
-        yPosition += 5;
-      });
+      }
 
       // Footer
       const totalPages = doc.internal.getNumberOfPages();
@@ -1569,25 +1733,71 @@ const DataExportPage = () => {
                 Export Student Data
               </h2>
               
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
+                  Select Election (Required)
+                </label>
+                <select
+                  value={selectedElectionForStudents}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setSelectedElectionForStudents(value);
+                    if (!value) {
+                      setElectionForStudents(null);
+                    }
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '0.5rem',
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  <option value="">Select an election...</option>
+                  {elections.map(elec => (
+                    <option key={elec.id} value={String(elec.id)}>
+                      {elec.title}
+                    </option>
+                  ))}
+                </select>
+                {electionForStudents && (
+                  <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#6b7280' }}>
+                    {electionForStudents.election_type === 'department' 
+                      ? `Department Election: ${typeof electionForStudents.allowed_department === 'object' ? electionForStudents.allowed_department.name : 'Selected Department'}`
+                      : 'University Election: All Students'}
+                  </div>
+                )}
+              </div>
+              
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
                 <div>
                   <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
                     Department
+                    {electionForStudents?.election_type === 'department' && (
+                      <span style={{ fontSize: '0.75rem', color: '#6b7280', marginLeft: '0.5rem' }}>
+                        (Locked by Election)
+                      </span>
+                    )}
                   </label>
                   <select
                     value={selectedDept}
                     onChange={(e) => setSelectedDept(e.target.value)}
+                    disabled={electionForStudents?.election_type === 'department'}
                     style={{
                       width: '100%',
                       padding: '0.5rem',
                       border: '1px solid #d1d5db',
                       borderRadius: '0.5rem',
-                      fontSize: '0.875rem'
+                      fontSize: '0.875rem',
+                      opacity: electionForStudents?.election_type === 'department' ? 0.6 : 1,
+                      cursor: electionForStudents?.election_type === 'department' ? 'not-allowed' : 'pointer',
+                      background: electionForStudents?.election_type === 'department' ? '#f3f4f6' : 'white'
                     }}
                   >
                     <option value="">All Departments</option>
                     {departments.map(dept => (
-                      <option key={dept.id} value={dept.id}>
+                      <option key={dept.id} value={String(dept.id)}>
                         {dept.name}
                       </option>
                     ))}
@@ -1613,7 +1823,7 @@ const DataExportPage = () => {
                   >
                     <option value="">All Courses</option>
                     {courses.map(course => (
-                      <option key={course.id} value={course.id}>
+                      <option key={course.id} value={String(course.id)}>
                         {course.name} ({course.code})
                       </option>
                     ))}
@@ -1639,67 +1849,34 @@ const DataExportPage = () => {
                   </div>
                 </div>
               <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                <Button
-                  onClick={loadMockStudents}
-                  disabled={exporting}
-                  style={{
-                    background: '#8b5cf6',
-                    color: 'white',
-                    padding: '0.75rem 1.5rem',
-                    fontSize: '0.875rem',
-                    fontWeight: 500
-                  }}
-                >
-                  Load Mock Students (150)
-                </Button>
-                <Button
-                  onClick={() => {
-                    const testData = {
-                      'College of Computing and Information Sciences': {
-                        'Bachelor of Science in Computer Science (BSCS)': {
-                          code: 'BSCS',
-                          students: [
-                            { student_id: '2022-00819', name: 'John Andrei Julve', year_level: '4th Year' },
-                            { student_id: '2025-66634', name: 'Maria Rodriguez', year_level: '3rd Year' }
-                          ]
-                        },
-                        'Bachelor of Science in Information Technology (BSIT)': {
-                          code: 'BSIT',
-                          students: [
-                            { student_id: '2022-00444', name: 'Jumar Guardalupe', year_level: '4th Year' }
-                          ]
-                        }
-                      }
-                    };
-                    setFilteredStudents(testData);
-                    setTimeout(() => {
-                      exportStudentDataToPDF();
-                    }, 100);
-                  }}
-                  disabled={exporting}
-                  style={{
-                    background: '#f59e0b',
-                    color: 'white',
-                    padding: '0.75rem 1.5rem',
-                    fontSize: '0.875rem',
-                    fontWeight: 500
-                  }}
-                >
-                  {exporting ? 'Testing...' : 'Test Export (Sample Data)'}
-                </Button>
-                  <Button
-                    onClick={exportStudentDataToPDF}
-                    disabled={exporting || totalStudentsCount === 0}
-                    style={{
-                      background: '#dc2626',
-                      color: 'white',
-                      padding: '0.75rem 1.5rem',
-                      fontSize: '0.875rem',
-                      fontWeight: 500
-                    }}
-                  >
-                    {exporting ? 'Generating PDF...' : 'Export to PDF'}
-                  </Button>
+                 <Button
+                   onClick={loadMockStudents}
+                   disabled={exporting}
+                   style={{
+                     background: '#8b5cf6',
+                     color: 'white',
+                     padding: '0.75rem 1.5rem',
+                     fontSize: '0.875rem',
+                     fontWeight: 500
+                   }}
+                 >
+                   Load Mock Students (150)
+                 </Button>
+                 <Button
+                   onClick={exportStudentDataToPDF}
+                   disabled={exporting || totalStudentsCount === 0 || !selectedElectionForStudents}
+                   style={{
+                     background: '#dc2626',
+                     color: 'white',
+                     padding: '0.75rem 1.5rem',
+                     fontSize: '0.875rem',
+                     fontWeight: 500,
+                     opacity: !selectedElectionForStudents ? 0.6 : 1,
+                     cursor: !selectedElectionForStudents ? 'not-allowed' : 'pointer'
+                   }}
+                 >
+                   {exporting ? 'Generating PDF...' : 'Export to PDF'}
+                 </Button>
                 </div>
               </div>
 
