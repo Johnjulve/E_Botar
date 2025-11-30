@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.db import transaction
 from apps.common.permissions import IsSuperUser, IsStaffOrSuperUser
+from apps.common.throttling import enforce_scope_throttle
 from django.db.models import Count
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.http import HttpResponse
@@ -78,7 +79,16 @@ class BallotViewSet(viewsets.ReadOnlyModelViewSet):
     
     @action(detail=False, methods=['post'])
     def submit(self, request):
-        """Submit a new ballot"""
+        """Submit a new ballot (rate-limited per user to avoid rapid duplicate submissions)."""
+
+        # Apply per-user throttle for vote submission
+        enforce_scope_throttle(
+            request,
+            self,
+            scope='vote_submit',
+            message='You are submitting votes too quickly. Please wait a few seconds before trying again.'
+        )
+
         serializer = BallotSubmissionSerializer(
             data=request.data,
             context={'request': request}

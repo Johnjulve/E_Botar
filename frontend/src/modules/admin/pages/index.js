@@ -6,3 +6,6 @@ export { default as ElectionFormPage } from './ElectionFormPage';
 export { default as UserManagementPage } from './UserManagementPage';
 export { default as SystemLogsPage } from './SystemLogsPage';
 export { default as ProgramManagementPage } from './ProgramManagementPage';
+export { default as PartyManagementPage } from './PartyManagementPage';
+export { default as PositionManagementPage } from './PositionManagementPage';
+export { default as DataExportPage } from './DataExportPage';

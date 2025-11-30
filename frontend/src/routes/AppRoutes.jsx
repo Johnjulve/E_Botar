@@ -43,6 +43,9 @@ import ApplicationsListPage from '../modules/admin/pages/ApplicationsListPage';
 import UserManagementPage from '../modules/admin/pages/UserManagementPage';
 import SystemLogsPage from '../modules/admin/pages/SystemLogsPage';
 import ProgramManagementPage from '../modules/admin/pages/ProgramManagementPage';
+import PartyManagementPage from '../modules/admin/pages/PartyManagementPage';
+import PositionManagementPage from '../modules/admin/pages/PositionManagementPage';
+import DataExportPage from '../modules/admin/pages/DataExportPage';
 
 const AppRoutes = () => {
   return (
@@ -198,6 +201,30 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute requireStaff>
             <ProgramManagementPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/admin/parties" 
+        element={
+          <ProtectedRoute requireStaff>
+            <PartyManagementPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/admin/positions" 
+        element={
+          <ProtectedRoute requireStaff>
+            <PositionManagementPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/admin/data-export" 
+        element={
+          <ProtectedRoute requireStaff>
+            <DataExportPage />
           </ProtectedRoute>
         } 
       />

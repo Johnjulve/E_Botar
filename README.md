@@ -1,6 +1,6 @@
 # E-Botar - Blockchain-Inspired Electronic Voting System
 
-**Version 0.7.3** | A secure, privacy-preserving electronic voting platform for student government elections
+**Version 0.7.4** | A secure, privacy-preserving electronic voting platform for student government elections
 
 [![Django](https://img.shields.io/badge/Django-5.2.8-green.svg)](https://www.djangoproject.com/)
 [![DRF](https://img.shields.io/badge/DRF-3.16.1-red.svg)](https://www.django-rest-framework.org/)
@@ -22,7 +22,36 @@
 
 ---
 
-## 🚀 Release Highlights (0.7.3)
+## 🚀 Release Highlights (0.7.4)
+
+- **Enhanced Data Export System**: Comprehensive PDF export functionality for administrators
+  - **Unified Data Export Page**: Centralized admin interface for exporting election results and student data
+  - **Election Results Export**: Professional PDF format with formatted results, statistics, and categorized vote counts
+  - **Vote Categorization**: Optional feature to categorize vote counts by department, course, and year level
+    - University elections: Department → Course → Year Level breakdown
+    - Department elections: Course → Year Level breakdown (department is fixed)
+  - **Student Data Export**: PDF export organized by department, course, and year level with summary counts only
+  - **Mock Data Testing**: Frontend-only mock data generation (150 students, 70-90% voting rate) for testing without database pollution
+  - **Privacy-Focused**: PDF exports show only summary statistics, no individual student names or IDs
+  - **Automatic Cleanup**: Mock data automatically cleared after export
+
+- **Admin Management Pages**: Complete frontend interfaces for Party and Position Management
+  - **Party Management**: Full CRUD operations for political parties with active status toggling
+  - **Position Management**: Full CRUD operations for election positions with reordering functionality
+  - Consistent design pattern matching Program Management for intuitive user experience
+  - Integrated into admin sidebar navigation with appropriate icons
+
+- **Dashboard Enhancements**: Improved homepage and results page statistics
+  - Homepage shows "Current Administration" (winners from last finished election)
+  - Updated statistics cards: "Students" and "Votes Recorded" instead of generic counts
+  - Better visual alignment and layout for officer cards
+
+- **System Logs Improvements**: Enhanced filtering and consistent summary counts
+  - Granular filtering options: log type, resource type, action, and search
+  - Summary counts remain consistent regardless of active filters
+  - Better organization and user experience
+
+### Previous Highlights (0.7.3)
 
 - **Election Type System**: Support for University Student Council (USC) and Department Elections
   - **USC Elections**: Open to all students across all departments
@@ -153,6 +182,9 @@ The system architecture is informed by academic research on:
 - **Auto-Generated Student IDs**: Format YYYY-XXXXX (year + random digits) - only for students
 - **Program Management**: Admin interface for managing departments and courses with CSV import/export
 - **Program Hierarchy**: Unified department/course structure with direct department linkage for courses
+- **Party Management**: Admin interface for managing political parties with full CRUD operations
+- **Position Management**: Admin interface for managing election positions with reordering functionality
+- **Data Export Management**: Unified admin page for exporting election results and student data in PDF format
 - **Profile Verification**: Admin-controlled verification system
 - **Avatar Support**: Profile photo uploads with validation
 - **Role Management**: Admins can change user roles through the user management interface
@@ -188,7 +220,13 @@ The system architecture is informed by academic research on:
 ### 📊 **Results & Analytics**
 - **Real-Time Results**: Live vote counting from anonymized records
 - **Data Visualization**: Interactive charts and statistics
-- **Multiple Export Formats**: CSV and JSON result exports
+- **Multiple Export Formats**: PDF, CSV, and JSON result exports
+- **PDF Export System**: Professional formatted PDF exports for election results and student data
+  - Election results with categorized vote counts by department, course, and year level
+  - Student statistics organized by department, course, and year level
+  - Statistics-only display (summary counts, no individual student names)
+  - Support for both real data and mock data testing
+- **Vote Categorization**: Optional breakdown of vote counts by demographic categories
 - **Turnout Analytics**: Voter participation metrics
 - **Position-Level Statistics**: Detailed breakdown by position
 - **Historical Data**: Complete election history preservation
@@ -452,7 +490,7 @@ python manage.py check
 
 ---
 
-**E-Botar v0.7.3** | Last Updated: December 2025  
+**E-Botar v0.7.4** | Last Updated: December 2025  
 **Status**: Production Ready | Full Stack Complete
 
 > 📖 **For complete documentation**, see [Information.md](Information.md)

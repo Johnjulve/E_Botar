@@ -7,7 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Container } from '../../../components/layout';
 import { Card, Button, Badge, LoadingSpinner, EmptyState } from '../../../components/common';
-import { electionService, candidateService, votingService } from '../../../services';
+import { electionService, candidateService, votingService, authService } from '../../../services';
 import { useAuth } from '../../../hooks/useAuth';
 import { formatDate } from '../../../utils/formatters';
 import '../../../modules/profile/dashboard.css';
@@ -19,6 +19,8 @@ const DashboardPage = () => {
   const [previousElection, setpreviousElection] = useState(null);
   const [candidates, setCandidates] = useState([]);
   const [statistics, setStatistics] = useState(null);
+  const [currentAdministration, setCurrentAdministration] = useState([]); // Winners from last election
+  const [totalStudents, setTotalStudents] = useState(0); // Total number of students
 
   useEffect(() => {
     fetchDashboardData();
@@ -33,10 +35,44 @@ const DashboardPage = () => {
       const activeElection = activeResponse.data?.[0] || null;
       setCurrentElection(activeElection);
       
-      // Fetch finished elections (for previous winners)
+      // Fetch finished elections (for previous winners/current administration)
       const finishedResponse = await electionService.getFinished();
       const lastFinished = finishedResponse.data?.[0] || null;
       setpreviousElection(lastFinished);
+      
+      // Fetch winners from the last completed election (current administration)
+      if (lastFinished) {
+        try {
+          const resultsResponse = await votingService.getElectionResults(lastFinished.id);
+          const resultsData = resultsResponse.data;
+          
+          // Extract winners from results
+          const winners = [];
+          if (resultsData.positions) {
+            resultsData.positions.forEach(position => {
+              if (position.candidates && position.candidates.length > 0) {
+                // Find the winner (first candidate with is_winner flag or highest votes)
+                const winner = position.candidates.find(c => c.is_winner) || 
+                              (position.candidates.length > 0 && position.candidates[0].vote_count > 0 ? position.candidates[0] : null);
+                if (winner && winner.vote_count > 0) {
+                  winners.push({
+                    position: position.position_name || position.name,
+                    candidate: winner,
+                    vote_count: winner.vote_count,
+                    percentage: winner.percentage || 0
+                  });
+                }
+              }
+            });
+          }
+          setCurrentAdministration(winners);
+        } catch (error) {
+          console.error('Error fetching current administration:', error);
+          setCurrentAdministration([]);
+        }
+      } else {
+        setCurrentAdministration([]);
+      }
       
       // Fetch candidates for current election
       if (activeElection) {
@@ -50,6 +86,34 @@ const DashboardPage = () => {
         } catch (error) {
           console.error('Stats not available:', error);
         }
+      }
+      
+      // Fetch total students count (all users with profiles)
+      try {
+        // Fetch profiles to count total students
+        // Note: This only works if user has admin access, otherwise will be limited
+        try {
+          const profilesResponse = await authService.getAllProfiles();
+          // Count active students (users who are not staff/admin)
+          const allProfiles = profilesResponse.data || [];
+          const studentCount = allProfiles.filter(profile => 
+            profile.user && !profile.user.is_staff && !profile.user.is_superuser
+          ).length;
+          // Use voters count as minimum to ensure consistency
+          const votersCount = statistics?.total_voters || 0;
+          setTotalStudents(Math.max(studentCount, votersCount));
+        } catch (profileError) {
+          // If user doesn't have access, use voters count as fallback
+          // This ensures consistency: votes recorded should match or be less than students
+          console.log('Cannot fetch student count, using voters count as fallback');
+          const votersCount = statistics?.total_voters || 0;
+          setTotalStudents(votersCount);
+        }
+      } catch (error) {
+        console.error('Error fetching student count:', error);
+        // Fallback to voters count
+        const votersCount = statistics?.total_voters || 0;
+        setTotalStudents(votersCount);
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -87,7 +151,7 @@ const DashboardPage = () => {
           <div className="hero-year">{currentYear}</div>
         </div>
 
-        {/* Previous Election Winners */}
+        {/* Current Administration (Winners from Last Election) */}
         {previousElection && (
           <Card className="winners-card">
             <div className="card-header-custom">
@@ -107,13 +171,131 @@ const DashboardPage = () => {
               </div>
             </div>
             <div className="card-body-custom">
-              <p className="text-muted-custom">Winners from the recently concluded election</p>
-              <Link to={`/results/${previousElection.id}`} className="btn-custom btn-outline">
-                <span>View Winners</span>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="9 18 15 12 9 6"/>
-                </svg>
-              </Link>
+              {currentAdministration.length > 0 ? (
+                <>
+                  <p className="text-muted-custom" style={{ marginBottom: '1.5rem' }}>
+                    Current officers serving from the recently concluded election
+                  </p>
+                  <div className="winners-grid" style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                    gap: '1.5rem',
+                    marginBottom: '1.5rem',
+                    justifyContent: 'center',
+                    maxWidth: '100%'
+                  }}>
+                    {currentAdministration.map((item, index) => (
+                      <div key={index} className="winner-item" style={{
+                        textAlign: 'center',
+                        padding: '1.25rem',
+                        background: '#f9fafb',
+                        borderRadius: '0.75rem',
+                        border: '1px solid #e5e7eb',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'flex-start',
+                        minHeight: '280px'
+                      }}>
+                        <div style={{
+                          width: '80px',
+                          height: '80px',
+                          margin: '0 auto 0.75rem',
+                          borderRadius: '50%',
+                          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'white',
+                          fontSize: '2rem',
+                          fontWeight: 'bold',
+                          border: '3px solid white',
+                          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                          flexShrink: 0
+                        }}>
+                          {item.candidate.candidate_name?.charAt(0)?.toUpperCase() || 'W'}
+                        </div>
+                        <div style={{
+                          fontSize: '0.875rem',
+                          fontWeight: 600,
+                          color: '#1f2937',
+                          marginBottom: '0.25rem',
+                          lineHeight: '1.3',
+                          minHeight: '2.5rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          {item.candidate.candidate_name || 'Unknown'}
+                        </div>
+                        <div style={{
+                          fontSize: '0.75rem',
+                          color: '#6b7280',
+                          marginBottom: '0.75rem',
+                          fontWeight: 500,
+                          minHeight: '1.25rem'
+                        }}>
+                          {item.position}
+                        </div>
+                        <div style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '0.5rem',
+                          alignItems: 'center',
+                          width: '100%',
+                          marginTop: 'auto'
+                        }}>
+                          <div style={{
+                            fontSize: '0.65rem',
+                            color: '#f59e0b',
+                            padding: '0.25rem 0.5rem',
+                            background: 'rgba(245, 158, 11, 0.1)',
+                            borderRadius: '0.375rem',
+                            display: 'inline-block',
+                            fontWeight: 600,
+                            width: 'fit-content'
+                          }}>
+                            🏆 Current Officer
+                          </div>
+                          {item.candidate.party && (
+                            <div style={{
+                              fontSize: '0.7rem',
+                              color: '#10b981',
+                              padding: '0.25rem 0.5rem',
+                              background: 'rgba(16, 185, 129, 0.1)',
+                              borderRadius: '0.375rem',
+                              display: 'inline-block',
+                              width: 'fit-content'
+                            }}>
+                              {item.candidate.party}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <Link to={`/results/${previousElection.id}`} className="btn-custom btn-outline" style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}>
+                    <span>View Full Results</span>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <p className="text-muted-custom">Winners from the recently concluded election</p>
+                  <Link to={`/results/${previousElection.id}`} className="btn-custom btn-outline">
+                    <span>View Winners</span>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                  </Link>
+                </>
+              )}
             </div>
           </Card>
         )}
@@ -122,48 +304,34 @@ const DashboardPage = () => {
         {currentElection ? (
           <>
             {/* Statistics Cards */}
-            {statistics && (
-              <div className="stats-grid">
-                <div className="stat-card-modern">
-                  <div className="stat-icon positions-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                      <circle cx="9" cy="7" r="4"/>
-                      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                    </svg>
-                  </div>
-                  <div className="stat-content">
-                    <div className="stat-value">{statistics.total_positions || 0}</div>
-                    <div className="stat-label">Positions</div>
-                  </div>
+            <div className="stats-grid">
+              <div className="stat-card-modern">
+                <div className="stat-icon" style={{ background: 'rgba(99, 102, 241, 0.1)', color: '#6366f1' }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                  </svg>
                 </div>
-                <div className="stat-card-modern">
-                  <div className="stat-icon candidates-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                      <circle cx="12" cy="7" r="4"/>
-                    </svg>
-                  </div>
-                  <div className="stat-content">
-                    <div className="stat-value">{candidates.length}</div>
-                    <div className="stat-label">Candidates</div>
-                  </div>
-                </div>
-                <div className="stat-card-modern">
-                  <div className="stat-icon votes-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M9 11l3 3L22 4"/>
-                      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-                    </svg>
-                  </div>
-                  <div className="stat-content">
-                    <div className="stat-value">{statistics.total_voters || 0}</div>
-                    <div className="stat-label">Total Votes</div>
-                  </div>
+                <div className="stat-content">
+                  <div className="stat-value">{totalStudents || 0}</div>
+                  <div className="stat-label">Students</div>
                 </div>
               </div>
-            )}
+              <div className="stat-card-modern">
+                <div className="stat-icon votes-icon">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 11l3 3L22 4"/>
+                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                  </svg>
+                </div>
+                <div className="stat-content">
+                  <div className="stat-value">{statistics?.total_voters || statistics?.total_ballots || 0}</div>
+                  <div className="stat-label">Votes Recorded</div>
+                </div>
+              </div>
+            </div>
 
             {/* Election Candidates */}
             <Card className="candidates-section">

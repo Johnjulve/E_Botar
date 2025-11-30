@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.core.exceptions import ValidationError as DjangoValidationError
 from apps.common.models import ActivityLog
 from apps.common.permissions import IsSuperUser, IsStaffOrSuperUser
+from apps.common.throttling import enforce_scope_throttle
 from .models import Candidate, CandidateApplication
 from .serializers import (
     CandidateListSerializer, CandidateDetailSerializer,
@@ -119,6 +120,15 @@ class CandidateApplicationViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(election_id=election_id)
         
         return queryset
+
+    def create(self, request, *args, **kwargs):
+        enforce_scope_throttle(
+            request,
+            self,
+            scope='application_submit',
+            message='You are submitting applications too quickly. Please wait a few seconds before trying again.'
+        )
+        return super().create(request, *args, **kwargs)
     
     @action(detail=False, methods=['get'])
     def my_applications(self, request):
