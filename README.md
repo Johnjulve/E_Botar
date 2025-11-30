@@ -101,6 +101,8 @@
 - **Automatic Token Refresh**: API service now automatically refreshes expired JWT tokens, providing seamless user experience without manual re-authentication.
 - **Enhanced CORS Support**: Backend now properly supports multiple frontend URLs and improved production deployment configuration.
 
+> ⚠️ **Important**: After deploying this update, run `python manage.py migrate` in production to create/update database tables.
+
 ### Previous Highlights (0.7.0)
 - **Production Deployment**: Added Vercel deployment configuration and production-ready build settings for frontend and backend.
 
