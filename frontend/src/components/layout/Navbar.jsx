@@ -91,6 +91,24 @@ const Icon = ({ name, size = 20, className = '' }) => {
         <line x1="9" y1="18" x2="9" y2="18"/>
       </svg>
     ),
+    briefcase: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+      </svg>
+    ),
+    activity: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
+    ),
+    download: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+    ),
   };
 
   return icons[name] || null;
@@ -152,13 +170,16 @@ const Navbar = () => {
         { key: 'admin-elections', label: 'Elections', to: '/admin/elections', icon: 'calendar' },
         { key: 'admin-applications', label: 'Applications', to: '/admin/applications', icon: 'users' },
         { key: 'admin-programs', label: 'Programs', to: '/admin/programs', icon: 'building' },
+        { key: 'admin-parties', label: 'Parties', to: '/admin/parties', icon: 'users' },
+        { key: 'admin-positions', label: 'Positions', to: '/admin/positions', icon: 'briefcase' },
       ];
-      
+
       // Admin-only items (superuser only)
       if (isAdmin) {
         adminMenuItems.push(
-          { key: 'admin-users', label: 'User Management', to: '/admin/users' },
-          { key: 'admin-logs', label: 'System Logs', to: '/admin/logs' }
+          { key: 'admin-users', label: 'User Management', to: '/admin/users', icon: 'user' },
+          { key: 'admin-logs', label: 'System Logs', to: '/admin/logs', icon: 'activity' },
+          { key: 'admin-data-export', label: 'Data Export', to: '/admin/data-export', icon: 'download' }
         );
       }
       

@@ -132,6 +132,21 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
+    # DRF Throttling (used for sensitive endpoints like vote submission and form posts)
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        # Global per-user limit (can be generous)
+        "user": "1000/hour",
+        # Specific scopes used by ScopedUserThrottle / enforce_scope_throttle.
+        # DRF only supports 'second', 'minute', 'hour', 'day', so we approximate.
+        "vote_submit": "3/minute",
+        "registration_submit": "2/minute",
+        "application_submit": "6/minute",
+        "program_submit": "15/minute",
+        "program_import": "3/minute",
+    },
 }
 
 SIMPLE_JWT = {
@@ -157,7 +172,7 @@ INSTALLED_APPS = [
     "apps.elections",
     "apps.candidates",
     "apps.voting",
-    "apps.common",  # Security & utilities
+    "apps.common",
 ]
 
 MIDDLEWARE = [

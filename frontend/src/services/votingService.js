@@ -71,9 +71,9 @@ export const votingService = {
   },
 
   // Helper: Download exported file
-  downloadExport: async (electionId, format = 'csv') => {
+  downloadExport: async function(electionId, format = 'csv') {
     try {
-      const response = await votingService.exportResults(electionId, format);
+      const response = await this.exportResults(electionId, format);
       const blob = new Blob([response.data], { 
         type: format === 'csv' ? 'text/csv' : 'application/json' 
       });

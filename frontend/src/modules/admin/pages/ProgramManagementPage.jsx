@@ -96,6 +96,7 @@ const ProgramManagementPage = () => {
   const [importLoading, setImportLoading] = useState(false);
   const [importResult, setImportResult] = useState(null);
   const [errors, setErrors] = useState({});
+  const [saving, setSaving] = useState(false); // prevent double-submit on form
 
   useEffect(() => {
     fetchPrograms();
@@ -142,6 +143,10 @@ const ProgramManagementPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) {
+      // Ignore rapid repeat submissions
+      return;
+    }
     setErrors({});
 
     try {
@@ -158,6 +163,8 @@ const ProgramManagementPage = () => {
         setErrors({ department_id: 'Department is required for courses' });
         return;
       }
+
+      setSaving(true);
 
       const submitData = {
         name: formData.name.trim(),
@@ -188,6 +195,8 @@ const ProgramManagementPage = () => {
       } else {
         setErrors({ general: 'An error occurred while saving the program' });
       }
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -751,9 +760,10 @@ const ProgramManagementPage = () => {
               <button
                 type="submit"
                 className="admin-btn primary"
+                disabled={saving}
               >
                 <Icon name="check" size={16} />
-                {editingProgram ? 'Update' : 'Create'}
+                {saving ? (editingProgram ? 'Updating...' : 'Creating...') : (editingProgram ? 'Update' : 'Create')}
               </button>
             </div>
           </form>
