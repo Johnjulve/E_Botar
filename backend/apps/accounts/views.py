@@ -10,6 +10,7 @@ from django.http import HttpResponse
 from .models import UserProfile, Program
 from apps.common.models import ActivityLog
 from apps.common.permissions import IsSuperUser, IsStaffOrSuperUser
+from apps.common.throttling import enforce_scope_throttle
 from .serializers import (
     UserSerializer, UserProfileSerializer, UserRegistrationSerializer,
     DepartmentSerializer, CourseSerializer, ProgramSerializer
@@ -169,6 +170,13 @@ class UserRegistrationView(generics.CreateAPIView):
     permission_classes = [AllowAny]
     
     def create(self, request, *args, **kwargs):
+        enforce_scope_throttle(
+            request,
+            self,
+            scope='registration_submit',
+            message='You are submitting registrations too quickly. Please wait a moment before trying again.'
+        )
+
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
@@ -415,10 +423,44 @@ class ProgramViewSet(viewsets.ModelViewSet):
         if program_type:
             queryset = queryset.filter(program_type=program_type)
         return queryset.order_by('program_type', 'name')
+
+    def create(self, request, *args, **kwargs):
+        enforce_scope_throttle(
+            request,
+            self,
+            scope='program_submit',
+            message='You are creating programs too quickly. Please wait a moment before trying again.'
+        )
+        return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        enforce_scope_throttle(
+            request,
+            self,
+            scope='program_submit',
+            message='You are updating programs too quickly. Please wait a moment before trying again.'
+        )
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        enforce_scope_throttle(
+            request,
+            self,
+            scope='program_submit',
+            message='You are updating programs too quickly. Please wait a moment before trying again.'
+        )
+        return super().partial_update(request, *args, **kwargs)
     
     @action(detail=False, methods=['post'], url_path='import-csv')
     def import_csv(self, request):
         """Import programs from CSV file"""
+        enforce_scope_throttle(
+            request,
+            self,
+            scope='program_import',
+            message='You are importing programs too quickly. Please wait a moment before trying again.'
+        )
+
         if 'file' not in request.FILES:
             return Response(
                 {'error': 'No file provided'}, 

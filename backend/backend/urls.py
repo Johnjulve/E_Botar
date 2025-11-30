@@ -13,6 +13,8 @@ urlpatterns = [
     path("api/candidates/", include("apps.candidates.urls")),
     # Voting API
     path("api/voting/", include("apps.voting.urls")),
+    # Common / system utilities API
+    path("api/common/", include("apps.common.urls")),
     # DRF browsable API auth
     path("api-auth/", include("rest_framework.urls")),
 ]

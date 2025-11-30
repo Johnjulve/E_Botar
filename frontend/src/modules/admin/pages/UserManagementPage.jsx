@@ -99,6 +99,8 @@ const UserManagementPage = () => {
   const [passwordCopied, setPasswordCopied] = useState(false);
   const [selectedRole, setSelectedRole] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [actionUserId, setActionUserId] = useState(null); // prevent rapid repeat actions per user
+  const [modalSubmitting, setModalSubmitting] = useState(false); // prevent double-submit in modals
 
   useEffect(() => {
     fetchUsers();
@@ -174,7 +176,12 @@ const UserManagementPage = () => {
   };
 
   const handleToggleActive = async (user) => {
+    if (actionUserId === user.id) {
+      // Ignore rapid repeat clicks for the same user
+      return;
+    }
     try {
+      setActionUserId(user.id);
       const response = await authService.toggleUserActive(user.id);
       
       // Update the user in the local state immediately
@@ -194,6 +201,8 @@ const UserManagementPage = () => {
     } catch (error) {
       console.error('Error toggling user status:', error);
       alert('Failed to toggle user status. Please try again.');
+    } finally {
+      setActionUserId(null);
     }
   };
 
@@ -212,7 +221,9 @@ const UserManagementPage = () => {
   };
 
   const handleConfirmPasswordReset = async () => {
+    if (modalSubmitting) return;
     try {
+      setModalSubmitting(true);
       const response = await authService.resetUserPassword(selectedUser.id, generatedPassword);
       
       console.log('Password reset successfully');
@@ -226,11 +237,15 @@ const UserManagementPage = () => {
     } catch (error) {
       console.error('Error resetting password:', error);
       alert('Failed to reset password. Please try again.');
+    } finally {
+      setModalSubmitting(false);
     }
   };
 
   const handleDeleteUser = async () => {
+    if (modalSubmitting) return;
     try {
+      setModalSubmitting(true);
       // TODO: Implement API call to delete user
       console.log('Delete user:', selectedUser?.id);
       
@@ -242,6 +257,8 @@ const UserManagementPage = () => {
     } catch (error) {
       console.error('Error deleting user:', error);
       alert('Failed to delete user. Please try again.');
+    } finally {
+      setModalSubmitting(false);
     }
   };
 
@@ -579,12 +596,13 @@ const UserManagementPage = () => {
                       <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
                         <button
                           onClick={() => handleToggleActive(user)}
+                          disabled={actionUserId === user.id}
                           style={{
                             padding: '0.5rem',
                             background: 'transparent',
                             border: '1px solid #d1d5db',
                             borderRadius: '0.375rem',
-                            cursor: 'pointer',
+                            cursor: actionUserId === user.id ? 'not-allowed' : 'pointer',
                             color: user.user?.is_active ? '#ef4444' : '#22c55e',
                             display: 'flex',
                             alignItems: 'center',
@@ -610,12 +628,13 @@ const UserManagementPage = () => {
                             setSelectedRole(user.user?.is_superuser ? 'admin' : (user.user?.is_staff ? 'staff' : 'student'));
                             setShowRoleModal(true);
                           }}
+                          disabled={actionUserId === user.id}
                           style={{
                             padding: '0.5rem',
                             background: 'transparent',
                             border: '1px solid #d1d5db',
                             borderRadius: '0.375rem',
-                            cursor: 'pointer',
+                            cursor: actionUserId === user.id ? 'not-allowed' : 'pointer',
                             color: '#8b5cf6',
                             display: 'flex',
                             alignItems: 'center',
@@ -637,12 +656,13 @@ const UserManagementPage = () => {
                         
                         <button
                           onClick={() => handleResetPassword(user)}
+                          disabled={actionUserId === user.id}
                           style={{
                             padding: '0.5rem',
                             background: 'transparent',
                             border: '1px solid #d1d5db',
                             borderRadius: '0.375rem',
-                            cursor: 'pointer',
+                            cursor: actionUserId === user.id ? 'not-allowed' : 'pointer',
                             color: '#2563eb',
                             display: 'flex',
                             alignItems: 'center',
@@ -667,12 +687,13 @@ const UserManagementPage = () => {
                             setSelectedUser(user);
                             setShowDeleteModal(true);
                           }}
+                          disabled={actionUserId === user.id}
                           style={{
                             padding: '0.5rem',
                             background: 'transparent',
                             border: '1px solid #d1d5db',
                             borderRadius: '0.375rem',
-                            cursor: 'pointer',
+                            cursor: actionUserId === user.id ? 'not-allowed' : 'pointer',
                             color: '#ef4444',
                             display: 'flex',
                             alignItems: 'center',
@@ -838,8 +859,9 @@ const UserManagementPage = () => {
             <Button 
               variant="primary" 
               onClick={handleConfirmPasswordReset}
+              disabled={modalSubmitting}
             >
-              Confirm Reset
+              {modalSubmitting ? 'Resetting...' : 'Confirm Reset'}
             </Button>
           </div>
         </Modal>
@@ -924,8 +946,11 @@ const UserManagementPage = () => {
             </Button>
             <Button 
               variant="primary" 
+              disabled={modalSubmitting}
               onClick={async () => {
+                if (modalSubmitting) return;
                 try {
+                  setModalSubmitting(true);
                   await authService.updateUserRole(selectedUser.id, selectedRole);
                   alert(`User role updated to ${selectedRole} successfully`);
                   setShowRoleModal(false);
@@ -935,10 +960,12 @@ const UserManagementPage = () => {
                 } catch (error) {
                   console.error('Error updating role:', error);
                   alert(error.response?.data?.error || 'Failed to update role. Please try again.');
+                } finally {
+                  setModalSubmitting(false);
                 }
               }}
             >
-              Update Role
+              {modalSubmitting ? 'Updating...' : 'Update Role'}
             </Button>
           </div>
         </Modal>
@@ -970,8 +997,9 @@ const UserManagementPage = () => {
             <Button 
               variant="danger" 
               onClick={handleDeleteUser}
+              disabled={modalSubmitting}
             >
-              Delete User
+              {modalSubmitting ? 'Deleting...' : 'Delete User'}
             </Button>
           </div>
         </Modal>

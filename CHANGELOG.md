@@ -9,6 +9,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.4] - 2025-12-XX
+### Added
+- **System Log API & UI Integration**: Added staff-only `/api/common/system-logs/` endpoint and wired the React System Logs page to real data
+  - Consolidates `SecurityEvent` and `ActivityLog` entries with severity mapping and summary counts
+  - Supports filtering, date window defaults (last 30 days), and optional search query
+  - Adds monthly backup reminder banner plus manual refresh button on the admin System Logs view
+
+- **Form Submission Throttling**: Introduced scoped DRF throttles to prevent rapid duplicate submissions
+  - Vote submission blocked after 1 request per 5 seconds (`vote_submit`)
+  - Registration, profile update, and candidate application endpoints now include per-user limits
+  - Admin program create/update and CSV import actions rate-limited to guard against accidental form spam
+
+- **Admin Management Pages**: Complete frontend interfaces for Party and Position Management
+  - **Party Management Page**: Full CRUD operations for political parties with active status toggling
+  - **Position Management Page**: Full CRUD operations for election positions with reordering functionality
+  - Both pages follow the same design pattern as Program Management for consistency
+  - Integrated into admin sidebar navigation with appropriate icons
+
+- **Enhanced Data Export System**: Comprehensive PDF export functionality for election results and student data
+  - **Unified Data Export Page**: Centralized admin page for exporting different types of data
+  - **Election Results Export**: PDF export with formatted results, statistics, and categorized vote counts
+  - **Student Data Export**: PDF export organized by department, course, and year level
+  - **Vote Categorization**: Optional feature to categorize vote counts by department, course, and year level
+    - For university elections: Department → Course → Year Level
+    - For department elections: Course → Year Level (department is fixed)
+  - **Mock Data Generation**: Frontend-only mock data generation for testing (150 students with 70-90% voting rate)
+  - **Statistics-Only Display**: PDF exports show only summary counts (no individual student names/IDs)
+  - Automatic cleanup of mock data after export
+  - Support for both real election data and mock data testing scenarios
+
+### Changed
+- **Dashboard Statistics**: Updated homepage and results page to show "Students" and "Votes Recorded" instead of "Positions", "Candidates", and "Total Votes"
+- **Current Administration Display**: Homepage now shows winners from the last finished election as "Current Administration" with proper layout and alignment
+- **System Logs Filtering**: Enhanced filtering system with granular options (log type, resource type, action, search) while maintaining consistent summary counts
+- **PDF Export Format**: Changed from CSV to PDF format for election results export with professional formatting
+- **Student Data Display**: Removed individual student names/IDs from PDF exports, showing only summary counts for privacy and clarity
+
+### Technical Details
+- **Backend Changes**:
+  - `apps/common/throttling.py`: Added `ScopedUserThrottle` and `enforce_scope_throttle` helper for reusable scoped rate limiting
+  - `backend/settings.py`: Configured DRF `DEFAULT_THROTTLE_RATES` for `vote_submit`, `registration_submit`, `profile_update`, `application_submit`, `program_submit`, and `program_import`
+  - `apps/voting/views.py`: Applied `vote_submit` throttle to ballot submission endpoint
+  - `apps/accounts/views.py`: Applied throttling to registration, profile updates, and program management (create/update/import)
+  - `apps/candidates/views.py`: Applied `application_submit` throttle to candidate application creation
+  - `apps/common/views.py` / `apps/common/urls.py`: Implemented `/api/common/system-logs/` for consolidated security/activity logs
+  - `apps/common/views.py`: Added `resource_type` and `action` fields to activity log API response for enhanced filtering
+
+- **Frontend Changes**:
+  - `modules/admin/pages/SystemLogsPage.jsx`: Connected to `/api/common/system-logs/`, added refresh button, monthly backup reminder, summary-based stats, and granular filtering (log type, resource type, action, search)
+  - `frontend/src/services/logService.js`: New service wrapper for system logs API
+  - `modules/admin/pages/UserManagementPage.jsx`: Added per-user action locks and modal submitting states to prevent double actions
+  - `modules/admin/pages/ProgramManagementPage.jsx`: Added `saving` guard to prevent double form submission
+  - `modules/candidates/pages/ApplicationFormPage.jsx`: Guarded submit handler with `submitting` flag to ignore repeat clicks
+  - `modules/admin/pages/PartyManagementPage.jsx`: New page for managing political parties with CRUD operations
+  - `modules/admin/pages/PositionManagementPage.jsx`: New page for managing election positions with CRUD operations and reordering
+  - `modules/admin/pages/DataExportPage.jsx`: New unified data export page with PDF export functionality
+    - Election results export with vote categorization support
+    - Student data export organized by department, course, and year level
+    - Mock data generation for testing (frontend-only, no database pollution)
+    - Statistics-only display (no individual student names)
+  - `modules/profile/pages/DashboardPage.jsx`: Updated to show "Current Administration" and new statistics cards
+  - `modules/results/pages/ResultsDetailsPage.jsx`: Updated statistics cards and removed export buttons (moved to admin area)
+  - `components/layout/Navbar.jsx`: Added icons for User Management and System Logs, added Party, Position, and Data Export menu items
+  - `routes/AppRoutes.jsx`: Added routes for Party Management, Position Management, and Data Export pages
+
+---
+
 ## [0.7.3] - 2025-12-XX
 ### Added
 - **Election Type System**: Support for University Student Council (USC) and Department Elections

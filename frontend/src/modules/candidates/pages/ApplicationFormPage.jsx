@@ -137,6 +137,10 @@ const ApplicationFormPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) {
+      // Prevent double-submit while previous request is in-flight
+      return;
+    }
     setError('');
     
     const newErrors = validate();
