@@ -153,7 +153,7 @@ const LoginPage = () => {
 
                 <button
                   type="submit"
-                  className={`auth-submit-btn ${loading ? 'loading' : ''}`}
+                  className={`auth-submit-btn ${loading ? 'auth-loading' : ''}`}
                   disabled={loading}
                 >
                   {loading && <span className="auth-spinner"></span>}

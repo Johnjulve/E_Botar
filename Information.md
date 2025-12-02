@@ -1,6 +1,6 @@
 # E-Botar - System Information
 
-**Version 0.7.1** | Complete system documentation and technical details
+**Version 0.7.5** | Complete system documentation and technical details
 
 [![Django](https://img.shields.io/badge/Django-5.2.8-green.svg)](https://www.djangoproject.com/)
 [![DRF](https://img.shields.io/badge/DRF-3.16.1-red.svg)](https://www.django-rest-framework.org/)
@@ -11,7 +11,7 @@
 
 ## 📖 Table of Contents
 
-- [Release Highlights (0.6.4)](#-release-highlights-064)
+- [Release Highlights (0.7.5)](#-release-highlights-075)
 - [Overview](#overview)
 - [Research Foundation](#research-foundation)
 - [Key Features](#key-features)
@@ -27,15 +27,42 @@
 
 ---
 
-## 🚀 Release Highlights (0.7.1)
+## 🚀 Release Highlights (0.7.5)
 
+- **Automatic Session Timeout**: Enhanced security with auto-logout after user inactivity
+  - **5-Minute Inactivity Timeout**: Users are automatically logged out after 5 minutes of inactivity
+  - **Comprehensive Activity Tracking**: Monitors mouse movements, keyboard input, clicks, scroll, and touch events
+  - **Smart Tab Handling**: Pauses timer when tab is hidden, resumes and checks timeout when tab becomes active
+  - **Silent Operation**: No warnings or notifications - seamless automatic logout for enhanced security
+  - **Production Ready**: Works reliably in both development and production environments
+  - **Security Enhancement**: Prevents unauthorized access from unattended sessions
+
+### Previous Highlights (0.7.4)
+
+- **System Log API & UI Integration**: Added staff-only `/api/common/system-logs/` endpoint with consolidated security and activity logs, granular filtering, and monthly backup reminders.
+- **Form Submission Throttling**: Introduced scoped DRF throttles to prevent rapid duplicate submissions across vote submission, registration, profile updates, and candidate applications.
+- **Admin Management Pages**: Complete frontend interfaces for Party and Position Management with full CRUD operations, active status toggling, and reordering functionality.
+- **Enhanced Data Export System**: Comprehensive PDF export functionality for election results and student data with vote categorization, mock data generation for testing, and privacy-focused statistics-only display.
+- **Dashboard Improvements**: Updated homepage and results page statistics to show "Students" and "Votes Recorded", plus "Current Administration" display showing winners from last finished election.
+
+### Previous Highlights (0.7.3)
+- **Election Type System**: Support for University Student Council (USC) and Department Elections with automatic eligibility checks, auto-generated titles using Academic Year (AY) format, and visual type badges.
+- **Eligibility System**: Automatic checks for voting and candidate applications with department-based enforcement for Department Elections and frontend eligibility warnings.
+- **Admin Profile Flexibility**: Academic information (Student ID, Year Level, Department, Course) is now optional for administrators while remaining required for students.
+
+### Previous Highlights (0.7.2)
+- **Program Management Module**: Complete CRUD interface for managing departments and courses with filtering, form validation, and real-time updates.
+- **CSV Import/Export Functionality**: Bulk import and export of programs with overwrite logic, detailed import results, comprehensive error reporting, and Excel-compatible format.
+- **Admin Sidebar Navigation**: Added "Programs" menu item integrated into admin navigation structure.
+
+### Previous Highlights (0.7.1)
 - **Production API Fixes**: Fixed `/me` endpoint access issues in production with enhanced error handling, automatic token refresh, and improved CORS configuration for multiple frontend URLs.
 - **Backend Error Resolution**: Resolved 500 Internal Server Error on `/me` endpoint by fixing serializer handling of None values (department, course) and adding comprehensive error handling with logging.
 - **Database Migration Fixes**: Fixed "no such table" errors by adding explicit `db_table` settings to all 12 models across 5 apps (accounts, elections, candidates, voting, common), ensuring consistent database schema and preventing migration issues in production.
 - **Automatic Token Refresh**: API service now automatically refreshes expired JWT tokens, providing seamless user experience without manual re-authentication.
 - **Enhanced Production Deployment**: Improved CORS configuration, environment variable handling, and production-ready error messages with detailed logging for troubleshooting.
 
-> ⚠️ **Important**: After deploying this update, run `python manage.py migrate` in production to create/update database tables with the new explicit table names.
+> ⚠️ **Important**: After deploying version 0.7.1, run `python manage.py migrate` in production to create/update database tables with the new explicit table names.
 
 ### Previous Highlights (0.7.0)
 - **Production Deployment Configuration**: Added Vercel deployment configuration and production-ready build settings for both frontend and backend.
@@ -169,6 +196,10 @@ The system architecture is informed by academic research on:
 
 ### 🔒 **Enterprise-Grade Security**
 - **JWT Token Security**: Access and refresh token rotation
+- **Automatic Session Timeout**: Auto-logout after 5 minutes of user inactivity
+  - Comprehensive activity tracking (mouse, keyboard, clicks, scroll, touch)
+  - Handles tab/window visibility changes
+  - Silent operation with automatic redirect to login
 - **Role-Based Access Control (RBAC)**: Three-tier permission system with granular access control
   - **Student Role**: Can vote, apply as candidate, view own profile and applications
   - **Staff Role**: Can manage elections, review applications, view results, manage candidates (limited admin access)
@@ -856,10 +887,14 @@ Response:
 ### Authentication & Authorization
 
 **JWT Token Security**:
-- Access tokens expire after 1 hour
-- Refresh tokens expire after 7 days
+- Access tokens expire after 30 minutes
+- Refresh tokens expire after 1 day
 - Tokens include user ID and expiration
 - Token rotation on refresh
+- **Automatic Session Timeout**: Frontend implements 5-minute inactivity detection that auto-logs out users regardless of token validity
+  - Tracks user activity (mouse, keyboard, clicks, scroll, touch)
+  - Handles tab/window visibility changes
+  - Silent operation with automatic redirect to login
 
 **Role-Based Access Control (RBAC)**:
 - **Public**: Read-only access to elections, candidates, results (after election ends)
@@ -926,6 +961,16 @@ Response:
 - Success/failure status logged
 - IP-based rate limiting ready
 - Forensic data for security analysis
+
+### Session Management
+
+**Automatic Session Timeout**:
+- Frontend-based inactivity detection (5-minute timeout)
+- Comprehensive activity tracking: mouse movements, keyboard input, clicks, scroll, touch events
+- Tab/window visibility handling: pauses timer when tab is hidden, checks timeout when tab becomes active
+- Silent operation: automatic logout without warnings or notifications
+- Automatic redirect to login page after timeout
+- Works independently of JWT token expiration for enhanced security
 
 ### Application Security
 
@@ -1197,7 +1242,7 @@ pylint apps/
 
 ## 🗺️ Roadmap
 
-### Current Version: 0.7.1
+### Current Version: 0.7.4
 - ✅ Complete Backend API (50+ endpoints)
 - ✅ User authentication and profiles
 - ✅ Three-tier role system (Student, Staff, Admin)
@@ -1206,15 +1251,24 @@ pylint apps/
 - ✅ Staff access to admin panels (election management, application review)
 - ✅ Admin-only restrictions (user management, system logs)
 - ✅ Data privacy protection (sensitive fields hidden from non-admins)
-- ✅ Election management
+- ✅ Election management with USC and Department Election types
+- ✅ Eligibility system for voting and candidate applications
 - ✅ Candidate applications (one per election)
 - ✅ Privacy-preserving voting
 - ✅ Results and analytics
-- ✅ Security logging
+- ✅ Security logging with consolidated system logs API
 - ✅ Complete React frontend (all modules functional)
 - ✅ Production deployment configuration (Vercel, Railway, etc.)
 - ✅ Production API fixes and error handling
 - ✅ Automatic token refresh system
+- ✅ Program Management Module (departments and courses CRUD)
+- ✅ CSV Import/Export for programs
+- ✅ Party Management interface
+- ✅ Position Management interface
+- ✅ Enhanced Data Export System (PDF exports with categorization)
+- ✅ Form submission throttling (rate limiting)
+- ✅ Admin profile flexibility (optional academic info for admins)
+- ✅ Dashboard improvements (Current Administration display)
 
 ### Next: Version 0.8.0 (Q1 2025)
 - 🔄 Enhanced data visualizations (Chart.js integration)

@@ -169,17 +169,17 @@ const Navbar = () => {
         { key: 'admin-dashboard', label: 'Dashboard', to: '/admin', icon: 'home' },
         { key: 'admin-elections', label: 'Elections', to: '/admin/elections', icon: 'calendar' },
         { key: 'admin-applications', label: 'Applications', to: '/admin/applications', icon: 'users' },
-        { key: 'admin-programs', label: 'Programs', to: '/admin/programs', icon: 'building' },
-        { key: 'admin-parties', label: 'Parties', to: '/admin/parties', icon: 'users' },
-        { key: 'admin-positions', label: 'Positions', to: '/admin/positions', icon: 'briefcase' },
+        { key: 'admin-data-export', label: 'Data Export', to: '/admin/data-export', icon: 'download' },
       ];
 
       // Admin-only items (superuser only)
       if (isAdmin) {
         adminMenuItems.push(
+          { key: 'admin-programs', label: 'Programs', to: '/admin/programs', icon: 'building' },
+          { key: 'admin-parties', label: 'Parties', to: '/admin/parties', icon: 'users' },
+          { key: 'admin-positions', label: 'Positions', to: '/admin/positions', icon: 'briefcase' },
           { key: 'admin-users', label: 'User Management', to: '/admin/users', icon: 'user' },
-          { key: 'admin-logs', label: 'System Logs', to: '/admin/logs', icon: 'activity' },
-          { key: 'admin-data-export', label: 'Data Export', to: '/admin/data-export', icon: 'download' }
+          { key: 'admin-logs', label: 'System Logs', to: '/admin/logs', icon: 'activity' }
         );
       }
       

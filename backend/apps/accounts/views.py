@@ -30,10 +30,88 @@ def health_check(request):
     })
 
 
-@api_view(['GET', 'PATCH', 'PUT'])
+@api_view(['GET', 'PATCH', 'PUT', 'POST'])
 @permission_classes([IsAuthenticated])
 def current_user(request):
     """Get or update current authenticated user's profile"""
+    if request.method == 'POST' and 'change_password' in request.data:
+        # Handle password change
+        old_password = request.data.get('old_password')
+        new_password = request.data.get('new_password')
+        
+        if not old_password or not new_password:
+            return Response({
+                'error': 'Both old_password and new_password are required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Validate new password length
+        if len(new_password) < 8:
+            return Response({
+                'error': 'New password must be at least 8 characters long'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Get a fresh user instance from the database to avoid any caching issues
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        user = User.objects.get(pk=request.user.pk)
+        
+        # Verify old password with the fresh user instance
+        if not user.check_password(old_password):
+            return Response({
+                'error': 'Current password is incorrect'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Set new password (this automatically hashes it)
+        user.set_password(new_password)
+        # Save the user - save all fields to ensure password is committed
+        user.save()
+        
+        # Force database commit by getting a completely fresh instance
+        # This ensures the password was actually written to the database
+        user = User.objects.get(pk=request.user.pk)
+        
+        # Verify the new password works by checking it
+        password_verified = user.check_password(new_password)
+        logger.info(f"Password change attempt for user {user.id} ({user.username}): verification={password_verified}")
+        
+        if not password_verified:
+            logger.error(f"Password change verification failed for user {user.id} ({user.username})")
+            return Response({
+                'error': 'Password change failed verification. Please try again.'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        # Log the successful password change
+        logger.info(f"Password successfully changed and verified for user {user.id} ({user.username})")
+        
+        # Log the activity
+        try:
+            from apps.common.models import ActivityLog
+            x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+            if x_forwarded_for:
+                ip_address = x_forwarded_for.split(',')[0]
+            else:
+                ip_address = request.META.get('REMOTE_ADDR')
+            
+            ActivityLog.objects.create(
+                user=request.user,
+                action='update',
+                resource_type='User',
+                resource_id=request.user.id,
+                description=f"User {request.user.username} changed their password",
+                ip_address=ip_address,
+                metadata={
+                    'action_type': 'password_change',
+                    'user_id': request.user.id,
+                    'username': request.user.username
+                }
+            )
+        except Exception as e:
+            logger.error(f"Error logging password change activity: {str(e)}")
+        
+        return Response({
+            'message': 'Password changed successfully'
+        }, status=status.HTTP_200_OK)
+    
     if request.method == 'GET':
         try:
             user_serializer = UserSerializer(request.user, context={'request': request})
@@ -414,7 +492,7 @@ class CourseViewSet(viewsets.ReadOnlyModelViewSet):
 class ProgramViewSet(viewsets.ModelViewSet):
     """ViewSet for managing programs (departments and courses)"""
     serializer_class = ProgramSerializer
-    permission_classes = [IsStaffOrSuperUser]
+    permission_classes = [IsSuperUser]
     
     def get_queryset(self):
         """Filter by program_type if provided"""
