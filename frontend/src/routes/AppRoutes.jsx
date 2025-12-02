@@ -199,7 +199,7 @@ const AppRoutes = () => {
       <Route 
         path="/admin/programs" 
         element={
-          <ProtectedRoute requireStaff>
+          <ProtectedRoute requireAdmin>
             <ProgramManagementPage />
           </ProtectedRoute>
         } 
@@ -207,7 +207,7 @@ const AppRoutes = () => {
       <Route 
         path="/admin/parties" 
         element={
-          <ProtectedRoute requireStaff>
+          <ProtectedRoute requireAdmin>
             <PartyManagementPage />
           </ProtectedRoute>
         } 
@@ -215,7 +215,7 @@ const AppRoutes = () => {
       <Route 
         path="/admin/positions" 
         element={
-          <ProtectedRoute requireStaff>
+          <ProtectedRoute requireAdmin>
             <PositionManagementPage />
           </ProtectedRoute>
         } 

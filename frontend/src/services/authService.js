@@ -38,6 +38,15 @@ export const authService = {
     return api.patch('/auth/me/', profileData, config);
   },
 
+  // Change user password (requires old password)
+  changePassword: (oldPassword, newPassword) => {
+    return api.post('/auth/me/', {
+      change_password: true,
+      old_password: oldPassword,
+      new_password: newPassword
+    });
+  },
+
   // Get all departments
   getDepartments: () => {
     return api.get('/auth/departments/');

@@ -30,10 +30,88 @@ def health_check(request):
     })
 
 
-@api_view(['GET', 'PATCH', 'PUT'])
+@api_view(['GET', 'PATCH', 'PUT', 'POST'])
 @permission_classes([IsAuthenticated])
 def current_user(request):
     """Get or update current authenticated user's profile"""
+    if request.method == 'POST' and 'change_password' in request.data:
+        # Handle password change
+        old_password = request.data.get('old_password')
+        new_password = request.data.get('new_password')
+        
+        if not old_password or not new_password:
+            return Response({
+                'error': 'Both old_password and new_password are required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Validate new password length
+        if len(new_password) < 8:
+            return Response({
+                'error': 'New password must be at least 8 characters long'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Get a fresh user instance from the database to avoid any caching issues
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        user = User.objects.get(pk=request.user.pk)
+        
+        # Verify old password with the fresh user instance
+        if not user.check_password(old_password):
+            return Response({
+                'error': 'Current password is incorrect'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Set new password (this automatically hashes it)
+        user.set_password(new_password)
+        # Save the user - save all fields to ensure password is committed
+        user.save()
+        
+        # Force database commit by getting a completely fresh instance
+        # This ensures the password was actually written to the database
+        user = User.objects.get(pk=request.user.pk)
+        
+        # Verify the new password works by checking it
+        password_verified = user.check_password(new_password)
+        logger.info(f"Password change attempt for user {user.id} ({user.username}): verification={password_verified}")
+        
+        if not password_verified:
+            logger.error(f"Password change verification failed for user {user.id} ({user.username})")
+            return Response({
+                'error': 'Password change failed verification. Please try again.'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        # Log the successful password change
+        logger.info(f"Password successfully changed and verified for user {user.id} ({user.username})")
+        
+        # Log the activity
+        try:
+            from apps.common.models import ActivityLog
+            x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+            if x_forwarded_for:
+                ip_address = x_forwarded_for.split(',')[0]
+            else:
+                ip_address = request.META.get('REMOTE_ADDR')
+            
+            ActivityLog.objects.create(
+                user=request.user,
+                action='update',
+                resource_type='User',
+                resource_id=request.user.id,
+                description=f"User {request.user.username} changed their password",
+                ip_address=ip_address,
+                metadata={
+                    'action_type': 'password_change',
+                    'user_id': request.user.id,
+                    'username': request.user.username
+                }
+            )
+        except Exception as e:
+            logger.error(f"Error logging password change activity: {str(e)}")
+        
+        return Response({
+            'message': 'Password changed successfully'
+        }, status=status.HTTP_200_OK)
+    
     if request.method == 'GET':
         try:
             user_serializer = UserSerializer(request.user, context={'request': request})
@@ -414,7 +492,7 @@ class CourseViewSet(viewsets.ReadOnlyModelViewSet):
 class ProgramViewSet(viewsets.ModelViewSet):
     """ViewSet for managing programs (departments and courses)"""
     serializer_class = ProgramSerializer
-    permission_classes = [IsStaffOrSuperUser]
+    permission_classes = [IsSuperUser]
     
     def get_queryset(self):
         """Filter by program_type if provided"""
@@ -476,7 +554,9 @@ class ProgramViewSet(viewsets.ModelViewSet):
         
         try:
             # Read CSV file
-            decoded_file = file.read().decode('utf-8')
+            # Use utf-8-sig to safely strip BOM characters that Excel adds to the first column header
+            # This prevents issues where the first header becomes "\ufeffname" and appears as missing.
+            decoded_file = file.read().decode('utf-8-sig')
             csv_reader = csv.DictReader(io.StringIO(decoded_file))
             
             required_fields = ['name', 'code', 'program_type']
@@ -512,18 +592,34 @@ class ProgramViewSet(viewsets.ModelViewSet):
                         })
                         continue
                     
-                    # Handle department_id for courses
-                    department_id = None
+                    # Handle department link for courses using department code instead of numeric ID
+                    department = None
                     if program_type == 'course':
+                        # Prefer department_code column; fall back to department_id for backward compatibility
+                        dept_code = row.get('department_code', '').strip()
                         dept_id_str = row.get('department_id', '').strip()
-                        if dept_id_str:
+
+                        if dept_code:
+                            # Look up department by its program code (e.g., CCIS)
+                            department = Program.objects.filter(
+                                program_type=Program.ProgramType.DEPARTMENT,
+                                code=dept_code
+                            ).first()
+                            if not department:
+                                errors.append({
+                                    'row': row_num,
+                                    'error': f'Department with code \"{dept_code}\" does not exist (expected an existing department program with that code)'
+                                })
+                                continue
+                        elif dept_id_str:
+                            # Legacy support: still accept numeric department_id if provided
                             try:
                                 department_id = int(dept_id_str)
-                                # Verify department exists
-                                if not Program.objects.filter(
+                                department = Program.objects.filter(
                                     id=department_id,
                                     program_type=Program.ProgramType.DEPARTMENT
-                                ).exists():
+                                ).first()
+                                if not department:
                                     errors.append({
                                         'row': row_num,
                                         'error': f'Department with ID {department_id} does not exist'
@@ -538,7 +634,7 @@ class ProgramViewSet(viewsets.ModelViewSet):
                         else:
                             errors.append({
                                 'row': row_num,
-                                'error': 'Courses must have a department_id'
+                                'error': 'Courses must include a department_code (recommended) or department_id'
                             })
                             continue
                     
@@ -561,16 +657,16 @@ class ProgramViewSet(viewsets.ModelViewSet):
                         # Update existing program (overwrite)
                         for key, value in program_data.items():
                             setattr(existing_program, key, value)
-                        if department_id:
-                            existing_program.department_id = department_id
+                        if department is not None:
+                            existing_program.department = department
                         existing_program.save()
                         program = existing_program
                         action = 'updated'
                     else:
                         # Create new program
                         program = Program.objects.create(**program_data)
-                        if department_id:
-                            program.department_id = department_id
+                        if department is not None:
+                            program.department = department
                             program.save()
                         action = 'created'
                     

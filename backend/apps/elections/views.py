@@ -76,8 +76,8 @@ class SchoolElectionViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ['list', 'retrieve', 'active', 'upcoming', 'finished']:
             return [AllowAny()]
-        # Staff can manage elections, but only superusers can create/delete
-        if self.action in ['create', 'destroy']:
+        # Staff can create and manage elections, but only superusers can delete
+        if self.action == 'destroy':
             return [IsSuperUser()]
         return [IsStaffOrSuperUser()]
     

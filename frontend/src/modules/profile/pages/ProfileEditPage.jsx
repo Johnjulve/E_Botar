@@ -14,7 +14,7 @@ import './profile.css';
 
 const ProfileEditPage = () => {
   const navigate = useNavigate();
-  const { updateUser, user: authUser } = useAuth();
+  const { updateUser, user: authUser, logout } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');

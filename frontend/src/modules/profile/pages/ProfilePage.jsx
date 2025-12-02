@@ -14,10 +14,19 @@ import { getInitials } from '../../../utils/helpers';
 import './profile.css';
 
 const ProfilePage = () => {
-  const { user: authUser } = useAuth();
+  const { user: authUser, logout } = useAuth();
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+  const [passwordData, setPasswordData] = useState({
+    old_password: '',
+    new_password: '',
+    confirm_password: ''
+  });
   
   // Check if user is admin/staff
   const isAdmin = authUser?.user?.is_superuser || authUser?.user?.is_staff || false;
@@ -36,6 +45,79 @@ const ProfilePage = () => {
       console.error('Error fetching profile:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePasswordChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    setPasswordError('');
+    setPasswordSuccess('');
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setPasswordError('');
+    setPasswordSuccess('');
+
+    // Validation
+    if (!passwordData.old_password || !passwordData.new_password || !passwordData.confirm_password) {
+      setPasswordError('All password fields are required');
+      return;
+    }
+
+    if (passwordData.new_password.length < 8) {
+      setPasswordError('New password must be at least 8 characters long');
+      return;
+    }
+
+    if (passwordData.new_password !== passwordData.confirm_password) {
+      setPasswordError('New passwords do not match');
+      return;
+    }
+
+    if (passwordData.old_password === passwordData.new_password) {
+      setPasswordError('New password must be different from current password');
+      return;
+    }
+
+    try {
+      setChangingPassword(true);
+      const response = await authService.changePassword(passwordData.old_password, passwordData.new_password);
+      
+      // Verify response
+      if (response.data && response.data.message) {
+        setPasswordSuccess('Password changed successfully! You will be logged out in 3 seconds. Please log back in with your new password.');
+        setPasswordData({
+          old_password: '',
+          new_password: '',
+          confirm_password: ''
+        });
+        
+        // Automatically log out after 3 seconds for security
+        setTimeout(() => {
+          setShowChangePassword(false);
+          setPasswordSuccess('');
+          // Clear auth and redirect - use window.location for full page reload
+          authService.logout();
+          // Use window.location.href for a full page reload to ensure complete logout
+          window.location.href = '/login';
+        }, 3000);
+      } else {
+        throw new Error('Unexpected response from server');
+      }
+    } catch (error) {
+      console.error('Error changing password:', error);
+      const errorMessage = error.response?.data?.error || 
+                          error.response?.data?.detail || 
+                          error.message || 
+                          'Failed to change password. Please try again.';
+      setPasswordError(errorMessage);
+    } finally {
+      setChangingPassword(false);
     }
   };
 
@@ -178,6 +260,212 @@ const ProfilePage = () => {
                 <span className="info-value">{user?.email}</span>
               </div>
             </div>
+          </div>
+
+          {/* Change Password Section */}
+          <div className="profile-section">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <div style={{ flex: 1 }}>
+                <h3 className="section-title" style={{ marginBottom: '0.25rem' }}>Change Password</h3>
+                {!showChangePassword && (
+                  <p style={{ 
+                    fontSize: '0.875rem', 
+                    color: '#6b7280', 
+                    margin: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    </svg>
+                    Update your account password for better security
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowChangePassword(!showChangePassword);
+                  setPasswordError('');
+                  setPasswordSuccess('');
+                  setPasswordData({
+                    old_password: '',
+                    new_password: '',
+                    confirm_password: ''
+                  });
+                }}
+                className="btn-secondary"
+                style={{ 
+                  padding: '0.5rem 1rem', 
+                  fontSize: '0.875rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  flexShrink: 0,
+                  border: '1px solid #d1d5db',
+                  borderRadius: '0.5rem',
+                  background: 'white',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                {showChangePassword ? (
+                  <>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <line x1="18" y1="6" x2="6" y2="18"/>
+                      <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                    Cancel
+                  </>
+                ) : (
+                  <>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    </svg>
+                    Change Password
+                  </>
+                )}
+              </button>
+            </div>
+
+            {showChangePassword && (
+              <form onSubmit={handleChangePassword} style={{ marginTop: '1rem' }}>
+                {passwordError && (
+                  <div className="alert alert-error" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1rem', borderRadius: '0.5rem', background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b' }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="10"/>
+                      <line x1="12" y1="8" x2="12" y2="12"/>
+                      <line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                    <span style={{ flex: 1 }}>{passwordError}</span>
+                    <button onClick={() => setPasswordError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.25rem', color: '#991b1b' }}>×</button>
+                  </div>
+                )}
+
+                {passwordSuccess && (
+                  <div className="alert alert-success" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1rem', borderRadius: '0.5rem', background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534' }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                    <span style={{ flex: 1 }}>{passwordSuccess}</span>
+                    <button onClick={() => setPasswordSuccess('')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.25rem', color: '#166534' }}>×</button>
+                  </div>
+                )}
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+                  <div>
+                    <label htmlFor="old_password" style={{ display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#374151' }}>
+                      Current Password <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <input
+                      type="password"
+                      id="old_password"
+                      name="old_password"
+                      value={passwordData.old_password}
+                      onChange={handlePasswordChange}
+                      required
+                      placeholder="Enter current password"
+                      disabled={changingPassword}
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '0.5rem',
+                        fontSize: '0.95rem',
+                        fontFamily: 'inherit'
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="new_password" style={{ display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#374151' }}>
+                      New Password <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <input
+                      type="password"
+                      id="new_password"
+                      name="new_password"
+                      value={passwordData.new_password}
+                      onChange={handlePasswordChange}
+                      required
+                      minLength={8}
+                      placeholder="Enter new password (min 8 characters)"
+                      disabled={changingPassword}
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '0.5rem',
+                        fontSize: '0.95rem',
+                        fontFamily: 'inherit'
+                      }}
+                    />
+                    <small style={{ display: 'block', marginTop: '0.25rem', fontSize: '0.875rem', color: '#6b7280' }}>Must be at least 8 characters long</small>
+                  </div>
+
+                  <div>
+                    <label htmlFor="confirm_password" style={{ display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#374151' }}>
+                      Confirm New Password <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <input
+                      type="password"
+                      id="confirm_password"
+                      name="confirm_password"
+                      value={passwordData.confirm_password}
+                      onChange={handlePasswordChange}
+                      required
+                      minLength={8}
+                      placeholder="Confirm new password"
+                      disabled={changingPassword}
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '0.5rem',
+                        fontSize: '0.95rem',
+                        fontFamily: 'inherit'
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
+                  <button
+                    type="submit"
+                    disabled={changingPassword}
+                    style={{
+                      padding: '0.75rem 1.5rem',
+                      background: '#0b6e3b',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '0.5rem',
+                      fontSize: '0.95rem',
+                      fontWeight: 600,
+                      cursor: changingPassword ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      opacity: changingPassword ? 0.6 : 1
+                    }}
+                  >
+                    {changingPassword ? (
+                      <>
+                        <span className="spinner" style={{ display: 'inline-block', width: '16px', height: '16px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}></span>
+                        Changing...
+                      </>
+                    ) : (
+                      <>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                        </svg>
+                        Change Password
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
 
           {/* Quick Actions */}

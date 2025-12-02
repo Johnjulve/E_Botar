@@ -9,6 +9,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.5] - 2025-12-XX
+### Added
+- **Automatic Session Timeout**: Auto-logout after 5 minutes of user inactivity
+  - Tracks user activity (mouse movements, keyboard input, clicks, scroll, touch events)
+  - Automatically logs out users after 5 minutes of inactivity for enhanced security
+  - Handles tab/window visibility changes (pauses timer when tab is hidden)
+  - Works seamlessly in both development and production environments
+  - Silent operation - no warnings or notifications, just automatic logout
+  - Redirects to login page after auto-logout
+
+### Technical Details
+- **Frontend Changes**:
+  - `hooks/useInactivity.js`: New custom React hook for tracking user activity and managing inactivity timeout
+  - `contexts/AuthContext.jsx`: Integrated inactivity detection with authentication state management
+  - Activity tracking includes: mousedown, mousemove, keypress, scroll, touchstart, click, keydown events
+  - Timer resets on any user activity, ensuring active users remain logged in
+  - Handles edge cases: tab switching, window focus changes, and browser visibility API
+
+- **Backend Changes**:
+  - `backend/settings.py`: Added documentation about frontend inactivity detection in JWT settings
+  - JWT token lifetime remains 30 minutes (frontend handles 5-minute inactivity separately)
+
+### Added
+- **Staff Role Permissions**: Configured staff access permissions for administrative functions
+  - Staff can access: Dashboard, Elections (create and manage), Applications (review, approve, reject), and Data Export
+  - Staff cannot access: Programs, Positions, Parties, User Management, and System Logs (admin-only)
+  - Navigation menu automatically adjusts based on user role (staff vs admin)
+  - Backend permissions enforce these restrictions at the API level
+  - **Frontend Changes**: Updated `components/layout/Navbar.jsx` to show role-appropriate menu items
+  - **Backend Changes**: 
+    - `apps/elections/views.py`: Staff can now create elections (previously admin-only)
+    - `apps/accounts/views.py`: Programs restricted to superusers only (was staff-accessible)
+    - `frontend/src/routes/AppRoutes.jsx`: Programs, Positions, and Parties routes require admin access
+
+- **Enhanced Student Data Export**: Added option to show individual student names in PDF export
+  - **Show Student Names Option**: Checkbox to display student names in table format
+  - **Table Format**: Two-column table showing student name and voting status (Voted/Not Voted)
+  - **Course Selection Requirement**: When showing names, a specific course must be selected (prevents overwhelming PDFs)
+  - **Voting Status Display**: Each student shows "✓ Voted" (green) or "✗ Not Voted" (red) based on election participation
+  - **Organized by Year Level**: Names are grouped by year level within the selected course
+  - **Alphabetical Sorting**: Student names are sorted alphabetically for easy reference
+  - **Professional Table Styling**: Alternating row colors, proper borders, and clear column headers
+
+### Changed
+- **Data Export Student Display**: Improved PDF export formatting for student data
+  - Removed student ID from table display (shows only student names for cleaner appearance)
+  - Adjusted department label position in PDF header to prevent overlap
+  - Better spacing and layout in PDF exports
+
+### Fixed
+- **Login/Register Button Resizing**: Fixed issue where signup and login buttons would resize when clicked or during loading state
+  - Buttons now maintain consistent size and appearance between normal and loading states
+  - Fixed height ensures stable button dimensions when spinner and "Signing in..." / "Creating Account..." text appear
+  - Improved user experience with no visual jumps or layout shifts during authentication
+  - **Frontend Changes**: Updated `modules/auth/pages/auth.css` with fixed button height and proper flexbox layout for stable button dimensions
+
+- **Load Mock Students Functionality**: Fixed mock student generation to work with selected department and course
+  - Now uses selected department and course values as fallback when full lists aren't loaded
+  - Generates mock voting data (70-90% voting rate) for realistic testing
+  - Properly sets voter IDs for voting status display in tables
+  - Improved error handling and user feedback
+
+- **Data Export Access**: Fixed staff access to data export functionality
+  - Staff can now access and use all data export features
+  - Fixed department and course data fetching to use public endpoints accessible to staff
+  - Improved error handling for permission-related issues
+
+---
+
 ## [0.7.4] - 2025-12-XX
 ### Added
 - **System Log API & UI Integration**: Added staff-only `/api/common/system-logs/` endpoint and wired the React System Logs page to real data
