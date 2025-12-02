@@ -237,6 +237,12 @@
   overflow: hidden;
   margin-top: 1rem;
   font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+  min-height: 3.25rem; /* keep height stable between 'Sign In' and 'Signing in...' */
 }
 
 .auth-submit-btn::before {
@@ -269,8 +275,14 @@
   transform: none;
 }
 
-.auth-submit-btn.loading {
+.auth-submit-btn.auth-loading {
   pointer-events: none;
+  box-shadow: none;
+  transform: none;
+}
+
+.auth-submit-btn.auth-loading::before {
+  display: none;
 }
 
 /* Links */

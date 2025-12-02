@@ -6,6 +6,7 @@
 import React, { createContext, useState, useEffect } from 'react';
 import { authService } from '../services';
 import { STORAGE_KEYS } from '../constants';
+import useInactivity from '../hooks/useInactivity';
 
 export const AuthContext = createContext();
 
@@ -13,6 +14,31 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // Handle logout function
+  const handleLogout = () => {
+    authService.logout(); // Clears local storage
+    setUser(null);
+    setIsAuthenticated(false);
+  };
+
+  // Auto-logout on inactivity (5 minutes)
+  // Always call the hook (React rules), but enable/disable based on auth state
+  useInactivity(
+    () => {
+      // Only logout if user is authenticated
+      if (isAuthenticated) {
+        console.log('User inactive for 5 minutes. Auto-logging out...');
+        handleLogout();
+        // Redirect to login page
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+      }
+    },
+    5, // 5 minutes of inactivity
+    isAuthenticated // Only enable when user is authenticated
+  );
 
   // Initialize auth state from local storage
   useEffect(() => {
@@ -108,12 +134,6 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     handleLogout();
-  };
-
-  const handleLogout = () => {
-    authService.logout(); // Clears local storage
-    setUser(null);
-    setIsAuthenticated(false);
   };
 
   const updateUser = async (profileData) => {

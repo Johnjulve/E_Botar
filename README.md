@@ -1,6 +1,6 @@
 # E-Botar - Blockchain-Inspired Electronic Voting System
 
-**Version 0.7.4** | A secure, privacy-preserving electronic voting platform for student government elections
+**Version 0.7.5** | A secure, privacy-preserving electronic voting platform for student government elections
 
 [![Django](https://img.shields.io/badge/Django-5.2.8-green.svg)](https://www.djangoproject.com/)
 [![DRF](https://img.shields.io/badge/DRF-3.16.1-red.svg)](https://www.django-rest-framework.org/)
@@ -22,7 +22,34 @@
 
 ---
 
-## 🚀 Release Highlights (0.7.4)
+## 🚀 Release Highlights (0.7.5)
+
+- **Automatic Session Timeout**: Enhanced security with auto-logout after inactivity
+  - **5-Minute Inactivity Timeout**: Users are automatically logged out after 5 minutes of inactivity
+  - **Comprehensive Activity Tracking**: Monitors mouse movements, keyboard input, clicks, scroll, and touch events
+  - **Smart Tab Handling**: Pauses timer when tab is hidden, resumes when tab becomes active
+  - **Silent Operation**: No warnings or notifications - seamless automatic logout for security
+  - **Production Ready**: Works reliably in both development and production environments
+  - **Security Enhancement**: Prevents unauthorized access from unattended sessions
+
+### New Features (0.7.5)
+- **Staff Role Permissions**: Configured granular access control for staff members
+  - Staff can create and manage elections, review applications, and export data
+  - Staff cannot access programs, positions, parties, user management, or system logs
+  - Navigation menu automatically adapts based on user role
+
+- **Enhanced Student Data Export**: Advanced PDF export with student name display
+  - **Show Student Names Option**: Display individual student names in organized table format
+  - **Voting Status Tracking**: See which students have voted (✓) or not voted (✗) for each election
+  - **Course-Specific Export**: Select a specific course to view detailed student lists with voting status
+  - **Professional Table Format**: Clean two-column layout with student names and voting status
+  - **Year Level Organization**: Students grouped by year level for easy reference
+
+### Bug Fixes (0.7.5)
+- **UI/UX Improvements**: Fixed login and register button resizing issue during loading states for smoother user experience
+- **Data Export Fixes**: Fixed staff access to data export, improved mock student generation, and enhanced PDF formatting
+
+### Previous Highlights (0.7.4)
 
 - **Enhanced Data Export System**: Comprehensive PDF export functionality for administrators
   - **Unified Data Export Page**: Centralized admin interface for exporting election results and student data
@@ -235,6 +262,10 @@ The system architecture is informed by academic research on:
 
 ### 🔒 **Enterprise-Grade Security**
 - **JWT Token Security**: Access and refresh token rotation
+- **Automatic Session Timeout**: Auto-logout after 5 minutes of user inactivity
+  - Comprehensive activity tracking (mouse, keyboard, clicks, scroll, touch)
+  - Handles tab/window visibility changes
+  - Silent operation with automatic redirect to login
 - **Role-Based Access Control (RBAC)**: Three-tier permission system with granular access control
   - **Student Role**: Can vote, apply as candidate, view own profile and applications
   - **Staff Role**: Can manage elections, review applications, view results, manage candidates (limited admin access)
@@ -418,7 +449,8 @@ E-Botar implements a **three-tier role system**:
 
 ## 🔒 Security Features
 
-- **JWT Authentication**: Access tokens (1 hour), refresh tokens (7 days)
+- **JWT Authentication**: Access tokens (30 minutes), refresh tokens (1 day)
+- **Automatic Session Timeout**: Auto-logout after 5 minutes of inactivity
 - **Role-Based Access Control**: Student, Staff, and Admin roles with granular permissions
 - **Encryption**: Fernet encryption for ballots, SHA-256 for receipts
 - **Privacy-Preserving**: Immediate vote anonymization, no user-vote linkage in tallying
@@ -492,7 +524,7 @@ python manage.py check
 
 ---
 
-**E-Botar v0.7.4** | Last Updated: December 2025  
+**E-Botar v0.7.5** | Last Updated: December 2025  
 **Status**: Production Ready | Full Stack Complete
 
 > 📖 **For complete documentation**, see [Information.md](Information.md)

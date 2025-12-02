@@ -150,6 +150,11 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
+    # Access token lifetime: 30 minutes
+    # Note: Frontend implements inactivity detection (5 minutes) that auto-logs out users
+    # even if the token is still valid. This provides an additional security layer.
+    # The frontend tracks user activity (mouse, keyboard, clicks) and automatically
+    # logs out users after 5 minutes of inactivity, regardless of token validity.
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
 }

@@ -153,6 +153,7 @@ const UserManagementPage = () => {
   };
 
   // Generate random password: 8 characters with lower, upper, and numbers
+  // Simple format for easy copying and remembering
   const generatePassword = () => {
     const lowercase = 'abcdefghijklmnopqrstuvwxyz';
     const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -207,8 +208,16 @@ const UserManagementPage = () => {
   };
 
   const handleResetPassword = (user) => {
+    if (!user || !user.id) {
+      alert('Error: Invalid user selected. Please try again.');
+      return;
+    }
     setSelectedUser(user);
     const newPassword = generatePassword();
+    if (!newPassword || newPassword.length < 8) {
+      alert('Error: Failed to generate a valid password. Please try again.');
+      return;
+    }
     setGeneratedPassword(newPassword);
     setPasswordCopied(false);
     setShowPasswordModal(true);
@@ -222,9 +231,13 @@ const UserManagementPage = () => {
 
   const handleConfirmPasswordReset = async () => {
     if (modalSubmitting) return;
+    if (!selectedUser || !selectedUser.id) {
+      alert('Error: User information is missing. Please try again.');
+      return;
+    }
     try {
       setModalSubmitting(true);
-      const response = await authService.resetUserPassword(selectedUser.id, generatedPassword);
+      await authService.resetUserPassword(selectedUser.id, generatedPassword);
       
       console.log('Password reset successfully');
       alert(`Password reset successfully for ${selectedUser.user?.first_name} ${selectedUser.user?.last_name}. Make sure to share the password securely.`);
@@ -236,7 +249,11 @@ const UserManagementPage = () => {
       setPasswordCopied(false);
     } catch (error) {
       console.error('Error resetting password:', error);
-      alert('Failed to reset password. Please try again.');
+      const errorMessage = error.response?.data?.error || 
+                          error.response?.data?.detail || 
+                          error.message || 
+                          'Failed to reset password. Please try again.';
+      alert(`Failed to reset password: ${errorMessage}`);
     } finally {
       setModalSubmitting(false);
     }
@@ -859,7 +876,7 @@ const UserManagementPage = () => {
             <Button 
               variant="primary" 
               onClick={handleConfirmPasswordReset}
-              disabled={modalSubmitting}
+              disabled={modalSubmitting || !generatedPassword || generatedPassword.length < 8}
             >
               {modalSubmitting ? 'Resetting...' : 'Confirm Reset'}
             </Button>
