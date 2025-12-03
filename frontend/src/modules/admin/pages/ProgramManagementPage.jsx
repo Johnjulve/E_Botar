@@ -526,8 +526,10 @@ const ProgramManagementPage = () => {
           fontSize: '0.75rem',
           color: '#6b7280'
         }}>
-          <strong>CSV Format:</strong> name, code, program_type, department_id<br/>
-          <strong>Note:</strong> program_type must be "department" or "course". Courses must include a valid department_id.<br/>
+          <strong>CSV Format:</strong> name, code, program_type, department_code<br/>
+          <strong>Note:</strong> program_type must be "department" or "course".<br/>
+          For <em>course</em> rows, provide a valid <code>department_code</code> that matches an existing department's code (e.g. <code>CCIS</code>).<br/>
+          <strong>Compatibility:</strong> Older files with <code>department_id</code> are still accepted, but <code>department_code</code> is recommended.<br/>
           <strong>Import Behavior:</strong> Existing programs (matching code and program_type) will be updated/overwritten.
         </div>
       </div>

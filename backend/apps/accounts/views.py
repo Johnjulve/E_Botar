@@ -592,18 +592,34 @@ class ProgramViewSet(viewsets.ModelViewSet):
                         })
                         continue
                     
-                    # Handle department_id for courses
-                    department_id = None
+                    # Handle department link for courses using department code instead of numeric ID
+                    department = None
                     if program_type == 'course':
+                        # Prefer department_code column; fall back to department_id for backward compatibility
+                        dept_code = row.get('department_code', '').strip()
                         dept_id_str = row.get('department_id', '').strip()
-                        if dept_id_str:
+
+                        if dept_code:
+                            # Look up department by its program code (e.g., CCIS)
+                            department = Program.objects.filter(
+                                program_type=Program.ProgramType.DEPARTMENT,
+                                code=dept_code
+                            ).first()
+                            if not department:
+                                errors.append({
+                                    'row': row_num,
+                                    'error': f'Department with code \"{dept_code}\" does not exist (expected an existing department program with that code)'
+                                })
+                                continue
+                        elif dept_id_str:
+                            # Legacy support: still accept numeric department_id if provided
                             try:
                                 department_id = int(dept_id_str)
-                                # Verify department exists
-                                if not Program.objects.filter(
+                                department = Program.objects.filter(
                                     id=department_id,
                                     program_type=Program.ProgramType.DEPARTMENT
-                                ).exists():
+                                ).first()
+                                if not department:
                                     errors.append({
                                         'row': row_num,
                                         'error': f'Department with ID {department_id} does not exist'
@@ -618,7 +634,7 @@ class ProgramViewSet(viewsets.ModelViewSet):
                         else:
                             errors.append({
                                 'row': row_num,
-                                'error': 'Courses must have a department_id'
+                                'error': 'Courses must include a department_code (recommended) or department_id'
                             })
                             continue
                     
@@ -641,16 +657,16 @@ class ProgramViewSet(viewsets.ModelViewSet):
                         # Update existing program (overwrite)
                         for key, value in program_data.items():
                             setattr(existing_program, key, value)
-                        if department_id:
-                            existing_program.department_id = department_id
+                        if department is not None:
+                            existing_program.department = department
                         existing_program.save()
                         program = existing_program
                         action = 'updated'
                     else:
                         # Create new program
                         program = Program.objects.create(**program_data)
-                        if department_id:
-                            program.department_id = department_id
+                        if department is not None:
+                            program.department = department
                             program.save()
                         action = 'created'
                     
