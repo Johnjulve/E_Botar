@@ -554,7 +554,9 @@ class ProgramViewSet(viewsets.ModelViewSet):
         
         try:
             # Read CSV file
-            decoded_file = file.read().decode('utf-8')
+            # Use utf-8-sig to safely strip BOM characters that Excel adds to the first column header
+            # This prevents issues where the first header becomes "\ufeffname" and appears as missing.
+            decoded_file = file.read().decode('utf-8-sig')
             csv_reader = csv.DictReader(io.StringIO(decoded_file))
             
             required_fields = ['name', 'code', 'program_type']
