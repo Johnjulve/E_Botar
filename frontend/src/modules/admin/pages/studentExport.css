@@ -1,0 +1,23 @@
+/**
+ * Student Export Page Styles
+ */
+
+.student-export-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f6f8fb 0%, #e9ecef 100%);
+  padding: 2rem 0;
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
