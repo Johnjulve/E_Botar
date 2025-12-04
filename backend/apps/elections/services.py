@@ -10,7 +10,7 @@ import hashlib
 
 from .models import SchoolElection, SchoolPosition, Party
 from apps.candidates.models import Candidate
-from apps.common.algorithms import CryptographicAlgorithm
+from apps.common.algorithms import CryptographicAlgorithm, MemoizationAlgorithm
 
 def cache_result(timeout):
     """
@@ -155,9 +155,10 @@ class ElectionDataService:
         # Count total positions in this election
         total_positions = election.election_positions.filter(is_enabled=True).count()
         
-        # Calculate turnout safely
+        # Calculate turnout safely using memoized function
         ballots_count = election.ballots.count() if hasattr(election, 'ballots') else 0
-        turnout_percentage = (total_voters / ballots_count * 100) if ballots_count > 0 else 0
+        from apps.voting.services import VotingDataService
+        turnout_percentage = VotingDataService.calculate_turnout_percentage(total_voters, ballots_count)
         
         return {
             'election_id': election_id,

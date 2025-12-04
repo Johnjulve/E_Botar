@@ -22,7 +22,7 @@ from .serializers import (
 from apps.elections.models import SchoolElection, SchoolPosition
 from apps.candidates.models import Candidate
 from apps.common.models import ActivityLog
-from apps.common.algorithms import SortingAlgorithm
+from apps.common.algorithms import SortingAlgorithm, AggregationAlgorithm
 from .services import VotingDataService
 
 
@@ -373,15 +373,22 @@ class ResultsViewSet(viewsets.ViewSet):
             if not position:
                 continue
                 
-            position_votes = AnonVote.objects.filter(
+            # Get all votes for this position
+            position_votes_list = list(AnonVote.objects.filter(
                 election=election,
                 position=position
-            ).values('candidate').annotate(
-                vote_count=Count('id')
+            ).values('candidate_id'))
+            
+            # Use aggregation algorithm to count votes by candidate
+            vote_counts = AggregationAlgorithm.aggregate(
+                position_votes_list,
+                key_func=lambda v: v.get('candidate_id'),
+                operation='count'
             )
             
-            # Map candidate_id -> vote_count for quick lookup
-            vote_map = {vote['candidate']: vote['vote_count'] for vote in position_votes}
+            # Map candidate_id -> vote_count for quick lookup (filter out None keys)
+            vote_map = {candidate_id: count for candidate_id, count in vote_counts.items() if candidate_id is not None}
+            # Calculate total votes using aggregation
             position_total_votes = sum(vote_map.values())
             
             # Include every candidate for this position (even if zero votes)
@@ -396,7 +403,8 @@ class ResultsViewSet(viewsets.ViewSet):
                     continue
                     
                 vote_count = vote_map.get(candidate.id, 0)
-                percentage = round((vote_count / position_total_votes * 100), 2) if position_total_votes > 0 else 0
+                # Use memoized percentage calculation
+                percentage = VotingDataService.calculate_vote_percentage(vote_count, position_total_votes)
                 candidates_data.append({
                     'candidate_id': candidate.id,
                     'candidate_name': candidate.user.get_full_name() or 'Unknown',
