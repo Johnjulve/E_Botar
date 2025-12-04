@@ -9,6 +9,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.6] - 2025-12-XX
+### Added
+- **General-Purpose Algorithm Library**: Comprehensive suite of efficient algorithms for data processing
+  - **Location**: `apps/common/algorithms.py` - Centralized algorithm implementations
+  - **Sorting Algorithms**: 
+    - `SortingAlgorithm.quicksort()` - O(n log n) average case, O(n²) worst case
+    - `SortingAlgorithm.mergesort()` - O(n log n) guaranteed, stable sort
+    - `SortingAlgorithm.sort_nested_dict()` - Recursive sorting for hierarchical data
+  - **Searching Algorithms**:
+    - `SearchingAlgorithm.binary_search()` - O(log n) for sorted data
+    - `SearchingAlgorithm.linear_search()` - O(n) for unsorted data
+    - `SearchingAlgorithm.binary_search_by_field()` - Binary search in objects/dictionaries
+    - `SearchingAlgorithm.find_all()` - Find all items matching predicate
+  - **Grouping & Aggregation**:
+    - `DataGroupingAlgorithm.group_by()` - Simple hash-based grouping (O(n))
+    - `DataGroupingAlgorithm.group_by_hierarchy()` - Multi-level grouping
+    - `DataGroupingAlgorithm.group_by_multiple()` - Simultaneous multi-key grouping
+    - `AggregationAlgorithm.aggregate()` - Single-pass aggregation (count, sum, avg, min, max, list, set)
+    - `AggregationAlgorithm.aggregate_by_category()` - Convenience method for dictionaries/objects
+  - **Categorization & Organization**:
+    - `CategorizationAlgorithm.categorize_by_hierarchy()` - Flexible hierarchical categorization
+    - `OrganizationAlgorithm.organize_by_hierarchy()` - Multi-level data organization
+  - **Cryptographic Algorithms**:
+    - `CryptographicAlgorithm.sha256_hash()` - SHA-256 hashing for vote receipts
+    - `CryptographicAlgorithm.md5_hash()` - MD5 hashing for cache keys
+  - **Optimization Algorithms**:
+    - `BatchProcessingAlgorithm.process_in_batches()` - Memory-efficient batch processing
+    - `MemoizationAlgorithm.memoize_with_key()` - Custom memoization decorator
+  - **Convenience Functions**: `group_by()`, `aggregate_by()`, `sort_by()`, `search()`
+
+### Changed
+- **Voting Views**: Replaced manual sorting with `SortingAlgorithm.quicksort()` for candidate results
+  - **File**: `apps/voting/views.py`
+  - **Impact**: More efficient sorting with documented complexity analysis
+- **Voting Services**: Replaced manual MD5 hashing with `CryptographicAlgorithm.md5_hash()`
+  - **File**: `apps/voting/services.py`
+  - **Impact**: Centralized cryptographic operations, easier maintenance
+- **Election Services**: Replaced manual MD5 hashing with `CryptographicAlgorithm.md5_hash()`
+  - **File**: `apps/elections/services.py`
+  - **Impact**: Consistent hash generation across services
+- **Voting Models**: Replaced manual SHA-256 hashing with `CryptographicAlgorithm.sha256_hash()`
+  - **Files**: `apps/voting/models.py` (VoteReceipt, AnonVote)
+  - **Impact**: Centralized cryptographic operations for vote security
+
+### Technical Details
+- **Algorithm Design**: All algorithms are type-agnostic and work with any data structure
+- **Performance**: All algorithms include time/space complexity documentation
+- **Testing**: Comprehensive test suite (`test_algorithms.py`) verifies all implementations
+- **Documentation**: Complete algorithm documentation added to Information.md
+- **Backward Compatibility**: All changes maintain existing functionality
+
+### Documentation
+- **Information.md**: Added comprehensive "Algorithms & Data Structures" section
+  - Algorithm categories with detailed explanations
+  - Time/space complexity for each algorithm
+  - Use cases and selection rationale
+  - Real-world applications in E-Botar
+  - Complexity summary table
+
+---
+
 ## [0.7.5] - 2025-12-XX
 ### Added
 - **Automatic Session Timeout**: Auto-logout after 5 minutes of user inactivity

@@ -179,6 +179,7 @@ const DataExportPage = () => {
       
       voterProfiles.forEach(profile => {
         const deptName = profile.department?.name || 'Unassigned Department';
+        const deptCode = profile.department?.code || 'N/A';
         const courseName = profile.course?.name || 'Unassigned Course';
         const courseCode = profile.course?.code || 'N/A';
         const yearLevel = profile.year_level || 'N/A';
@@ -202,7 +203,9 @@ const DataExportPage = () => {
         } else {
           // University election: Department → Course → Year Level
           if (!votesMap[deptName]) {
-            votesMap[deptName] = {};
+            votesMap[deptName] = {
+              code: deptCode
+            };
           }
           if (!votesMap[deptName][courseName]) {
             votesMap[deptName][courseName] = {
@@ -297,6 +300,7 @@ const DataExportPage = () => {
         const deptMap = {};
         studentList.forEach(profile => {
           const deptName = profile.department?.name || 'Unassigned Department';
+          const deptCode = profile.department?.code || 'N/A';
           const courseName = profile.course?.name || 'Unassigned Course';
           const courseCode = profile.course?.code || 'N/A';
           const yearLevel = profile.year_level || 'N/A';
@@ -306,7 +310,9 @@ const DataExportPage = () => {
                           : profile.user?.username || 'Unknown';
           
           if (!deptMap[deptName]) {
-            deptMap[deptName] = {};
+            deptMap[deptName] = {
+              code: deptCode
+            };
           }
           if (!deptMap[deptName][courseName]) {
             deptMap[deptName][courseName] = {
@@ -470,6 +476,7 @@ const DataExportPage = () => {
     const organized = {};
     filtered.forEach(student => {
       const deptName = student.department?.name || 'Unassigned Department';
+      const deptCode = student.department?.code || 'N/A';
       const courseName = student.course?.name || 'Unassigned Course';
       const courseCode = student.course?.code || 'N/A';
       const yearLevel = student.year_level || 'N/A';
@@ -479,7 +486,9 @@ const DataExportPage = () => {
                       : student.user?.username || 'Unknown';
       
       if (!organized[deptName]) {
-        organized[deptName] = {};
+        organized[deptName] = {
+          code: deptCode
+        };
       }
       if (!organized[deptName][courseName]) {
         organized[deptName][courseName] = {
@@ -733,6 +742,7 @@ const DataExportPage = () => {
     const organized = {};
     mockStudents.forEach(student => {
       const deptName = student.department?.name || 'Unassigned Department';
+      const deptCode = student.department?.code || 'N/A';
       const courseName = student.course?.name || 'Unassigned Course';
       const courseCode = student.course?.code || 'N/A';
       const yearLevel = student.year_level || 'N/A';
@@ -742,7 +752,9 @@ const DataExportPage = () => {
                       : student.user?.username || 'Unknown';
       
       if (!organized[deptName]) {
-        organized[deptName] = {};
+        organized[deptName] = {
+          code: deptCode
+        };
       }
       if (!organized[deptName][courseName]) {
         organized[deptName][courseName] = {
@@ -795,6 +807,7 @@ const DataExportPage = () => {
     const deptMap = {};
     mockStudents.forEach(student => {
       const deptName = student.department?.name || 'Unassigned Department';
+      const deptCode = student.department?.code || 'N/A';
       const courseName = student.course?.name || 'Unassigned Course';
       const courseCode = student.course?.code || 'N/A';
       const yearLevel = student.year_level || 'N/A';
@@ -804,7 +817,9 @@ const DataExportPage = () => {
                       : student.user?.username || 'Unknown';
       
       if (!deptMap[deptName]) {
-        deptMap[deptName] = {};
+        deptMap[deptName] = {
+          code: deptCode
+        };
       }
       if (!deptMap[deptName][courseName]) {
         deptMap[deptName][courseName] = {
@@ -1224,7 +1239,8 @@ const DataExportPage = () => {
             doc.setTextColor(255, 255, 255);
             doc.setFontSize(13);
             doc.setFont('helvetica', 'bold');
-            doc.text(deptName, margin + 5, yPosition);
+            const deptCode = votesToUse[deptName]?.code || 'N/A';
+            doc.text(`${deptName} (${deptCode})`, margin + 5, yPosition);
             
             yPosition += 10;
             doc.setTextColor(0, 0, 0);
@@ -1298,14 +1314,15 @@ const DataExportPage = () => {
           doc.setTextColor(255, 255, 255);
           doc.setFontSize(12);
           doc.setFont('helvetica', 'bold');
-          doc.text(deptName, margin + 3, yPosition);
+          const deptCode = studentsDataToUse[deptName]?.code || 'N/A';
+          doc.text(`${deptName} (${deptCode})`, margin + 3, yPosition);
           
           yPosition += 10;
           doc.setTextColor(0, 0, 0);
           
           const courses = studentsDataToUse[deptName];
           if (courses && typeof courses === 'object') {
-            Object.keys(courses).sort().forEach(courseName => {
+            Object.keys(courses).filter(key => key !== 'code').sort().forEach(courseName => {
               checkPageBreak(50);
               
               const courseData = courses[courseName];
@@ -1506,14 +1523,15 @@ const DataExportPage = () => {
           doc.setTextColor(255, 255, 255);
           doc.setFontSize(14);
           doc.setFont('helvetica', 'bold');
-          doc.text(deptName, margin + 3, yPosition);
+          const deptCode = studentsDataToUse[deptName]?.code || 'N/A';
+          doc.text(`${deptName} (${deptCode})`, margin + 3, yPosition);
           
           yPosition += 12;
           doc.setTextColor(0, 0, 0);
 
           const courses = studentsDataToUse[deptName];
           if (courses && typeof courses === 'object') {
-            Object.keys(courses).sort().forEach(courseName => {
+            Object.keys(courses).filter(key => key !== 'code').sort().forEach(courseName => {
               checkPageBreak(50);
           
           const courseData = courses[courseName];

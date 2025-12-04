@@ -4,6 +4,7 @@ from django.utils import timezone
 from django.core.exceptions import ValidationError
 from apps.candidates.models import Candidate
 from apps.elections.models import SchoolPosition, SchoolElection
+from apps.common.algorithms import CryptographicAlgorithm
 import uuid
 import hashlib
 
@@ -38,8 +39,8 @@ class VoteReceipt(models.Model):
     
     @staticmethod
     def hash_receipt(receipt_code):
-        """Generate SHA-256 hash of receipt code"""
-        return hashlib.sha256(receipt_code.encode()).hexdigest()
+        """Generate SHA-256 hash of receipt code using CryptographicAlgorithm"""
+        return CryptographicAlgorithm.sha256_hash(receipt_code)
     
     def verify_receipt(self, receipt_code):
         """Verify if provided receipt code matches"""
@@ -74,9 +75,9 @@ class AnonVote(models.Model):
     def save(self, *args, **kwargs):
         """Generate vote hash if not provided"""
         if not self.vote_hash:
-            # Generate hash from election, position, candidate, and timestamp
+            # Generate hash from election, position, candidate, and timestamp using SHA-256 algorithm
             hash_data = f"{self.election.id}:{self.position.id}:{self.candidate.id}:{timezone.now().isoformat()}"
-            self.vote_hash = hashlib.sha256(hash_data.encode()).hexdigest()
+            self.vote_hash = CryptographicAlgorithm.sha256_hash(hash_data)
         super().save(*args, **kwargs)
     
     def __str__(self):

@@ -11,6 +11,7 @@ import hashlib
 from .models import AnonVote, Ballot, VoteReceipt
 from apps.elections.models import SchoolElection, SchoolPosition
 from apps.candidates.models import Candidate
+from apps.common.algorithms import CryptographicAlgorithm, MemoizationAlgorithm, AggregationAlgorithm
 
 
 def cache_result(timeout):
@@ -37,8 +38,9 @@ def cache_result(timeout):
             # Add keyword arguments
             key_parts.extend([f"{k}:{v}" for k, v in sorted(kwargs.items())])
             
-            # Generate hash for cache key
-            cache_key = f"voting_service_{hashlib.md5('|'.join(key_parts).encode()).hexdigest()}"
+            # Generate hash for cache key using MD5 algorithm
+            key_string = '|'.join(key_parts)
+            cache_key = f"voting_service_{CryptographicAlgorithm.md5_hash(key_string)}"
             
             # Try to get from cache
             result = cache.get(cache_key)
@@ -151,18 +153,40 @@ class VotingDataService:
             election_id=election_id
         ).count()
         
-        # Votes by position
-        votes_by_position = AnonVote.objects.filter(
+        # Votes by position - use aggregation algorithm
+        votes_list = list(AnonVote.objects.filter(
             election_id=election_id
-        ).values(
-            'position_id',
-            'position__name'
-        ).annotate(
-            vote_count=Count('id')
-        ).order_by('position__display_order')
+        ).select_related('position').values('position_id', 'position__name'))
         
-        # Calculate turnout safely
-        turnout_percentage = (total_voters / total_registered * 100) if total_registered > 0 else 0
+        # Aggregate votes by position using aggregation algorithm
+        votes_by_position_data = AggregationAlgorithm.aggregate(
+            votes_list,
+            key_func=lambda v: v.get('position_id'),
+            operation='count'
+        )
+        
+        # Get position names mapping (unique position_id -> position__name)
+        position_names = {}
+        for v in votes_list:
+            pos_id = v.get('position_id')
+            if pos_id and pos_id not in position_names:
+                position_names[pos_id] = v.get('position__name', 'Unknown')
+        
+        # Convert to list format matching original structure
+        votes_by_position = [
+            {
+                'position_id': pos_id,
+                'position__name': position_names.get(pos_id, 'Unknown'),
+                'vote_count': count
+            }
+            for pos_id, count in votes_by_position_data.items()
+            if pos_id is not None
+        ]
+        # Sort by position_id (maintain original behavior)
+        votes_by_position.sort(key=lambda x: x.get('position_id', 0))
+        
+        # Calculate turnout safely using memoized function
+        turnout_percentage = VotingDataService.calculate_turnout_percentage(total_voters, total_registered)
         
         return {
             'election_id': election_id,
@@ -238,17 +262,33 @@ class VotingDataService:
             )
         )
         
+        # Use aggregation algorithm to count candidates and votes by position
         statistics = []
         for position in positions:
-            candidates_count = position.candidates.filter(
+            # Get candidates list for aggregation
+            candidates_list = list(position.candidates.filter(
                 election_id=election_id,
                 application__status='approved'
-            ).count()
+            ).values('id'))
             
-            votes_count = AnonVote.objects.filter(
+            # Get votes list for aggregation
+            votes_list = list(AnonVote.objects.filter(
                 election_id=election_id,
                 position=position
-            ).count()
+            ).values('id'))
+            
+            # Use aggregation algorithm to count
+            candidates_count = AggregationAlgorithm.aggregate(
+                candidates_list,
+                key_func=lambda c: 'total',
+                operation='count'
+            ).get('total', 0)
+            
+            votes_count = AggregationAlgorithm.aggregate(
+                votes_list,
+                key_func=lambda v: 'total',
+                operation='count'
+            ).get('total', 0)
             
             statistics.append({
                 'position_id': position.id,
@@ -337,5 +377,70 @@ class VotingDataService:
         """
         # Clear specific user voting status cache
         key_parts = ['get_user_voting_status', str(user_id), str(election_id)]
-        cache_key = f"voting_service_{hashlib.md5('|'.join(key_parts).encode()).hexdigest()}"
+        key_string = '|'.join(key_parts)
+        cache_key = f"voting_service_{CryptographicAlgorithm.md5_hash(key_string)}"
         cache.delete(cache_key)
+    
+    # Memoized computation functions for expensive calculations
+    @staticmethod
+    @MemoizationAlgorithm.memoize_with_key(
+        lambda vote_count, total_votes: MemoizationAlgorithm.generate_hash_key(vote_count, total_votes)
+    )
+    def calculate_vote_percentage(vote_count, total_votes):
+        """
+        Calculate vote percentage - memoized for repeated calculations
+        
+        Args:
+            vote_count: Number of votes for candidate
+            total_votes: Total votes for position
+        
+        Returns:
+            Percentage rounded to 2 decimal places
+        """
+        if total_votes == 0:
+            return 0.0
+        return round((vote_count / total_votes * 100), 2)
+    
+    @staticmethod
+    @MemoizationAlgorithm.memoize_with_key(
+        lambda voters, registered: MemoizationAlgorithm.generate_hash_key(voters, registered)
+    )
+    def calculate_turnout_percentage(voters, registered):
+        """
+        Calculate turnout percentage - memoized for repeated calculations
+        
+        Args:
+            voters: Number of voters who voted
+            registered: Total registered voters
+        
+        Returns:
+            Turnout percentage rounded to 2 decimal places
+        """
+        if registered == 0:
+            return 0.0
+        return round((voters / registered * 100), 2)
+    
+    @staticmethod
+    @MemoizationAlgorithm.memoize_with_key(
+        lambda votes_data: MemoizationAlgorithm.generate_hash_key(
+            *[(v.get('candidate_id'), v.get('vote_count')) for v in votes_data]
+        )
+    )
+    def aggregate_votes_by_candidate(votes_data):
+        """
+        Aggregate votes by candidate - memoized for repeated aggregations
+        
+        Args:
+            votes_data: List of vote dictionaries with candidate_id and vote_count
+        
+        Returns:
+            Dictionary mapping candidate_id to total vote count
+        """
+        from collections import defaultdict
+        aggregated = defaultdict(int)
+        for vote in votes_data:
+            candidate_id = vote.get('candidate_id')
+            vote_count = vote.get('vote_count', 0)
+            if candidate_id:
+                aggregated[candidate_id] += vote_count
+        return dict(aggregated)
