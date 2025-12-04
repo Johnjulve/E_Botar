@@ -10,6 +10,7 @@ import hashlib
 
 from .models import SchoolElection, SchoolPosition, Party
 from apps.candidates.models import Candidate
+from apps.common.algorithms import CryptographicAlgorithm
 
 def cache_result(timeout):
     """
@@ -35,8 +36,9 @@ def cache_result(timeout):
             # Add keyword arguments
             key_parts.extend([f"{k}:{v}" for k, v in sorted(kwargs.items())])
             
-            # Generate hash for cache key
-            cache_key = f"election_service_{hashlib.md5('|'.join(key_parts).encode()).hexdigest()}"
+            # Generate hash for cache key using MD5 algorithm
+            key_string = '|'.join(key_parts)
+            cache_key = f"election_service_{CryptographicAlgorithm.md5_hash(key_string)}"
             
             # Try to get from cache
             result = cache.get(cache_key)

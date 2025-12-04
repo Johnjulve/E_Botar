@@ -22,6 +22,7 @@ from .serializers import (
 from apps.elections.models import SchoolElection, SchoolPosition
 from apps.candidates.models import Candidate
 from apps.common.models import ActivityLog
+from apps.common.algorithms import SortingAlgorithm
 from .services import VotingDataService
 
 
@@ -406,8 +407,12 @@ class ResultsViewSet(viewsets.ViewSet):
                     'rank': None
                 })
             
-            # Sort candidates by votes (desc) and assign rank/winner flag
-            candidates_data.sort(key=lambda c: c['vote_count'], reverse=True)
+            # Sort candidates by votes (desc) using quicksort algorithm and assign rank/winner flag
+            candidates_data = SortingAlgorithm.quicksort(
+                candidates_data,
+                key=lambda c: c['vote_count'],
+                reverse=True
+            )
             for idx, candidate_data in enumerate(candidates_data, start=1):
                 candidate_data['rank'] = idx
                 candidate_data['is_winner'] = election_ended and idx == 1 and candidate_data['vote_count'] > 0

@@ -719,7 +719,7 @@ class ProgramViewSet(viewsets.ModelViewSet):
         try:
             program_type = request.query_params.get('program_type', None)
             
-            queryset = self.get_queryset()
+            queryset = self.get_queryset().select_related('department')
             if program_type:
                 queryset = queryset.filter(program_type=program_type)
             
@@ -733,16 +733,16 @@ class ProgramViewSet(viewsets.ModelViewSet):
             
             writer = csv.writer(response)
             # Always write header
-            writer.writerow(['name', 'code', 'program_type', 'department_id'])
+            writer.writerow(['name', 'code', 'program_type', 'department_code'])
             
             # Write data (if any)
             for program in queryset:
-                department_id = program.department_id if program.department_id else ''
+                department_code = program.department.code if program.department else ''
                 writer.writerow([
                     program.name,
                     program.code,
                     program.program_type,
-                    department_id
+                    department_code
                 ])
             
             return response

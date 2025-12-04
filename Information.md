@@ -1,6 +1,6 @@
 # E-Botar - System Information
 
-**Version 0.7.5** | Complete system documentation and technical details
+**Version 0.7.6** | Complete system documentation and technical details
 
 [![Django](https://img.shields.io/badge/Django-5.2.8-green.svg)](https://www.djangoproject.com/)
 [![DRF](https://img.shields.io/badge/DRF-3.16.1-red.svg)](https://www.django-rest-framework.org/)
@@ -11,9 +11,10 @@
 
 ## 📖 Table of Contents
 
-- [Release Highlights (0.7.5)](#-release-highlights-075)
+- [Release Highlights (0.7.6)](#-release-highlights-076)
 - [Overview](#overview)
 - [Research Foundation](#research-foundation)
+- [Algorithms & Data Structures](#-algorithms--data-structures)
 - [Key Features](#key-features)
 - [Architecture](#architecture)
 - [Technology Stack](#technology-stack)
@@ -27,8 +28,26 @@
 
 ---
 
-## 🚀 Release Highlights (0.7.5)
+## 🚀 Release Highlights (0.7.6)
 
+- **General-Purpose Algorithm Library**: Comprehensive suite of efficient, reusable algorithms
+  - **Sorting Algorithms**: Quicksort (O(n log n) avg) and Merge Sort (O(n log n) guaranteed) for efficient data sorting
+  - **Searching Algorithms**: Binary search (O(log n)) and linear search (O(n)) with flexible key functions
+  - **Grouping & Aggregation**: Hash-based grouping (O(n)) and multi-level aggregation algorithms
+  - **Cryptographic Algorithms**: Centralized SHA-256 and MD5 hashing for security operations
+  - **Categorization & Organization**: Hierarchical categorization and organization algorithms
+  - **Optimization Algorithms**: Batch processing and memoization for performance optimization
+  - **Type-Agnostic Design**: Works with dictionaries, objects, lists, tuples, and any iterable data structures
+  - **Fully Tested**: Comprehensive test suite verifies all algorithm implementations
+  - **Production Integrated**: Algorithms integrated into voting, election, and data processing modules
+
+### Algorithm Integration (0.7.6)
+- **Voting Module**: Candidate sorting in election results uses `SortingAlgorithm.quicksort()`
+- **Services**: Cache key generation uses `CryptographicAlgorithm.md5_hash()` in voting and election services
+- **Models**: Vote receipt and vote hash generation use `CryptographicAlgorithm.sha256_hash()`
+- **Documentation**: Complete algorithm documentation added to Information.md with complexity analysis
+
+### Previous Highlights (0.7.5)
 - **Automatic Session Timeout**: Enhanced security with auto-logout after user inactivity
   - **5-Minute Inactivity Timeout**: Users are automatically logged out after 5 minutes of inactivity
   - **Comprehensive Activity Tracking**: Monitors mouse movements, keyboard input, clicks, scroll, and touch events
@@ -144,6 +163,228 @@ The system architecture is informed by academic research on:
 - **Cryptographic voting protocols**: Receipt-based verification, homomorphic properties
 - **Privacy-preserving systems**: Anonymous credential systems, mix networks
 - **Modern web architecture**: RESTful APIs, microservices patterns, stateless authentication
+
+---
+
+## 🔬 Algorithms & Data Structures
+
+E-Botar implements a comprehensive suite of efficient algorithms for data processing, optimized for performance and reusability across all system features. All algorithms are general-purpose and type-agnostic, working with dictionaries, objects, lists, and any iterable data structures.
+
+### Algorithm Categories
+
+#### 1. **Sorting Algorithms**
+
+**Quicksort** (`SortingAlgorithm.quicksort`)
+- **Type**: Divide-and-conquer sorting algorithm
+- **Time Complexity**: O(n log n) average case, O(n²) worst case
+- **Space Complexity**: O(log n) average case
+- **Use Case**: Sorting election results by vote count, candidates by name, students by ID
+- **Why Chosen**: Efficient average-case performance, in-place sorting capability
+- **Implementation**: Partition-based recursive algorithm with pivot selection
+
+**Merge Sort** (`SortingAlgorithm.mergesort`)
+- **Type**: Divide-and-conquer sorting algorithm
+- **Time Complexity**: O(n log n) guaranteed (best, average, worst)
+- **Space Complexity**: O(n)
+- **Use Case**: Stable sorting when maintaining relative order matters (e.g., sorting by multiple criteria)
+- **Why Chosen**: Guaranteed O(n log n) performance, stable sort (preserves order of equal elements)
+- **Implementation**: Recursive merge of sorted sub-arrays
+
+**Nested Dictionary Sorting** (`SortingAlgorithm.sort_nested_dict`)
+- **Type**: Recursive sorting for hierarchical data structures
+- **Time Complexity**: O(n log n) per level
+- **Space Complexity**: O(n)
+- **Use Case**: Sorting multi-level grouped data (department → course → year level)
+- **Why Chosen**: Handles complex nested structures efficiently
+
+#### 2. **Searching Algorithms**
+
+**Binary Search** (`SearchingAlgorithm.binary_search`)
+- **Type**: Divide-and-conquer search algorithm
+- **Time Complexity**: O(log n)
+- **Space Complexity**: O(1)
+- **Prerequisites**: Requires sorted array
+- **Use Case**: Finding students by ID, candidates by name in sorted lists
+- **Why Chosen**: Extremely efficient for sorted data, logarithmic time complexity
+- **Implementation**: Iterative/recursive search by repeatedly dividing search space in half
+
+**Linear Search** (`SearchingAlgorithm.linear_search`)
+- **Type**: Sequential search algorithm
+- **Time Complexity**: O(n)
+- **Space Complexity**: O(1)
+- **Use Case**: Searching unsorted data, finding items by custom predicates
+- **Why Chosen**: Works with unsorted data, supports custom search conditions
+- **Implementation**: Iterate through items until match found
+
+**Find All** (`SearchingAlgorithm.find_all`)
+- **Type**: Filtering algorithm with predicate matching
+- **Time Complexity**: O(n)
+- **Space Complexity**: O(k) where k = number of matches
+- **Use Case**: Finding all students matching criteria (e.g., age > 18, active status)
+- **Why Chosen**: Efficient filtering with custom conditions
+
+#### 3. **Grouping & Aggregation Algorithms**
+
+**Hash-Based Grouping** (`DataGroupingAlgorithm.group_by`)
+- **Type**: Hash map-based grouping algorithm
+- **Time Complexity**: O(n)
+- **Space Complexity**: O(n)
+- **Use Case**: Grouping students by department, votes by category
+- **Why Chosen**: Single-pass O(n) complexity, works with any data type
+- **Implementation**: Uses Python's `defaultdict` for efficient key-value mapping
+
+**Hierarchical Grouping** (`DataGroupingAlgorithm.group_by_hierarchy`)
+- **Type**: Multi-level hash map grouping
+- **Time Complexity**: O(n × m) where m = hierarchy levels
+- **Space Complexity**: O(n)
+- **Use Case**: Organizing data by department → course → year level
+- **Why Chosen**: Efficiently handles nested grouping requirements
+- **Implementation**: Nested dictionary structure with hash map lookups
+
+**Multi-Key Grouping** (`DataGroupingAlgorithm.group_by_multiple`)
+- **Type**: Simultaneous multi-key grouping
+- **Time Complexity**: O(n × m) where m = number of keys
+- **Space Complexity**: O(n)
+- **Use Case**: Grouping by multiple attributes simultaneously
+- **Why Chosen**: Flexible grouping by multiple criteria in single pass
+
+**Aggregation** (`AggregationAlgorithm.aggregate`)
+- **Type**: Single-pass aggregation with multiple operations
+- **Time Complexity**: O(n)
+- **Space Complexity**: O(k) where k = unique categories
+- **Operations Supported**: count, sum, average, min, max, list, set
+- **Use Case**: Counting votes by category, summing amounts by department
+- **Why Chosen**: Efficient single-pass aggregation, supports multiple operations
+- **Implementation**: Hash map accumulation with operation-specific logic
+
+#### 4. **Categorization & Organization Algorithms**
+
+**Hierarchical Categorization** (`CategorizationAlgorithm.categorize_by_hierarchy`)
+- **Type**: Flexible hierarchical categorization with configurable extractors
+- **Time Complexity**: O(n × m) where m = hierarchy levels
+- **Space Complexity**: O(n)
+- **Use Case**: Categorizing votes by demographics, organizing students by academic hierarchy
+- **Why Chosen**: Highly flexible, works with any data structure
+- **Implementation**: Configurable key extraction functions for maximum reusability
+
+**Hierarchical Organization** (`OrganizationAlgorithm.organize_by_hierarchy`)
+- **Type**: Multi-level data organization with metadata support
+- **Time Complexity**: O(n × m) where m = hierarchy levels
+- **Space Complexity**: O(n)
+- **Use Case**: Organizing students by department/course/year with full item lists
+- **Why Chosen**: Supports both count-only and full-item storage modes
+
+#### 5. **Cryptographic Algorithms**
+
+**SHA-256 Hashing** (`CryptographicAlgorithm.sha256_hash`)
+- **Type**: Cryptographic hash function
+- **Time Complexity**: O(n) where n = input length
+- **Space Complexity**: O(1)
+- **Use Case**: Vote receipt hashing, vote verification hashes
+- **Why Chosen**: Industry-standard cryptographic hash, collision-resistant
+- **Security**: One-way function, deterministic, avalanche effect
+- **Output**: 64-character hexadecimal string (256 bits)
+
+**MD5 Hashing** (`CryptographicAlgorithm.md5_hash`)
+- **Type**: Cryptographic hash function (for non-security purposes)
+- **Time Complexity**: O(n) where n = input length
+- **Space Complexity**: O(1)
+- **Use Case**: Cache key generation, non-critical hashing
+- **Why Chosen**: Fast hash for non-security applications
+- **Note**: Not used for security-sensitive operations (SHA-256 used instead)
+- **Output**: 32-character hexadecimal string (128 bits)
+
+#### 6. **Optimization Algorithms**
+
+**Batch Processing** (`BatchProcessingAlgorithm.process_in_batches`)
+- **Type**: Memory-efficient batch processing
+- **Time Complexity**: O(n)
+- **Space Complexity**: O(batch_size) instead of O(n)
+- **Use Case**: Processing large datasets without memory overflow
+- **Why Chosen**: Prevents memory issues with large datasets
+- **Implementation**: Divides data into fixed-size batches for sequential processing
+
+**Memoization** (`MemoizationAlgorithm.memoize_with_key`)
+- **Type**: Dynamic programming optimization technique
+- **Time Complexity**: O(1) for cached results, O(f(n)) for computation
+- **Space Complexity**: O(k) where k = unique input combinations
+- **Use Case**: Caching expensive computations (e.g., election statistics)
+- **Why Chosen**: Dramatically improves performance for repeated computations
+- **Implementation**: Decorator pattern with custom cache key generation
+
+### Algorithm Selection Rationale
+
+**Why These Algorithms?**
+1. **Performance**: All algorithms chosen for optimal time/space complexity
+2. **Generality**: Type-agnostic design allows reuse across all features
+3. **Flexibility**: Custom key functions and comparators support diverse use cases
+4. **Industry Standard**: Common algorithms (quicksort, binary search) are well-understood and proven
+5. **Scalability**: Algorithms scale efficiently with data size
+
+**Common vs. Specialized Algorithms**
+- **Common Algorithms**: Quicksort, Merge Sort, Binary Search - standard CS algorithms, well-documented and commonly taught in computer science courses
+- **Specialized Algorithms**: Hierarchical grouping, multi-level aggregation - optimized for E-Botar's specific data structures (department → course → year level hierarchies) but use standard algorithmic principles
+
+### Data Structures Used
+
+**Hash Maps (Dictionaries)**
+- **Use**: Grouping, aggregation, categorization
+- **Why**: O(1) average lookup time, efficient key-value storage
+- **Implementation**: Python's built-in `dict` and `defaultdict`
+
+**Lists/Arrays**
+- **Use**: Sorting, searching, iteration
+- **Why**: Sequential access, efficient indexing
+- **Implementation**: Python's `list` type
+
+**Sets**
+- **Use**: Unique value storage, fast membership testing
+- **Why**: O(1) average membership test
+- **Implementation**: Python's built-in `set` type
+
+### Performance Characteristics
+
+**Best Case Scenarios**:
+- Binary Search: O(log n) - extremely fast for sorted data
+- Hash-based Grouping: O(n) - single pass through data
+- Batch Processing: O(n) with O(batch_size) memory
+
+**Worst Case Scenarios**:
+- Quicksort: O(n²) - rare, occurs with poor pivot selection
+- Linear Search: O(n) - acceptable for unsorted data
+- All other algorithms maintain their average-case complexity
+
+**Space Efficiency**:
+- Most algorithms: O(n) space complexity
+- Batch Processing: O(batch_size) - memory-efficient for large datasets
+- Memoization: O(k) where k = unique computations
+
+### Real-World Applications in E-Botar
+
+1. **Election Results Processing**: Quicksort for sorting candidates by vote count
+2. **Student Data Organization**: Hierarchical grouping for department/course/year organization
+3. **Vote Categorization**: Multi-level categorization by demographics
+4. **Data Export**: Efficient aggregation and sorting for PDF/CSV exports
+5. **Search Functionality**: Binary search for fast student/candidate lookups
+6. **Cache Management**: MD5 hashing for cache key generation
+7. **Security**: SHA-256 hashing for vote receipt verification
+
+### Algorithm Complexity Summary
+
+| Algorithm | Time Complexity | Space Complexity | Type |
+|-----------|----------------|------------------|------|
+| Quicksort | O(n log n) avg, O(n²) worst | O(log n) | Sorting |
+| Merge Sort | O(n log n) | O(n) | Sorting |
+| Binary Search | O(log n) | O(1) | Searching |
+| Linear Search | O(n) | O(1) | Searching |
+| Hash Grouping | O(n) | O(n) | Grouping |
+| Hierarchical Grouping | O(n × m) | O(n) | Grouping |
+| Aggregation | O(n) | O(k) | Aggregation |
+| Batch Processing | O(n) | O(batch_size) | Optimization |
+| SHA-256 Hash | O(n) | O(1) | Cryptographic |
+| MD5 Hash | O(n) | O(1) | Cryptographic |
+
+*Where: n = number of items, m = hierarchy levels, k = unique categories*
 
 ---
 
@@ -1242,7 +1483,7 @@ pylint apps/
 
 ## 🗺️ Roadmap
 
-### Current Version: 0.7.4
+### Current Version: 0.7.6
 - ✅ Complete Backend API (50+ endpoints)
 - ✅ User authentication and profiles
 - ✅ Three-tier role system (Student, Staff, Admin)
@@ -1269,6 +1510,8 @@ pylint apps/
 - ✅ Form submission throttling (rate limiting)
 - ✅ Admin profile flexibility (optional academic info for admins)
 - ✅ Dashboard improvements (Current Administration display)
+- ✅ General-Purpose Algorithm Library (sorting, searching, grouping, aggregation, cryptographic)
+- ✅ Algorithm integration in voting, election, and data processing modules
 
 ### Next: Version 0.8.0 (Q1 2025)
 - 🔄 Enhanced data visualizations (Chart.js integration)
@@ -1411,7 +1654,7 @@ python manage.py check
 
 ---
 
-**E-Botar v0.6.4** | Last Updated: November 25, 2025  
+**E-Botar v0.7.6** | Last Updated: December 2025  
 **Status**: Backend Complete | Frontend in Development
 
 **Built with ❤️ for democratic student governance**

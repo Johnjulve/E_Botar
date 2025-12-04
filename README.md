@@ -1,6 +1,6 @@
 # E-Botar - Blockchain-Inspired Electronic Voting System
 
-**Version 0.7.5** | A secure, privacy-preserving electronic voting platform for student government elections
+**Version 0.7.6** | A secure, privacy-preserving electronic voting platform for student government elections
 
 [![Django](https://img.shields.io/badge/Django-5.2.8-green.svg)](https://www.djangoproject.com/)
 [![DRF](https://img.shields.io/badge/DRF-3.16.1-red.svg)](https://www.django-rest-framework.org/)
@@ -11,7 +11,7 @@
 
 ## 📖 Table of Contents
 
-- [Release Highlights (0.7.2)](#-release-highlights-072)
+- [Release Highlights (0.7.6)](#-release-highlights-076)
 - [Quick Start](#quick-start)
 - [Key Features](#key-features)
 - [Role-Based Access Control](#role-based-access-control)
@@ -22,8 +22,25 @@
 
 ---
 
-## 🚀 Release Highlights (0.7.5)
+## 🚀 Release Highlights (0.7.6)
 
+- **General-Purpose Algorithm Library**: Comprehensive suite of efficient algorithms for data processing
+  - **Sorting Algorithms**: Quicksort and Merge Sort implementations for efficient data sorting
+  - **Searching Algorithms**: Binary search and linear search with flexible key functions
+  - **Grouping & Aggregation**: Hash-based grouping and multi-level aggregation algorithms
+  - **Cryptographic Algorithms**: Centralized SHA-256 and MD5 hashing for security operations
+  - **Type-Agnostic Design**: Works with dictionaries, objects, lists, and any iterable data structures
+  - **Performance Optimized**: All algorithms documented with time/space complexity analysis
+  - **Production Ready**: Fully tested and integrated into voting, election, and data processing modules
+
+### New Features (0.7.6)
+- **Algorithm Integration**: Replaced manual implementations with optimized algorithms
+  - Candidate sorting in election results now uses optimized quicksort algorithm
+  - Cache key generation uses centralized MD5 hashing algorithm
+  - Vote receipt and vote hash generation use centralized SHA-256 algorithm
+  - All algorithms are general-purpose and reusable across any feature
+
+### Previous Highlights (0.7.5)
 - **Automatic Session Timeout**: Enhanced security with auto-logout after inactivity
   - **5-Minute Inactivity Timeout**: Users are automatically logged out after 5 minutes of inactivity
   - **Comprehensive Activity Tracking**: Monitors mouse movements, keyboard input, clicks, scroll, and touch events
@@ -524,7 +541,7 @@ python manage.py check
 
 ---
 
-**E-Botar v0.7.5** | Last Updated: December 2025  
+**E-Botar v0.7.6** | Last Updated: December 2025  
 **Status**: Production Ready | Full Stack Complete
 
 > 📖 **For complete documentation**, see [Information.md](Information.md)
