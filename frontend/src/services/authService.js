@@ -58,8 +58,13 @@ export const authService = {
   },
 
   // Get courses by department
-  getCoursesByDepartment: (departmentId) => {
-    return api.get(`/auth/courses/?department=${departmentId}`);
+  getCoursesByDepartment: (departmentCode) => {
+    return api.get(`/auth/courses/?department=${departmentCode}`);
+  },
+
+  // Get total student count (available to all authenticated users)
+  getStudentCount: () => {
+    return api.get('/auth/student-count/');
   },
 
   // Get all user profiles (admin only)

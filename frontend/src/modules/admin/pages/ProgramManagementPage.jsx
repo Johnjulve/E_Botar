@@ -7,7 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { Container } from '../../../components/layout';
 import { LoadingSpinner } from '../../../components/common';
 import { programService } from '../../../services';
-import '../../../assets/styles/admin.css';
+import '../admin.css';
 
 // SVG Icon Component
 const Icon = ({ name, size = 20, className = '' }) => {
@@ -89,7 +89,7 @@ const ProgramManagementPage = () => {
     code: '',
     program_type: 'department',
     description: '',
-    department_id: null,
+    department_code: null,
     is_active: true
   });
   const [importFile, setImportFile] = useState(null);
@@ -159,8 +159,8 @@ const ProgramManagementPage = () => {
         setErrors({ code: 'Code is required' });
         return;
       }
-      if (formData.program_type === 'course' && !formData.department_id) {
-        setErrors({ department_id: 'Department is required for courses' });
+      if (formData.program_type === 'course' && !formData.department_code) {
+        setErrors({ department_code: 'Department is required for courses' });
         return;
       }
 
@@ -174,8 +174,8 @@ const ProgramManagementPage = () => {
         is_active: formData.is_active
       };
 
-      if (formData.program_type === 'course' && formData.department_id) {
-        submitData.department_id = parseInt(formData.department_id);
+      if (formData.program_type === 'course' && formData.department_code) {
+        submitData.department_code = formData.department_code;
       }
 
       if (editingProgram) {
@@ -207,7 +207,7 @@ const ProgramManagementPage = () => {
       code: program.code,
       program_type: program.program_type,
       description: program.description || '',
-      department_id: program.department_id || null,
+      department_code: program.department || null, // department is now a code string
       is_active: program.is_active
     });
     setShowForm(true);
@@ -234,7 +234,7 @@ const ProgramManagementPage = () => {
       code: '',
       program_type: 'department',
       description: '',
-      department_id: null,
+      department_code: null,
       is_active: true
     });
     setEditingProgram(null);
@@ -356,7 +356,7 @@ const ProgramManagementPage = () => {
 
   const filterButtons = [
     { key: 'all', label: 'All Programs', icon: 'building' },
-    { key: 'department', label: 'Departments', icon: 'building' },
+    { key: 'department', label: 'Colleges', icon: 'building' },
     { key: 'course', label: 'Courses', icon: 'book' }
   ];
 
@@ -529,7 +529,7 @@ const ProgramManagementPage = () => {
           <strong>CSV Format:</strong> name, code, program_type, department_code<br/>
           <strong>Note:</strong> program_type must be "department" or "course".<br/>
           For <em>course</em> rows, provide a valid <code>department_code</code> that matches an existing department's code (e.g. <code>CCIS</code>).<br/>
-          <strong>Compatibility:</strong> Older files with <code>department_id</code> are still accepted, but <code>department_code</code> is recommended.<br/>
+          <strong>Note:</strong> CSV files must use <code>department_code</code> column to link courses to departments.<br/>
           <strong>Import Behavior:</strong> Existing programs (matching code and program_type) will be updated/overwritten.
         </div>
       </div>
@@ -659,28 +659,28 @@ const ProgramManagementPage = () => {
                     Department *
                   </label>
                   <select
-                    name="department_id"
-                    value={formData.department_id || ''}
+                    name="department_code"
+                    value={formData.department_code || ''}
                     onChange={handleInputChange}
                     required
                     style={{
                       width: '100%',
                       padding: '0.5rem',
-                      border: `1px solid ${errors.department_id ? '#dc2626' : '#d1d5db'}`,
+                      border: `1px solid ${errors.department_code ? '#dc2626' : '#d1d5db'}`,
                       borderRadius: '0.5rem',
                       fontSize: '0.875rem'
                     }}
                   >
                     <option value="">Select Department</option>
                     {departments.map(dept => (
-                      <option key={dept.id} value={dept.id}>
+                      <option key={dept.code} value={dept.code}>
                         {dept.name} ({dept.code})
                       </option>
                     ))}
                   </select>
-                  {errors.department_id && (
+                  {errors.department_code && (
                     <div style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '0.25rem' }}>
-                      {errors.department_id}
+                      {errors.department_code}
                     </div>
                   )}
                 </div>

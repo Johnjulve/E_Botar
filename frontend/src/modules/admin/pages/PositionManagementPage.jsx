@@ -7,7 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { Container } from '../../../components/layout';
 import { LoadingSpinner } from '../../../components/common';
 import { electionService } from '../../../services';
-import '../../../assets/styles/admin.css';
+import '../admin.css';
 
 // SVG Icon Component
 const Icon = ({ name, size = 20, className = '' }) => {
@@ -66,6 +66,7 @@ const Icon = ({ name, size = 20, className = '' }) => {
 
 const PositionManagementPage = () => {
   const [positions, setPositions] = useState([]);
+  const [allPositions, setAllPositions] = useState([]); // Store all positions for reordering
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all, active, inactive
   const [showForm, setShowForm] = useState(false);
@@ -73,7 +74,6 @@ const PositionManagementPage = () => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    display_order: 0,
     max_candidates: 1,
     is_active: true
   });
@@ -88,19 +88,23 @@ const PositionManagementPage = () => {
     try {
       setLoading(true);
       const response = await electionService.getAllPositions();
-      let allPositions = response.data || [];
+      let fetchedPositions = response.data || [];
       
       // Sort by display_order
-      allPositions.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+      fetchedPositions.sort((a, b) => (a.display_order || 1) - (b.display_order || 1));
+      
+      // Store all positions for reordering logic
+      setAllPositions(fetchedPositions);
       
       // Apply filter
+      let filteredPositions = fetchedPositions;
       if (filter === 'active') {
-        allPositions = allPositions.filter(p => p.is_active);
+        filteredPositions = fetchedPositions.filter(p => p.is_active);
       } else if (filter === 'inactive') {
-        allPositions = allPositions.filter(p => !p.is_active);
+        filteredPositions = fetchedPositions.filter(p => !p.is_active);
       }
       
-      setPositions(allPositions);
+      setPositions(filteredPositions);
     } catch (error) {
       console.error('Error fetching positions:', error);
     } finally {
@@ -140,10 +144,28 @@ const PositionManagementPage = () => {
 
       setSaving(true);
 
+      // Auto-calculate display_order for new positions
+      let displayOrder = 1;
+      if (!editingPosition) {
+        // For new positions, set to max + 1 or 1 if no positions exist
+        const allPositions = await electionService.getAllPositions();
+        const positionsList = allPositions.data || [];
+        if (positionsList.length > 0) {
+          // Use 1 as default for positions with null/0/undefined display_order
+          const maxOrder = Math.max(...positionsList.map(p => p.display_order || 1));
+          displayOrder = maxOrder + 1;
+        } else {
+          displayOrder = 1;
+        }
+      } else {
+        // For editing, keep the existing display_order
+        displayOrder = editingPosition.display_order || 1;
+      }
+
       const submitData = {
         name: formData.name.trim(),
         description: formData.description.trim(),
-        display_order: formData.display_order || 0,
+        display_order: displayOrder,
         max_candidates: formData.max_candidates || 1,
         is_active: formData.is_active
       };
@@ -174,7 +196,6 @@ const PositionManagementPage = () => {
     setFormData({
       name: position.name,
       description: position.description || '',
-      display_order: position.display_order || 0,
       max_candidates: position.max_candidates || 1,
       is_active: position.is_active
     });
@@ -195,29 +216,84 @@ const PositionManagementPage = () => {
     }
   };
 
+  const canMoveUp = (position) => {
+    // Check if there's a position with a lower display_order (and current is > 1)
+    const currentOrder = position.display_order || 1;
+    return currentOrder > 1 && allPositions.some(
+      p => p.id !== position.id && (p.display_order || 1) < currentOrder
+    );
+  };
+
+  const canMoveDown = (position) => {
+    // Check if there's a position with a higher display_order
+    return allPositions.some(
+      p => p.id !== position.id && (p.display_order || 1) > (position.display_order || 1)
+    );
+  };
+
   const handleMoveUp = async (position) => {
-    if (position.display_order <= 0) return;
+    if (!canMoveUp(position)) return;
     
     try {
-      await electionService.updatePosition(position.id, {
-        ...position,
-        display_order: position.display_order - 1
-      });
+      // Find the position with the highest display_order that's still less than current
+      const currentOrder = position.display_order || 1;
+      const positionAbove = allPositions
+        .filter(p => p.id !== position.id && (p.display_order || 1) < currentOrder)
+        .sort((a, b) => (b.display_order || 1) - (a.display_order || 1))[0];
+      
+      if (!positionAbove) {
+        return;
+      }
+      
+      // Swap display_order values
+      await Promise.all([
+        electionService.updatePosition(position.id, {
+          ...position,
+          display_order: positionAbove.display_order
+        }),
+        electionService.updatePosition(positionAbove.id, {
+          ...positionAbove,
+          display_order: position.display_order
+        })
+      ]);
+      
       fetchPositions();
     } catch (error) {
       console.error('Error moving position up:', error);
+      alert('Error moving position. Please try again.');
     }
   };
 
   const handleMoveDown = async (position) => {
+    if (!canMoveDown(position)) return;
+    
     try {
-      await electionService.updatePosition(position.id, {
-        ...position,
-        display_order: (position.display_order || 0) + 1
-      });
+      // Find the position with the lowest display_order that's still greater than current
+      const currentOrder = position.display_order || 1;
+      const positionBelow = allPositions
+        .filter(p => p.id !== position.id && (p.display_order || 1) > currentOrder)
+        .sort((a, b) => (a.display_order || 1) - (b.display_order || 1))[0];
+      
+      if (!positionBelow) {
+        return;
+      }
+      
+      // Swap display_order values
+      await Promise.all([
+        electionService.updatePosition(position.id, {
+          ...position,
+          display_order: positionBelow.display_order
+        }),
+        electionService.updatePosition(positionBelow.id, {
+          ...positionBelow,
+          display_order: position.display_order
+        })
+      ]);
+      
       fetchPositions();
     } catch (error) {
       console.error('Error moving position down:', error);
+      alert('Error moving position. Please try again.');
     }
   };
 
@@ -225,7 +301,6 @@ const PositionManagementPage = () => {
     setFormData({
       name: '',
       description: '',
-      display_order: 0,
       max_candidates: 1,
       is_active: true
     });
@@ -330,32 +405,6 @@ const PositionManagementPage = () => {
                     {errors.name}
                   </div>
                 )}
-              </div>
-
-              <div>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '0.5rem',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  color: '#374151'
-                }}>
-                  Display Order
-                </label>
-                <input
-                  type="number"
-                  name="display_order"
-                  value={formData.display_order}
-                  onChange={handleInputChange}
-                  min="0"
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '0.5rem',
-                    fontSize: '0.875rem'
-                  }}
-                />
               </div>
 
               <div>
@@ -561,7 +610,7 @@ const PositionManagementPage = () => {
                     color: '#6b7280',
                     textAlign: 'center'
                   }}>
-                    {position.display_order || index}
+                    {position.display_order || index + 1}
                   </td>
                   <td style={{
                     padding: '1rem',
@@ -616,9 +665,12 @@ const PositionManagementPage = () => {
                       <button
                         onClick={() => handleMoveUp(position)}
                         className="admin-btn secondary"
+                        disabled={!canMoveUp(position)}
                         style={{
                           padding: '0.375rem 0.75rem',
-                          fontSize: '0.75rem'
+                          fontSize: '0.75rem',
+                          opacity: canMoveUp(position) ? 1 : 0.5,
+                          cursor: canMoveUp(position) ? 'pointer' : 'not-allowed'
                         }}
                         title="Move Up"
                       >
@@ -627,9 +679,12 @@ const PositionManagementPage = () => {
                       <button
                         onClick={() => handleMoveDown(position)}
                         className="admin-btn secondary"
+                        disabled={!canMoveDown(position)}
                         style={{
                           padding: '0.375rem 0.75rem',
-                          fontSize: '0.75rem'
+                          fontSize: '0.75rem',
+                          opacity: canMoveDown(position) ? 1 : 0.5,
+                          cursor: canMoveDown(position) ? 'pointer' : 'not-allowed'
                         }}
                         title="Move Down"
                       >

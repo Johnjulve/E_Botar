@@ -4,15 +4,17 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Container } from '../../../components/layout';
 import { LoadingSpinner } from '../../../components/common';
-import { candidateService, electionService } from '../../../services';
+import { candidateService, electionService, authService } from '../../../services';
+import { useAuth } from '../../../hooks/useAuth';
 import { isValidFileSize, isValidFileType } from '../../../utils/validators';
-import './applications.css';
+import '../applications.css';
 
 const ApplicationFormPage = () => {
   const navigate = useNavigate();
+  const { user: authUser } = useAuth();
   const [elections, setElections] = useState([]);
   const [positions, setPositions] = useState([]);
   const [parties, setParties] = useState([]);
@@ -20,6 +22,8 @@ const ApplicationFormPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [profileComplete, setProfileComplete] = useState(true);
+  const [missingFields, setMissingFields] = useState([]);
   
   const [formData, setFormData] = useState({
     election: '',
@@ -73,12 +77,29 @@ const ApplicationFormPage = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [electionsRes, partiesRes] = await Promise.all([
+      const [electionsRes, partiesRes, userRes] = await Promise.all([
         electionService.getUpcoming(),
-        electionService.getAllParties()
+        electionService.getAllParties(),
+        authService.getCurrentUser().catch(() => null) // Don't fail if this fails
       ]);
       setElections(electionsRes.data || []);
       setParties(partiesRes.data || []);
+      
+      // Check profile completeness
+      if (userRes?.data?.profile) {
+        const profile = userRes.data.profile;
+        const isComplete = profile.is_profile_complete ?? true;
+        const missing = profile.missing_fields || [];
+        
+        setProfileComplete(isComplete);
+        setMissingFields(missing);
+        
+        // For staff/admin, profile is always considered complete
+        if (authUser?.user?.is_staff || authUser?.user?.is_superuser) {
+          setProfileComplete(true);
+          setMissingFields([]);
+        }
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
       setError('Failed to load application data');
@@ -232,6 +253,39 @@ const ApplicationFormPage = () => {
           <div className="form-card">
             <h2>Candidate Application</h2>
 
+            {!profileComplete && (
+              <div className="alert-message warning" style={{
+                background: '#fef3c7',
+                border: '1px solid #fbbf24',
+                color: '#92400e',
+                marginBottom: '1.5rem'
+              }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                <div style={{ flex: 1 }}>
+                  <strong>Profile Incomplete</strong>
+                  <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.9rem' }}>
+                    Please complete your profile with the following information before applying: <strong>{missingFields.join(', ')}</strong>
+                  </p>
+                  <Link 
+                    to="/profile/edit" 
+                    style={{ 
+                      display: 'inline-block', 
+                      marginTop: '0.5rem', 
+                      color: '#92400e',
+                      textDecoration: 'underline',
+                      fontWeight: 600
+                    }}
+                  >
+                    Complete Profile →
+                  </Link>
+                </div>
+              </div>
+            )}
+
             {error && (
               <div className="alert-message error">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -382,7 +436,8 @@ const ApplicationFormPage = () => {
                   <button
                     type="submit"
                     className="btn-submit"
-                    disabled={submitting}
+                    disabled={submitting || !profileComplete}
+                    title={!profileComplete ? 'Please complete your profile before applying' : ''}
                   >
                     {submitting ? (
                       <>

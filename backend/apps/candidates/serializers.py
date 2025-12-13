@@ -13,11 +13,25 @@ from apps.elections.serializers import (
 class CandidateUserSerializer(serializers.ModelSerializer):
     """Lightweight user serializer for candidate display"""
     full_name = serializers.CharField(source='get_full_name', read_only=True)
+    course_code = serializers.SerializerMethodField()
+    year_level = serializers.SerializerMethodField()
     
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'full_name']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'full_name', 'course_code', 'year_level']
         read_only_fields = fields
+    
+    def get_course_code(self, obj):
+        """Get course code from user profile"""
+        if hasattr(obj, 'profile') and obj.profile and obj.profile.course:
+            return obj.profile.course.code
+        return None
+    
+    def get_year_level(self, obj):
+        """Get year level from user profile"""
+        if hasattr(obj, 'profile') and obj.profile:
+            return obj.profile.year_level
+        return None
 
 
 class CandidateListSerializer(serializers.ModelSerializer):
@@ -178,6 +192,21 @@ class CandidateApplicationCreateSerializer(serializers.ModelSerializer):
         # Set user from request context
         user = self.context['request'].user
         election = data.get('election')
+        
+        # Check if user has a complete profile (skip for staff/admin)
+        if not (user.is_staff or user.is_superuser):
+            if hasattr(user, 'profile'):
+                profile = user.profile
+                if not profile.is_profile_complete():
+                    missing_fields = profile.get_missing_fields()
+                    missing_list = ', '.join(missing_fields)
+                    raise serializers.ValidationError({
+                        'non_field_errors': f'Your profile is incomplete. Please complete your profile with the following information before applying: {missing_list}. You can update your profile in the Profile section.'
+                    })
+            else:
+                raise serializers.ValidationError({
+                    'non_field_errors': 'Profile not found. Please complete your profile before applying as a candidate.'
+                })
         
         # Check eligibility to apply (skip for staff/admin)
         if election and not (user.is_staff or user.is_superuser):

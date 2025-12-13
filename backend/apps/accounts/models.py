@@ -15,7 +15,7 @@ class Program(models.Model):
         COURSE = 'course', 'Course'
     
     name = models.CharField(max_length=100)
-    code = models.CharField(max_length=20, help_text="Program code (e.g., 'CS', 'BSCS')")
+    code = models.CharField(max_length=20, unique=True, help_text="Program code (e.g., 'CS', 'BSCS') - must be unique")
     program_type = models.CharField(max_length=20, choices=ProgramType.choices)
     description = models.TextField(blank=True, help_text="Optional description of the program")
     department = models.ForeignKey(
@@ -25,7 +25,8 @@ class Program(models.Model):
         blank=True,
         related_name='courses',
         limit_choices_to={'program_type': ProgramType.DEPARTMENT},
-        help_text="Assign department for course-type programs"
+        to_field='code',
+        help_text="Assign department for course-type programs (by code)"
     )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -35,7 +36,6 @@ class Program(models.Model):
         db_table = 'accounts_program'
         ordering = ['program_type', 'name']
         constraints = [
-            models.UniqueConstraint(fields=['program_type', 'code'], name='unique_program_code_per_type'),
             models.UniqueConstraint(fields=['program_type', 'name'], name='unique_program_name_per_type'),
         ]
         verbose_name = 'Program'
@@ -69,7 +69,8 @@ class UserProfile(models.Model):
         null=True,
         blank=True,
         related_name='department_students',
-        limit_choices_to={'program_type': Program.ProgramType.DEPARTMENT}
+        limit_choices_to={'program_type': Program.ProgramType.DEPARTMENT},
+        to_field='code'
     )
     course = models.ForeignKey(
         Program,
@@ -77,7 +78,8 @@ class UserProfile(models.Model):
         null=True,
         blank=True,
         related_name='course_students',
-        limit_choices_to={'program_type': Program.ProgramType.COURSE}
+        limit_choices_to={'program_type': Program.ProgramType.COURSE},
+        to_field='code'
     )
     year_level = models.CharField(max_length=20, blank=True)
     avatar = models.ImageField(upload_to='profile_photos/', blank=True, null=True)
@@ -96,6 +98,42 @@ class UserProfile(models.Model):
             random_digits = ''.join(random.choices(string.digits, k=5))
             self.student_id = f"{year}-{random_digits}"
         super().save(*args, **kwargs)
+    
+    def is_profile_complete(self):
+        """Check if profile has all required details for candidate application"""
+        # For staff/admin users, profile completeness is not required
+        if self.user.is_staff or self.user.is_superuser:
+            return True
+        
+        # For regular users, check required fields
+        required_fields = [
+            self.student_id,  # Student ID (can be auto-generated)
+            self.department,  # Department
+            self.course,      # Course
+            self.year_level    # Year level
+        ]
+        
+        # Check if all required fields are filled
+        return all(field is not None and str(field).strip() != '' for field in required_fields)
+    
+    def get_missing_fields(self):
+        """Get list of missing required fields for profile completion"""
+        missing = []
+        
+        # For staff/admin users, no fields are required
+        if self.user.is_staff or self.user.is_superuser:
+            return missing
+        
+        if not self.student_id or not str(self.student_id).strip():
+            missing.append('Student ID')
+        if not self.department:
+            missing.append('Department')
+        if not self.course:
+            missing.append('Course')
+        if not self.year_level or not str(self.year_level).strip():
+            missing.append('Year Level')
+        
+        return missing
     
     def clean(self):
         """Validate profile data"""

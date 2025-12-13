@@ -10,7 +10,7 @@ import { LoadingSpinner } from '../../../components/common';
 import { candidateService } from '../../../services';
 import { formatDate, getApplicationStatus } from '../../../utils/formatters';
 import { getInitials } from '../../../utils/helpers';
-import '../../../assets/styles/admin.css';
+import '../admin.css';
 
 // SVG Icon Component
 const Icon = ({ name, size = 20, className = '' }) => {

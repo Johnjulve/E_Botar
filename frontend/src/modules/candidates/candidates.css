@@ -2,7 +2,7 @@
    CANDIDATES PAGE - MODERN DESIGN
    Candidate List & Profile Pages Styling
    ============================================ */
-
+@import '../../assets/styles/global.css';
 /* Page Header */
 .candidates-header {
   margin-bottom: 2rem;
@@ -12,7 +12,7 @@
 .candidates-header h1 {
   font-size: 2.5rem;
   font-weight: 700;
-  color: #1a202c;
+  color: #1f2937;
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -29,29 +29,21 @@
 
 .candidates-header p {
   font-size: 1.1rem;
-  color: #718096;
+  color: var(--text-secondary);
   margin: 0;
 }
 
 /* Filter Card */
 .candidates-filter-card {
-  background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
-  border: 2px solid #e2e8f0;
-  border-radius: 16px;
+  background: white;
   padding: 1.5rem;
-  margin-bottom: 2rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  transition: all 0.3s ease;
-}
-
-.candidates-filter-card:hover {
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-  transform: translateY(-2px);
+  margin-bottom: 1rem;
+  border-radius: 12px;
 }
 
 .candidates-filter-label {
   font-weight: 600;
-  color: #2d3748;
+  color: #1f2937;
   font-size: 1rem;
   margin-bottom: 0.5rem;
   display: flex;
@@ -60,43 +52,35 @@
 }
 
 .candidates-filter-label i {
-  color: #667eea;
+  color: var(--brand-green);
 }
 
 .candidates-filter-select {
-  border: 2px solid #cbd5e0;
+  border: 1px solid #303030;
   border-radius: 12px;
   padding: 0.75rem 1rem;
   font-size: 1rem;
-  transition: all 0.3s ease;
-  background: white;
+  background: var(--white);
   cursor: pointer;
 }
 
 .candidates-filter-select:focus {
-  border-color: #667eea;
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+  border-color: var(--brand-green);
+  box-shadow: 0 0 0 4px rgba(11, 110, 59, 0.12);
   outline: none;
 }
 
 /* Position Section */
 .position-section {
-  background: white;
+  background: var(--white);
   border-radius: 20px;
   padding: 2rem;
   margin-bottom: 2rem;
-  box-shadow: 
-    0 10px 30px rgba(0, 0, 0, 0.08),
-    0 0 0 1px rgba(0, 0, 0, 0.05);
-  transition: all 0.3s ease;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border-color);
+  transition: all var(--transition-base);
 }
 
-.position-section:hover {
-  box-shadow: 
-    0 15px 40px rgba(0, 0, 0, 0.12),
-    0 0 0 1px rgba(0, 0, 0, 0.05);
-  transform: translateY(-4px);
-}
 
 .position-header {
   display: flex;
@@ -110,7 +94,6 @@
 .position-header h4 {
   font-size: 1.75rem;
   font-weight: 700;
-  color: #2d3748;
   margin: 0;
   display: flex;
   align-items: center;
@@ -120,51 +103,39 @@
 .position-icon {
   width: 48px;
   height: 48px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--brand-green) 0%, var(--brand-green-dark) 100%);
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: var(--white);
   font-size: 1.25rem;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 12px rgba(11, 110, 59, 0.3);
 }
 
 /* Candidate Card */
 .candidate-card {
-  background: linear-gradient(135deg, #ffffff 0%, #f7fafc 100%);
-  border: 2px solid #e2e8f0;
+  background: linear-gradient(135deg, var(--white) 0%, var(--gray-50) 100%);
+  border: 2px solid var(--border-color);
   border-radius: 16px;
   padding: 1.5rem;
   height: 100%;
-  transition: all 0.3s ease;
+  transition: all var(--transition-base);
   position: relative;
   overflow: hidden;
   cursor: pointer;
 }
 
-.candidate-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 4px;
-  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-  transform: scaleX(0);
-  transition: transform 0.3s ease;
+
+.candidate-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  height: 100%;
 }
 
-.candidate-card:hover::before {
-  transform: scaleX(1);
-}
-
-.candidate-card:hover {
-  border-color: #667eea;
-  box-shadow: 
-    0 15px 40px rgba(102, 126, 234, 0.15),
-    0 0 0 1px rgba(102, 126, 234, 0.2);
-  transform: translateY(-8px);
+.candidate-card-footer {
+  margin-top: auto;
 }
 
 .candidate-avatar {
@@ -211,7 +182,7 @@
 .candidate-name {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #2d3748;
+  color: var(--text-primary);
   margin-bottom: 0.5rem;
   line-height: 1.3;
 }
@@ -224,10 +195,10 @@
   border-radius: 8px;
   font-size: 0.85rem;
   font-weight: 600;
-  background: linear-gradient(135deg, #63b3ed 0%, #4299e1 100%);
-  color: white;
+  background: linear-gradient(135deg, var(--brand-yellow) 0%, var(--brand-yellow-dark) 100%);
+  color: var(--text-primary);
   margin-bottom: 0.75rem;
-  box-shadow: 0 2px 8px rgba(66, 153, 225, 0.3);
+  box-shadow: 0 2px 8px rgba(244, 204, 92, 0.35);
 }
 
 .candidate-election-info {
@@ -235,19 +206,20 @@
   align-items: center;
   gap: 0.5rem;
   font-size: 0.9rem;
-  color: #718096;
+  color: var(--text-secondary);
   margin-bottom: 0.75rem;
 }
 
 .candidate-election-info i {
-  color: #667eea;
+  color: var(--brand-green);
 }
 
 .candidate-manifesto-preview {
   font-size: 0.9rem;
-  color: #4a5568;
+  color: var(--text-secondary);
   line-height: 1.6;
   margin-bottom: 1rem;
+  line-clamp: 3;
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
@@ -257,13 +229,13 @@
 .candidate-view-btn {
   width: 100%;
   padding: 0.75rem;
-  border: 2px solid #667eea;
-  background: white;
-  color: #667eea;
+  border: 2px solid var(--brand-green);
+  background: var(--brand-green);
+  color: #ffffff;
   border-radius: 12px;
   font-weight: 600;
   font-size: 0.95rem;
-  transition: all 0.3s ease;
+  transition: all var(--transition-base);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -271,13 +243,13 @@
   text-decoration: none;
 }
 
-.candidate-view-btn:hover {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border-color: transparent;
-  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
-  transform: translateY(-2px);
+.candidate-view-btn:visited,
+.candidate-view-btn:active,
+.candidate-view-btn:focus {
+  color: #ffffff;
+  background: var(--brand-green);
 }
+
 
 /* Profile Page */
 .profile-page {
@@ -299,20 +271,6 @@
   margin-bottom: 2rem;
 }
 
-.profile-back-btn:hover {
-  background: #f7fafc;
-  border-color: #cbd5e0;
-  color: #2d3748;
-  transform: translateX(-4px);
-}
-
-.profile-back-btn i {
-  transition: transform 0.3s ease;
-}
-
-.profile-back-btn:hover i {
-  transform: translateX(-4px);
-}
 
 /* Profile Sidebar Card */
 .profile-sidebar-card {
@@ -336,11 +294,11 @@
   font-size: 3.5rem;
   font-weight: 700;
   color: white;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #6b7280;
   box-shadow: 
-    0 15px 40px rgba(102, 126, 234, 0.3),
+    0 15px 40px rgba(156, 163, 175, 0.3),
     0 0 0 4px rgba(255, 255, 255, 1),
-    0 0 0 6px rgba(102, 126, 234, 0.2);
+    0 0 0 6px rgba(156, 163, 175, 0.2);
   margin-bottom: 1.5rem;
   position: relative;
   overflow: hidden;
@@ -540,16 +498,17 @@
   flex: 1;
   min-width: 150px;
   padding: 0.875rem 1.5rem;
-  border-radius: 12px;
-  font-weight: 600;
+  border-radius: 8px;
+  font-weight: 500;
   font-size: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
   text-decoration: none;
-  transition: all 0.3s ease;
-  border: 2px solid transparent;
+  transition: background-color 0.2s ease;
+  border: none;
+  cursor: pointer;
 }
 
 .action-btn i {
@@ -557,7 +516,7 @@
 }
 
 .action-btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background:#075a30;
   color: white;
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }

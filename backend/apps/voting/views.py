@@ -345,6 +345,22 @@ class ResultsViewSet(viewsets.ViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
         
+        # Hide results from general users until the election ends
+        user = getattr(request, 'user', None)
+        user_is_admin = bool(user and (user.is_staff or user.is_superuser))
+        if not election.is_finished() and not user_is_admin:
+            return Response(
+                {
+                    'detail': 'Results will be available after the election ends.',
+                    'available_after': election.end_date.isoformat(),
+                    'election_id': election.id,
+                    'election_title': election.title,
+                    'results_locked': True,
+                    'is_active': election.is_active_now(),
+                },
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
         # Real-time results are now available to everyone
         # Winners will be highlighted only after election ends
         election_ended = election.is_finished()
@@ -352,12 +368,47 @@ class ResultsViewSet(viewsets.ViewSet):
         total_voters = VoteReceipt.objects.filter(election=election).count()
         total_ballots = Ballot.objects.filter(election=election).count()
         
+        # Count eligible students based on election type
+        from apps.accounts.models import UserProfile
+        if election.election_type == 'university':
+            # For university elections, all students are eligible
+            total_eligible_students = UserProfile.objects.filter(
+                user__is_staff=False,
+                user__is_superuser=False
+            ).count()
+        elif election.election_type == 'department' and election.allowed_department:
+            # For department elections, only students from that department are eligible
+            total_eligible_students = UserProfile.objects.filter(
+                department=election.allowed_department,
+                user__is_staff=False,
+                user__is_superuser=False
+            ).count()
+        else:
+            # Fallback: use total voters as estimate
+            total_eligible_students = total_voters
+        
         # Get results by position
         positions_data = []
         positions = election.election_positions.all().order_by('order')
         
         # Handle case when no positions exist
         if not positions.exists():
+            # Count eligible students for empty election
+            from apps.accounts.models import UserProfile
+            if election.election_type == 'university':
+                total_eligible_students = UserProfile.objects.filter(
+                    user__is_staff=False,
+                    user__is_superuser=False
+                ).count()
+            elif election.election_type == 'department' and election.allowed_department:
+                total_eligible_students = UserProfile.objects.filter(
+                    department=election.allowed_department,
+                    user__is_staff=False,
+                    user__is_superuser=False
+                ).count()
+            else:
+                total_eligible_students = total_voters
+            
             return Response({
                 'election_id': election.id,
                 'election_title': election.title,
@@ -365,6 +416,7 @@ class ResultsViewSet(viewsets.ViewSet):
                 'is_active': election.is_active_now(),
                 'total_voters': total_voters,
                 'total_ballots': total_ballots,
+                'total_eligible_students': total_eligible_students,
                 'positions': []
             })
         
@@ -439,6 +491,7 @@ class ResultsViewSet(viewsets.ViewSet):
             'is_active': election.is_active_now(),
             'total_voters': total_voters,  # Number of unique voters
             'total_ballots': total_ballots,  # Should be same as total_voters
+            'total_eligible_students': total_eligible_students,  # Total eligible students for this election
             'positions': positions_data
         })
     
@@ -631,6 +684,22 @@ class ResultsViewSet(viewsets.ViewSet):
             return Response(
                 {'detail': 'Election not found'},
                 status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Hide statistics during active elections for non-admin users
+        user = getattr(request, 'user', None)
+        user_is_admin = bool(user and (user.is_staff or user.is_superuser))
+        if not election.is_finished() and not user_is_admin:
+            return Response(
+                {
+                    'detail': 'Statistics will be available after the election ends.',
+                    'available_after': election.end_date.isoformat(),
+                    'election_id': election.id,
+                    'election_title': election.title,
+                    'results_locked': True,
+                    'is_active': election.is_active_now(),
+                },
+                status=status.HTTP_403_FORBIDDEN
             )
         
         # Use cached statistics

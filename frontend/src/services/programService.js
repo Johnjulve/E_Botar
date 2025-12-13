@@ -24,8 +24,8 @@ export const programService = {
   },
 
   // Get courses only
-  getCourses: (departmentId = null) => {
-    const params = departmentId ? { department: departmentId } : {};
+  getCourses: (departmentCode = null) => {
+    const params = departmentCode ? { department: departmentCode } : {};
     return api.get('/auth/courses/', { params });
   },
 

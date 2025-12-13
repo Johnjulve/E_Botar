@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework_simplejwt.views import TokenRefreshView
 from . import views
 
 app_name = 'accounts'
@@ -18,11 +18,14 @@ urlpatterns = [
     # Current user
     path('me/', views.current_user, name='current-user'),
     
+    # Student count
+    path('student-count/', views.student_count, name='student-count'),
+    
     # Registration
     path('register/', views.UserRegistrationView.as_view(), name='register'),
     
-    # JWT Token endpoints
-    path('token/', TokenObtainPairView.as_view(), name='token-obtain'),
+    # JWT Token endpoints - using custom view that accepts email or username
+    path('token/', views.CustomTokenObtainPairView.as_view(), name='token-obtain'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
     
     # ViewSet routes

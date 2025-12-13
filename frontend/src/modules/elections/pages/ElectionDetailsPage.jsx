@@ -24,9 +24,9 @@ const ElectionDetailsPage = () => {
     if (!election || !user) return false;
     if (election.election_type === 'university') return true;
     if (election.election_type === 'department') {
-      const userDeptId = user?.profile?.department?.id;
-      const allowedDeptId = election.allowed_department?.id || election.allowed_department;
-      return allowedDeptId && allowedDeptId === userDeptId;
+      const userDeptCode = user?.profile?.department?.code;
+      const allowedDeptCode = election.allowed_department?.code || election.allowed_department;
+      return allowedDeptCode && allowedDeptCode === userDeptCode;
     }
     return false;
   };
@@ -227,7 +227,7 @@ const ElectionDetailsPage = () => {
                     <line x1="12" y1="20" x2="12" y2="4"/>
                     <line x1="6" y1="20" x2="6" y2="14"/>
                   </svg>
-                  <span>View Live Results</span>
+                  <span>View Results</span>
                 </Link>
                 <Link to={`/candidates?election=${election.id}`} className="action-btn action-btn-secondary">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

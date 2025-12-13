@@ -9,7 +9,7 @@ import { Container } from '../../../components/layout';
 import { LoadingSpinner, EmptyState } from '../../../components/common';
 import { electionService, votingService, authService } from '../../../services';
 import { useAuth } from '../../../hooks/useAuth';
-import { formatNumber, formatPercentage } from '../../../utils/formatters';
+import { formatDate, formatNumber, formatPercentage } from '../../../utils/formatters';
 import './results.css';
 
 const ResultsDetailsPage = () => {
@@ -23,6 +23,8 @@ const ResultsDetailsPage = () => {
   const [electionEnded, setElectionEnded] = useState(false);
   const [isActive, setIsActive] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [resultsLocked, setResultsLocked] = useState(false);
+  const [availableAfter, setAvailableAfter] = useState('');
   const [totalStudents, setTotalStudents] = useState(0);
   const [studentsByDept, setStudentsByDept] = useState({});
 
@@ -45,75 +47,54 @@ const ResultsDetailsPage = () => {
   const fetchResults = async () => {
     try {
       setLoading(true);
+      setError('');
       
       // Fetch election details
       const electionResponse = await electionService.getById(id);
-      setElection(electionResponse.data);
+      const electionData = electionResponse.data;
+      setElection(electionData);
       
-      // Fetch results
-      const resultsResponse = await votingService.getElectionResults(id);
-      const resultsData = resultsResponse.data;
-      
-      setResults(resultsData.positions || []);
-      setElectionEnded(resultsData.election_ended || false);
-      setIsActive(resultsData.is_active || false);
-      
-      // Set statistics from results data
-      setStatistics({
-        total_voters: resultsData.total_voters || 0,
-        total_votes: resultsData.total_ballots || 0,
-        total_positions: resultsData.positions?.length || 0,
-        turnout_percentage: 0 // Can calculate if we have total eligible voters
-      });
-      
-      // Fetch total students count and organize by department/course
-      // Use total_voters as fallback since those are students who participated
-      // This ensures consistency: if there are votes, there are students
       try {
-        const profilesResponse = await authService.getAllProfiles();
-        const allProfiles = profilesResponse.data || [];
-        const students = allProfiles.filter(profile => 
-          profile.user && !profile.user.is_staff && !profile.user.is_superuser
-        );
+        // Fetch results
+        const resultsResponse = await votingService.getElectionResults(id);
+        const resultsData = resultsResponse.data;
         
-        setTotalStudents(Math.max(students.length, resultsData.total_voters || 0));
+        setResultsLocked(false);
+        setAvailableAfter('');
+        setResults(resultsData.positions || []);
+        setElectionEnded(resultsData.election_ended || false);
+        setIsActive(resultsData.is_active || false);
         
-        // Organize students by department and course
-        const deptMap = {};
-        students.forEach(profile => {
-          const deptName = profile.department?.name || 'Unassigned Department';
-          const courseName = profile.course?.name || 'Unassigned Course';
-          const courseCode = profile.course?.code || 'N/A';
-          const yearLevel = profile.year_level || 'N/A';
-          const studentId = profile.student_id || 'N/A';
-          const fullName = profile.user?.get_full_name?.() || 
-                          `${profile.user?.first_name || ''} ${profile.user?.last_name || ''}`.trim() ||
-                          profile.user?.username || 'Unknown';
-          
-          if (!deptMap[deptName]) {
-            deptMap[deptName] = {};
-          }
-          if (!deptMap[deptName][courseName]) {
-            deptMap[deptName][courseName] = {
-              code: courseCode,
-              students: []
-            };
-          }
-          
-          deptMap[deptName][courseName].students.push({
-            student_id: studentId,
-            name: fullName,
-            year_level: yearLevel
-          });
+        // Set statistics from results data
+        setStatistics({
+          total_voters: resultsData.total_voters || 0,
+          total_votes: resultsData.total_ballots || 0,
+          total_positions: resultsData.positions?.length || 0,
+          turnout_percentage: 0 // Can calculate if we have total eligible voters
         });
         
-        setStudentsByDept(deptMap);
-      } catch (profileError) {
-        // If we can't fetch profiles, use total_voters as the student count
-        // This ensures the count matches the votes (students who voted)
-        console.log('Cannot fetch student count, using voters count as fallback');
-        setTotalStudents(resultsData.total_voters || 0);
+        // Use total_eligible_students from results data (calculated on backend)
+        // This ensures accurate count based on election eligibility rules
+        setTotalStudents(resultsData.total_eligible_students || resultsData.total_voters || 0);
+        
+        // Note: We don't fetch all profiles anymore since non-admin users can't access them
+        // The backend calculates eligible students based on election type and eligibility rules
         setStudentsByDept({});
+      } catch (resultsError) {
+        const status = resultsError.response?.status;
+        if (status === 403) {
+          const availableDate = resultsError.response?.data?.available_after || electionData?.end_date;
+          setResults([]);
+          setStatistics(null);
+          setResultsLocked(true);
+          setAvailableAfter(availableDate);
+          setIsActive(electionData?.is_active ?? false);
+          setElectionEnded(false);
+          setAutoRefresh(false);
+          return;
+        }
+        
+        throw resultsError;
       }
     } catch (error) {
       console.error('Error fetching results:', error);
@@ -148,6 +129,21 @@ const ResultsDetailsPage = () => {
           icon="fas fa-exclamation-circle"
           title="Election Not Found"
           message="The election you're looking for doesn't exist."
+          actionText="Back to Elections"
+          onAction={() => window.location.href = '/elections'}
+        />
+      </Container>
+    );
+  }
+
+  if (resultsLocked) {
+    const endDateText = formatDate(availableAfter || election.end_date, 'datetime');
+    return (
+      <Container>
+        <EmptyState
+          icon="fas fa-lock"
+          title="Results Hidden"
+          message={`Results will be available after the election ends${endDateText ? ` on ${endDateText}` : ''}.`}
           actionText="Back to Elections"
           onAction={() => window.location.href = '/elections'}
         />

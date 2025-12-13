@@ -1,17 +1,17 @@
 # E-Botar - System Information
 
-**Version 0.7.6** | Complete system documentation and technical details
+**Version 0.7.7** | Complete system documentation and technical details
 
 [![Django](https://img.shields.io/badge/Django-5.2.8-green.svg)](https://www.djangoproject.com/)
 [![DRF](https://img.shields.io/badge/DRF-3.16.1-red.svg)](https://www.django-rest-framework.org/)
-[![React](https://img.shields.io/badge/React-18.3-blue.svg)](https://reactjs.org/)
+[![React](https://img.shields.io/badge/React-19.2-blue.svg)](https://reactjs.org/)
 [![License](https://img.shields.io/badge/License-Proprietary-yellow.svg)](#)
 
 ---
 
 ## 📖 Table of Contents
 
-- [Release Highlights (0.7.6)](#-release-highlights-076)
+- [Release Highlights (0.7.7)](#-release-highlights-077)
 - [Overview](#overview)
 - [Research Foundation](#research-foundation)
 - [Algorithms & Data Structures](#-algorithms--data-structures)
@@ -28,8 +28,42 @@
 
 ---
 
-## 🚀 Release Highlights (0.7.6)
+## 🚀 Release Highlights (0.7.7)
 
+- **Profile Completeness Validation**: Enhanced data integrity with comprehensive profile completeness checks
+  - **Candidate Application Validation**: Users must complete their profile (Student ID, Department, Course, Year Level) before applying as candidates
+  - **Voting Restrictions**: Users cannot vote until their profile is complete, with clear warnings and guidance
+  - **Frontend Warnings**: Incomplete profile warnings displayed on application and voting pages with links to profile edit
+  - **Backend Validation**: Server-side validation prevents incomplete profile submissions for both applications and votes
+  - **Missing Fields Display**: Users see exactly which fields need to be completed (Student ID, Department, Course, Year Level)
+  - **Staff/Admin Exemption**: Staff and admin users are exempt from profile completeness requirements
+
+- **Position Management Improvements**: Streamlined position ordering system
+  - **Auto-Assignment**: Display order automatically assigned starting from 1 (no manual input required)
+  - **Smart Reordering**: Swap-based reordering ensures unique and contiguous ordering without gaps
+  - **Button Controls**: Move up/down buttons with proper boundary checks (disabled at top/bottom)
+  - **Simplified UI**: Removed display order input field from form for cleaner interface
+
+- **Candidate Directory Enhancements**: Improved candidate information display
+  - **Course/Year Display**: Replaced "Voting Period" with "Course/Year" showing format "BSCS (course code) - 4 (Year level)"
+  - **Visual Updates**: View Election button matches green theme color (#0b6e3b)
+  - **Profile Picture Styling**: Slight gray gradient for profile pictures with grayscale filter
+  - **Simplified Design**: Removed glow effects and extra design elements for cleaner appearance
+
+- **Student Count Fix**: Accurate student statistics for all users
+  - **New Endpoint**: Added `/api/auth/student-count/` endpoint for total student count
+  - **Permission Fix**: Non-admin users can now see correct total student count (previously showed only 1)
+  - **Election Statistics**: Results pages now show accurate eligible student counts
+  - **Dashboard Accuracy**: Homepage dashboard displays correct student statistics
+
+- **Guest Mode Privacy**: Enhanced privacy and security for unauthenticated users
+  - **Statistics Visibility**: Statistics cards (Students, Votes Recorded) are hidden for guest/unauthenticated users
+  - **Conditional Data Fetching**: Student count and vote statistics only fetched when user is authenticated
+  - **Public Data Access**: Guest users can still view elections, candidates, and winners (public information)
+  - **Security Enhancement**: Prevents unauthorized access to sensitive statistics
+  - **Frontend Implementation**: Dashboard page checks `isAuthenticated` before displaying statistics and fetching sensitive data
+
+### Previous Highlights (0.7.6)
 - **General-Purpose Algorithm Library**: Comprehensive suite of efficient, reusable algorithms
   - **Sorting Algorithms**: Quicksort (O(n log n) avg) and Merge Sort (O(n log n) guaranteed) for efficient data sorting
   - **Searching Algorithms**: Binary search (O(log n)) and linear search (O(n)) with flexible key functions
@@ -589,6 +623,213 @@ E_Botar/
 └── .gitignore                  # Git ignore rules
 ```
 
+### Frontend-Backend Connection Architecture
+
+E-Botar uses a **service layer pattern** to connect the React frontend with the Django REST Framework backend through HTTP/REST APIs.
+
+#### Connection Components
+
+**1. API Service Instance** (`frontend/src/services/api.js`)
+- **Component**: Axios HTTP client instance
+- **Purpose**: Centralized API configuration and request handling
+- **Base URL Logic**:
+  - **Development**: Uses relative URL `/api` (proxied by Vite to `http://localhost:8000`)
+  - **Production**: Uses `VITE_API_BASE_URL` environment variable
+- **Features**:
+  - Automatic JWT token injection via request interceptor
+  - Automatic token refresh on 401 errors via response interceptor
+  - 30-second timeout for requests
+  - CORS error handling
+  - Network error detection
+- **Code Reference**: `frontend/src/services/api.js` (lines 41-147)
+
+**2. Vite Development Proxy** (`frontend/vite.config.js`)
+- **Component**: Vite proxy configuration
+- **Purpose**: Routes `/api/*` requests to Django backend in development
+- **Configuration**:
+  ```javascript
+  proxy: {
+    '/api': {
+      target: 'http://localhost:8000',  // Django backend
+      changeOrigin: true,
+      secure: false,
+    },
+  }
+  ```
+- **How it works**: 
+  - Frontend runs on `http://localhost:5173`
+  - Backend runs on `http://localhost:8000`
+  - Request to `/api/auth/login/` → Proxied to `http://localhost:8000/api/auth/login/`
+  - Eliminates CORS issues in development
+- **Code Reference**: `frontend/vite.config.js` (lines 14-20)
+
+**3. Service Layer** (`frontend/src/services/`)
+- **Components**: Module-specific service files
+  - `authService.js` - Authentication API calls
+  - `electionService.js` - Election API calls
+  - `candidateService.js` - Candidate API calls
+  - `votingService.js` - Voting API calls
+  - `programService.js` - Program management API calls
+- **Pattern**: Each service imports the `api` instance and provides methods for specific endpoints
+- **Example**:
+  ```javascript
+  import api from './api';
+  
+  export const authService = {
+    login: (credentials) => {
+      return api.post('/auth/token/', credentials);
+    },
+    getCurrentUser: () => {
+      return api.get('/auth/me/');
+    }
+  };
+  ```
+- **Code Reference**: `frontend/src/services/authService.js` (example implementation)
+
+**4. Request Interceptor** (`frontend/src/services/api.js`)
+- **Component**: Axios request interceptor
+- **Purpose**: Automatically adds JWT authentication token to all requests
+- **Implementation**:
+  ```javascript
+  api.interceptors.request.use((config) => {
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  });
+  ```
+- **Result**: All API requests automatically include `Authorization: Bearer <token>` header
+- **Code Reference**: `frontend/src/services/api.js` (lines 49-61)
+
+**5. Response Interceptor** (`frontend/src/services/api.js`)
+- **Component**: Axios response interceptor
+- **Purpose**: Handles token refresh and error handling
+- **Features**:
+  - Detects 401 (Unauthorized) responses
+  - Automatically refreshes JWT token using refresh token
+  - Retries original request with new token
+  - Redirects to login if refresh fails
+  - Handles CORS and network errors
+- **Code Reference**: `frontend/src/services/api.js` (lines 63-147)
+
+**6. Backend CORS Configuration** (`backend/backend/settings.py`)
+- **Component**: Django CORS middleware (`django-cors-headers`)
+- **Development Configuration**:
+  ```python
+  CORS_ALLOW_ALL_ORIGINS = True  # Allows all origins in dev
+  CORS_ALLOW_CREDENTIALS = True
+  ```
+- **Production Configuration**:
+  ```python
+  CORS_ALLOWED_ORIGINS = get_cors_origins()  # From FRONTEND_URL env var
+  CORS_ALLOW_CREDENTIALS = True
+  ```
+- **Purpose**: Allows frontend to make cross-origin requests to backend API
+- **Code Reference**: `backend/backend/settings.py` (lines 312-401)
+
+**7. Backend URL Routing** (`backend/backend/urls.py`)
+- **Component**: Django URL configuration
+- **Structure**: All API endpoints prefixed with `/api/`
+  ```python
+  path("api/auth/", include("apps.accounts.urls")),      # /api/auth/*
+  path("api/elections/", include("apps.elections.urls")), # /api/elections/*
+  path("api/candidates/", include("apps.candidates.urls")), # /api/candidates/*
+  path("api/voting/", include("apps.voting.urls")),      # /api/voting/*
+  path("api/common/", include("apps.common.urls")),     # /api/common/*
+  ```
+- **Code Reference**: `backend/backend/urls.py` (lines 6-17)
+
+#### Complete Request Flow
+
+**Example: User Login Flow**
+
+```
+1. User Action
+   ↓
+   LoginPage.jsx: User clicks "Login" button
+   
+2. Service Call
+   ↓
+   authService.login({ username, password })
+   
+3. API Request
+   ↓
+   api.post('/auth/token/', { username, password })
+   - Base URL: '/api' (dev) or VITE_API_BASE_URL (prod)
+   - Full URL: http://localhost:8000/api/auth/token/
+   
+4. Request Interceptor
+   ↓
+   Adds headers: { 'Content-Type': 'application/json' }
+   (No token needed for login)
+   
+5. Vite Proxy (Development Only)
+   ↓
+   Proxies /api/auth/token/ → http://localhost:8000/api/auth/token/
+   
+6. Backend CORS Middleware
+   ↓
+   Validates origin and allows request
+   
+7. Django URL Routing
+   ↓
+   Matches /api/auth/token/ → apps.accounts.urls → CustomTokenObtainPairView
+   
+8. Django REST Framework
+   ↓
+   - Validates credentials
+   - Generates JWT tokens (access + refresh)
+   - Returns JSON response
+   
+9. Response Interceptor
+   ↓
+   - Receives response with tokens
+   - Stores tokens in localStorage
+   - Returns response to service
+   
+10. Component Update
+    ↓
+    - Service returns token data
+    - Component updates state
+    - User redirected to dashboard
+```
+
+#### Environment Configuration
+
+**Frontend Environment Variables** (`.env`):
+```bash
+# Production only - Backend API URL
+VITE_API_BASE_URL=http://localhost:8000
+```
+
+**Backend Environment Variables** (`.env`):
+```bash
+# Frontend URL for CORS (production)
+FRONTEND_URL=http://localhost:5173
+
+# Or multiple frontends (comma-separated)
+FRONTEND_URL=http://localhost:5173,https://staging.example.com
+```
+
+#### Authentication Flow
+
+**Token Management:**
+1. **Login**: User logs in → Receives `access` token (30 min) and `refresh` token (1 day)
+2. **Storage**: Tokens stored in `localStorage` with keys:
+   - `access_token` - Short-lived access token
+   - `refresh_token` - Long-lived refresh token
+3. **Automatic Injection**: Request interceptor adds `Authorization: Bearer <access_token>` to all requests
+4. **Automatic Refresh**: Response interceptor detects 401 errors and automatically refreshes token
+5. **Logout**: Tokens cleared from `localStorage` on logout
+
+**Code References:**
+- API Service: `frontend/src/services/api.js`
+- Vite Config: `frontend/vite.config.js`
+- CORS Settings: `backend/backend/settings.py` (lines 312-401)
+- URL Routing: `backend/backend/urls.py`
+- Service Examples: `frontend/src/services/authService.js`, `electionService.js`, etc.
+
 ### Database Schema
 
 #### Core Models (18 Custom Models)
@@ -703,6 +944,34 @@ ActivityLog
 └── timestamp
 ```
 
+
+┌─────────────────────────────────────────────────────────┐
+│ STEP 1: When Vote is Cast                               │
+├─────────────────────────────────────────────────────────┤
+│ Receipt Code: "abc123xyz"                               │
+│           ↓                                              │
+│ Hash Function (SHA-256)                                 │
+│           ↓                                              │
+│ Hash: "a665a45920422f9d417e4867efdc4fb8a04a1f3..."     │
+│           ↓                                              │
+│ Store in Database: receipt_hash = "a665a459..."         │
+└─────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────┐
+│ STEP 2: When Verifying Receipt                          │
+├─────────────────────────────────────────────────────────┤
+│ User Provides: "abc123xyz"                              │
+│           ↓                                              │
+│ Hash Function (SHA-256) - SAME FUNCTION                 │
+│           ↓                                              │
+│ New Hash: "a665a45920422f9d417e4867efdc4fb8a04a1f3..."  │
+│           ↓                                              │
+│ Compare: new_hash == stored_hash?                       │
+│           ↓                                              │
+│ ✅ MATCH → Valid Receipt                                │
+│ ❌ NO MATCH → Invalid Receipt                           │
+└─────────────────────────────────────────────────────────┘
+
 ### Privacy-Preserving Design
 
 The voting system implements a **three-layer separation** for privacy:
@@ -744,7 +1013,7 @@ This design ensures:
 - **Encryption**: cryptography (Fernet) for ballot encryption
 
 ### Frontend
-- **Framework**: React 18.3 with Hooks
+- **Framework**: React 19.2 with Hooks
 - **Build Tool**: Vite 6.0 (fast HMR, optimized builds)
 - **HTTP Client**: Axios with interceptors
 - **Routing**: React Router 7.0
@@ -971,6 +1240,7 @@ Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGc...
 | `/profiles/{id}/toggle_active/` | POST | Superuser | Toggle user active status |
 | `/profiles/{id}/reset_password/` | POST | Superuser | Reset user password |
 | `/profiles/{id}/update_role/` | POST | Superuser | Update user role (Student/Staff/Admin) |
+| `/student-count/` | GET | Authenticated | Get total student count (non-staff/non-admin users) |
 
 #### 2. Elections Module (`/api/elections/`)
 
@@ -1567,7 +1837,7 @@ pylint apps/
 
 ## 🗺️ Roadmap
 
-### Current Version: 0.7.6
+### Current Version: 0.7.7
 - ✅ Complete Backend API (50+ endpoints)
 - ✅ User authentication and profiles
 - ✅ Three-tier role system (Student, Staff, Admin)
@@ -1601,6 +1871,12 @@ pylint apps/
 - ✅ Throttling management command for testing and development
 - ✅ Memoization for expensive operations in services
 - ✅ Aggregation algorithms for vote counting and statistics
+- ✅ Profile completeness validation system (candidate applications and voting)
+- ✅ Results visibility controls (hidden during active elections for non-admins)
+- ✅ Student count endpoint for accurate statistics
+- ✅ Guest mode privacy (statistics hidden for unauthenticated users)
+- ✅ Position management improvements (auto-assignment, smart reordering)
+- ✅ Candidate directory enhancements (course/year display, visual updates)
 
 ### Next: Version 0.8.0 (Q1 2025)
 - 🔄 Enhanced data visualizations (Chart.js integration)
@@ -1743,7 +2019,7 @@ python manage.py check
 
 ---
 
-**E-Botar v0.7.6** | Last Updated: December 2025 | Performance Tested & Optimized  
-**Status**: Backend Complete | Frontend in Development
+**E-Botar v0.7.7** | Last Updated: December 2025 | Performance Tested & Optimized  
+**Status**: Production Ready | Full Stack Complete
 
 **Built with ❤️ for democratic student governance**

@@ -88,6 +88,22 @@ class BallotSubmissionSerializer(serializers.Serializer):
             raise serializers.ValidationError({'election_id': 'Election not found'})
         
         user = self.context['request'].user
+        
+        # Check profile completeness (skip for staff/admin)
+        if not (user.is_staff or user.is_superuser):
+            if hasattr(user, 'profile'):
+                profile = user.profile
+                if not profile.is_profile_complete():
+                    missing_fields = profile.get_missing_fields()
+                    missing_list = ', '.join(missing_fields)
+                    raise serializers.ValidationError({
+                        'non_field_errors': f'Your profile is incomplete. Please complete your profile with the following information before voting: {missing_list}. You can update your profile in the Profile section.'
+                    })
+            else:
+                raise serializers.ValidationError({
+                    'non_field_errors': 'Profile not found. Please complete your profile before voting.'
+                })
+        
         if not election.is_active_now() and not user.is_staff:
             raise serializers.ValidationError({'election_id': 'This election is not currently active'})
         

@@ -11,7 +11,7 @@ import { authService } from '../../../services';
 import { useAuth } from '../../../hooks/useAuth';
 import { formatDate } from '../../../utils/formatters';
 import { getInitials } from '../../../utils/helpers';
-import './profile.css';
+import '../profile.css';
 
 const ProfilePage = () => {
   const { user: authUser, logout } = useAuth();
@@ -264,18 +264,11 @@ const ProfilePage = () => {
 
           {/* Change Password Section */}
           <div className="profile-section">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <div style={{ flex: 1 }}>
+            <div className="password-header">
+              <div className="password-header-text">
                 <h3 className="section-title" style={{ marginBottom: '0.25rem' }}>Change Password</h3>
                 {!showChangePassword && (
-                  <p style={{ 
-                    fontSize: '0.875rem', 
-                    color: '#6b7280', 
-                    margin: 0,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem'
-                  }}>
+                  <p className="password-subtitle">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
                     </svg>
@@ -295,20 +288,7 @@ const ProfilePage = () => {
                     confirm_password: ''
                   });
                 }}
-                className="btn-secondary"
-                style={{ 
-                  padding: '0.5rem 1rem', 
-                  fontSize: '0.875rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  flexShrink: 0,
-                  border: '1px solid #d1d5db',
-                  borderRadius: '0.5rem',
-                  background: 'white',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}
+                className="btn-primary password-toggle"
               >
                 {showChangePassword ? (
                   <>
@@ -430,24 +410,11 @@ const ProfilePage = () => {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
+                <div className="password-form-actions">
                   <button
                     type="submit"
                     disabled={changingPassword}
-                    style={{
-                      padding: '0.75rem 1.5rem',
-                      background: '#0b6e3b',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '0.5rem',
-                      fontSize: '0.95rem',
-                      fontWeight: 600,
-                      cursor: changingPassword ? 'not-allowed' : 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      opacity: changingPassword ? 0.6 : 1
-                    }}
+                    className="btn-primary password-submit-btn"
                   >
                     {changingPassword ? (
                       <>

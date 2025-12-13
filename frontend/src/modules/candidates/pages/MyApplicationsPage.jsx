@@ -9,7 +9,7 @@ import { Container } from '../../../components/layout';
 import { LoadingSpinner } from '../../../components/common';
 import { candidateService } from '../../../services';
 import { formatDate, getApplicationStatus } from '../../../utils/formatters';
-import './applications.css';
+import '../applications.css';
 
 const MyApplicationsPage = () => {
   const [applications, setApplications] = useState([]);

@@ -8,7 +8,7 @@ import { Container } from '../../../components/layout';
 import { LoadingSpinner, Alert } from '../../../components/common';
 import { logService } from '../../../services';
 import { formatDate } from '../../../utils/formatters';
-import '../../../assets/styles/admin.css';
+import '../admin.css';
 
 // SVG Icon Component
 const Icon = ({ name, size = 20, className = '' }) => {

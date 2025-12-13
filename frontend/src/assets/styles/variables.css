@@ -106,16 +106,4 @@
   --z-tooltip: 1070;
 }
 
-/* Dark Mode Support (Optional for Future) */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --light-bg: var(--gray-900);
-    --card-bg: var(--gray-800);
-    --text-primary: var(--gray-100);
-    --text-secondary: var(--gray-400);
-    --text-muted: var(--gray-500);
-    --border-color: var(--gray-700);
-    --border-color-hover: var(--gray-600);
-  }
-}
 

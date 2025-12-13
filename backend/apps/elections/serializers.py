@@ -46,6 +46,7 @@ class SchoolElectionListSerializer(serializers.ModelSerializer):
     is_finished = serializers.SerializerMethodField()
     created_by_name = serializers.SerializerMethodField()
     total_votes = serializers.SerializerMethodField()
+    total_positions = serializers.SerializerMethodField()
     allowed_department_name = serializers.CharField(source='allowed_department.name', read_only=True, allow_null=True)
     allowed_department_code = serializers.CharField(source='allowed_department.code', read_only=True, allow_null=True)
     
@@ -57,7 +58,7 @@ class SchoolElectionListSerializer(serializers.ModelSerializer):
             'start_year', 'end_year', 'description',
             'start_date', 'end_date', 'is_active', 'status', 
             'is_active_now', 'is_upcoming', 'is_finished',
-            'created_by', 'created_by_name', 'total_votes',
+            'created_by', 'created_by_name', 'total_votes', 'total_positions',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['created_at', 'updated_at', 'title']
@@ -120,6 +121,16 @@ class SchoolElectionListSerializer(serializers.ModelSerializer):
         try:
             # Safely count votes, return 0 if election doesn't exist or has no votes
             return VoteReceipt.objects.filter(election=obj).count() if (hasattr(obj, 'id') and obj.id) else 0
+        except (AttributeError, Exception):
+            return 0
+    
+    def get_total_positions(self, obj):
+        """Count of positions in this election"""
+        if obj is None:
+            return 0
+        try:
+            # Safely count positions, return 0 if election doesn't exist
+            return obj.election_positions.count() if hasattr(obj, 'election_positions') else 0
         except (AttributeError, Exception):
             return 0
 
@@ -210,11 +221,11 @@ class SchoolElectionCreateUpdateSerializer(serializers.ModelSerializer):
         required=False,
         help_text="List of position IDs to associate with this election"
     )
-    allowed_department_id = serializers.IntegerField(
+    allowed_department_code = serializers.CharField(
         write_only=True,
         required=False,
         allow_null=True,
-        help_text="Department ID for Department Election type"
+        help_text="Department code for Department Election type"
     )
     
     start_year = serializers.IntegerField(
@@ -234,7 +245,7 @@ class SchoolElectionCreateUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = SchoolElection
         fields = [
-            'id', 'title', 'election_type', 'allowed_department_id',
+            'id', 'title', 'election_type', 'allowed_department_code',
             'start_year', 'end_year', 'description',
             'start_date', 'end_date', 'is_active', 'position_ids'
         ]
@@ -245,7 +256,7 @@ class SchoolElectionCreateUpdateSerializer(serializers.ModelSerializer):
         start_year = data.get('start_year')
         end_year = data.get('end_year')
         election_type = data.get('election_type', 'university')
-        allowed_department_id = data.get('allowed_department_id')
+        allowed_department_code = data.get('allowed_department_code')
         
         # Validate year range
         if start_year and end_year:
@@ -256,37 +267,37 @@ class SchoolElectionCreateUpdateSerializer(serializers.ModelSerializer):
         
         # Validate department election requirements
         if election_type == 'department':
-            if not allowed_department_id:
+            if not allowed_department_code:
                 raise serializers.ValidationError({
-                    'allowed_department_id': 'Department is required for Department Election type'
+                    'allowed_department_code': 'Department is required for Department Election type'
                 })
             
             # Verify department exists and is a department type
             from apps.accounts.models import Program
             try:
                 department = Program.objects.get(
-                    id=allowed_department_id,
+                    code=allowed_department_code,
                     program_type='department'
                 )
             except Program.DoesNotExist:
                 raise serializers.ValidationError({
-                    'allowed_department_id': 'Invalid department. Must be a department-type program.'
+                    'allowed_department_code': f'Invalid department. Department with code "{allowed_department_code}" does not exist or is not a department-type program.'
                 })
         elif election_type == 'university':
             # Clear department if switching to university type
-            if allowed_department_id:
-                data['allowed_department_id'] = None
+            if allowed_department_code:
+                data['allowed_department_code'] = None
         
         return data
     
     def create(self, validated_data):
         position_ids = validated_data.pop('position_ids', [])
-        allowed_department_id = validated_data.pop('allowed_department_id', None)
+        allowed_department_code = validated_data.pop('allowed_department_code', None)
         
         # Set allowed_department if provided
-        if allowed_department_id:
+        if allowed_department_code:
             from apps.accounts.models import Program
-            validated_data['allowed_department'] = Program.objects.get(id=allowed_department_id)
+            validated_data['allowed_department'] = Program.objects.get(code=allowed_department_code, program_type='department')
         else:
             validated_data['allowed_department'] = None
         
@@ -308,13 +319,13 @@ class SchoolElectionCreateUpdateSerializer(serializers.ModelSerializer):
     
     def update(self, instance, validated_data):
         position_ids = validated_data.pop('position_ids', None)
-        allowed_department_id = validated_data.pop('allowed_department_id', None)
+        allowed_department_code = validated_data.pop('allowed_department_code', None)
         
         # Handle allowed_department
-        if allowed_department_id is not None:
-            if allowed_department_id:
+        if allowed_department_code is not None:
+            if allowed_department_code:
                 from apps.accounts.models import Program
-                instance.allowed_department = Program.objects.get(id=allowed_department_id)
+                instance.allowed_department = Program.objects.get(code=allowed_department_code, program_type='department')
             else:
                 instance.allowed_department = None
         

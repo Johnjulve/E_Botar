@@ -47,7 +47,7 @@ const LoginPage = () => {
     const newErrors = {};
     
     if (!formData.username.trim()) {
-      newErrors.username = 'Username is required';
+      newErrors.username = 'Username or email is required';
     }
     
     if (!formData.password) {
@@ -112,7 +112,7 @@ const LoginPage = () => {
                 <Form.Group className="form-group">
                   <Form.Label>
                     <i className="fas fa-user"></i>
-                    Username
+                    Username or Email
                   </Form.Label>
                   <Form.Control
                     type="text"
@@ -120,7 +120,7 @@ const LoginPage = () => {
                     value={formData.username}
                     onChange={handleChange}
                     isInvalid={!!errors.username}
-                    placeholder="Enter your username"
+                    placeholder="Enter your username or email"
                     disabled={loading}
                   />
                   {errors.username && (

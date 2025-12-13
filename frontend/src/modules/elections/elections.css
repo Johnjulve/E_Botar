@@ -332,7 +332,7 @@
 }
 
 .info-item-icon.candidates {
-  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  background: #075a30;
 }
 
 .info-item-content {
@@ -376,12 +376,12 @@
 }
 
 .action-btn-primary {
-  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  background: linear-gradient(135deg, #0b6e3b 0%, #075a30 100%);
   color: white;
 }
 
 .action-btn-primary:hover {
-  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  background: linear-gradient(135deg, #075a30 0%, #064e27 100%);
   color: white;
 }
 
@@ -417,7 +417,7 @@
 .candidates-section-icon {
   width: 40px;
   height: 40px;
-  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  background: #075a30;
   border-radius: 10px;
   display: flex;
   align-items: center;

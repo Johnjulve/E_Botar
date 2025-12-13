@@ -35,7 +35,7 @@ const EditProfilePage = () => {
 
   useEffect(() => {
     if (formData.department) {
-      const filtered = courses.filter(c => c.department === parseInt(formData.department));
+      const filtered = courses.filter(c => c.department === formData.department);
       setFilteredCourses(filtered);
     } else {
       setFilteredCourses([]);
@@ -56,8 +56,8 @@ const EditProfilePage = () => {
         email: userData.user?.email || '',
         student_id: userData.profile?.student_id || '',
         year_level: userData.profile?.year_level || '',
-        department: userData.profile?.department?.id || '',
-        course: userData.profile?.course?.id || ''
+        department: userData.profile?.department?.code || '',
+        course: userData.profile?.course?.code || ''
       });
       
       // Fetch departments and courses
@@ -94,7 +94,16 @@ const EditProfilePage = () => {
     try {
       setSubmitting(true);
       
-      await authService.updateProfile(formData);
+      // Convert department and course to department_code and course_code
+      const submitData = {
+        ...formData,
+        department_code: formData.department || null,
+        course_code: formData.course || null
+      };
+      delete submitData.department;
+      delete submitData.course;
+      
+      await authService.updateProfile(submitData);
       
       setSuccess('Profile updated successfully!');
       setTimeout(() => {
@@ -228,7 +237,7 @@ const EditProfilePage = () => {
               >
                 <option value="">Select Department</option>
                 {departments.map(dept => (
-                  <option key={dept.id} value={dept.id}>
+                  <option key={dept.code} value={dept.code}>
                     {dept.name}
                   </option>
                 ))}
@@ -246,7 +255,7 @@ const EditProfilePage = () => {
               >
                 <option value="">Select Course</option>
                 {filteredCourses.map(course => (
-                  <option key={course.id} value={course.id}>
+                  <option key={course.code} value={course.code}>
                     {course.name}
                   </option>
                 ))}
