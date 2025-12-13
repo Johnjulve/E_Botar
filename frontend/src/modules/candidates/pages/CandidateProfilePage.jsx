@@ -9,7 +9,7 @@ import { Container } from '../../../components/layout';
 import { LoadingSpinner } from '../../../components/common';
 import { candidateService } from '../../../services';
 import { getInitials } from '../../../utils/helpers';
-import './candidates.css';
+import '../candidates.css';
 
 const CandidateProfilePage = () => {
   const { id } = useParams();
@@ -81,10 +81,14 @@ const CandidateProfilePage = () => {
             <div 
               className="profile-avatar-large"
               style={{
-                background: getGradientColor(candidate.id)
+                background: candidate.photo_url 
+                  ? `url(${candidate.photo_url}) center/cover no-repeat`
+                  : 'linear-gradient(135deg, #9ca3af 0%, #6b7280 100%)',
+                filter: candidate.photo_url ? 'grayscale(0.2) brightness(0.95)' : 'none',
+                backgroundSize: candidate.photo_url ? 'cover' : 'auto'
               }}
             >
-              {getInitials(`${candidate.user?.first_name} ${candidate.user?.last_name}`)}
+              {!candidate.photo_url && getInitials(`${candidate.user?.first_name} ${candidate.user?.last_name}`)}
             </div>
             
             <h3 className="profile-name">
@@ -124,14 +128,13 @@ const CandidateProfilePage = () => {
                 </div>
               </div>
 
-              {candidate.election?.start_date && (
+              {candidate.user?.course_code && candidate.user?.year_level && (
                 <div className="profile-detail-item">
-                  <i className="fas fa-clock"></i>
+                  <i className="fas fa-graduation-cap"></i>
                   <div className="profile-detail-content">
-                    <strong>Voting Period</strong>
+                    <strong>Course/Year</strong>
                     <span>
-                      {new Date(candidate.election.start_date).toLocaleDateString()} - {' '}
-                      {new Date(candidate.election.end_date).toLocaleDateString()}
+                      {candidate.user.course_code} - {candidate.user.year_level}
                     </span>
                   </div>
                 </div>
@@ -173,7 +176,12 @@ const CandidateProfilePage = () => {
               <div className="action-buttons">
                 <Link 
                   to={`/elections/${candidate.election.id}`}
-                  className="action-btn action-btn-primary"
+                  className="action-btn"
+                  style={{
+                    background: '#0b6e3b',
+                    color: 'white',
+                    border: 'none'
+                  }}
                 >
                   <i className="fas fa-info-circle"></i>
                   View Election

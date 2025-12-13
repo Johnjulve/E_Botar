@@ -8,7 +8,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Container } from '../../../components/layout';
 import { LoadingSpinner, Alert } from '../../../components/common';
 import { electionService, programService } from '../../../services';
-import '../../../assets/styles/admin.css';
+import '../admin.css';
 
 // SVG Icon Component
 const Icon = ({ name, size = 20, className = '' }) => {
@@ -62,7 +62,7 @@ const ElectionFormPage = () => {
     start_date: '',
     end_date: '',
     election_type: 'university',
-    allowed_department_id: null
+    allowed_department_code: null
   });
 
   useEffect(() => {
@@ -110,7 +110,7 @@ const ElectionFormPage = () => {
         start_date: election.start_date ? election.start_date.slice(0, 16) : '',
         end_date: election.end_date ? election.end_date.slice(0, 16) : '',
         election_type: election.election_type || 'university',
-        allowed_department_id: election.allowed_department?.id || null
+        allowed_department_code: election.allowed_department?.code || null
       });
       
       setSelectedPositionIds(positionIds);
@@ -138,7 +138,7 @@ const ElectionFormPage = () => {
       setFormData(prev => ({ 
         ...prev, 
         [name]: value,
-        allowed_department_id: value === 'university' ? null : prev.allowed_department_id
+        allowed_department_code: value === 'university' ? null : prev.allowed_department_code
       }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
@@ -152,8 +152,8 @@ const ElectionFormPage = () => {
     if (formData.election_type === 'university') {
       return `USC Election AY ${formData.start_year}-${formData.end_year}`;
     } else if (formData.election_type === 'department') {
-      if (formData.allowed_department_id) {
-        const selectedDept = departments.find(d => d.id === formData.allowed_department_id);
+      if (formData.allowed_department_code) {
+        const selectedDept = departments.find(d => d.code === formData.allowed_department_code);
         if (selectedDept) {
           return `${selectedDept.code} Election AY ${formData.start_year}-${formData.end_year}`;
         }
@@ -207,7 +207,7 @@ const ElectionFormPage = () => {
       const dataToSubmit = {
         ...formData,
         position_ids: selectedPositionIds,
-        allowed_department_id: formData.election_type === 'department' ? formData.allowed_department_id : null
+        allowed_department_code: formData.election_type === 'department' ? formData.allowed_department_code : null
       };
 
       if (isEdit) {
@@ -514,8 +514,8 @@ const ElectionFormPage = () => {
                 Department *
               </label>
               <select
-                name="allowed_department_id"
-                value={formData.allowed_department_id || ''}
+                name="allowed_department_code"
+                value={formData.allowed_department_code || ''}
                 onChange={handleChange}
                 required={formData.election_type === 'department'}
                 style={{
@@ -529,7 +529,7 @@ const ElectionFormPage = () => {
               >
                 <option value="">Select Department</option>
                 {departments.map(dept => (
-                  <option key={dept.id} value={dept.id}>
+                  <option key={dept.code} value={dept.code}>
                     {dept.name} ({dept.code})
                   </option>
                 ))}

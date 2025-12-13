@@ -9,7 +9,7 @@ import { LoadingSpinner, Modal, Button } from '../../../components/common';
 import { authService } from '../../../services';
 import { getInitials } from '../../../utils/helpers';
 import { formatDate } from '../../../utils/formatters';
-import '../../../assets/styles/admin.css';
+import '../admin.css';
 
 // SVG Icon Component
 const Icon = ({ name, size = 20, className = '' }) => {

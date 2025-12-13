@@ -5,6 +5,7 @@ from rest_framework import generics, status, viewsets
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework_simplejwt.views import TokenObtainPairView
 from django.contrib.auth.models import User
 from django.http import HttpResponse
 from .models import UserProfile, Program
@@ -13,10 +14,16 @@ from apps.common.permissions import IsSuperUser, IsStaffOrSuperUser
 from apps.common.throttling import enforce_scope_throttle
 from .serializers import (
     UserSerializer, UserProfileSerializer, UserRegistrationSerializer,
-    DepartmentSerializer, CourseSerializer, ProgramSerializer
+    DepartmentSerializer, CourseSerializer, ProgramSerializer,
+    CustomTokenObtainPairSerializer
 )
 
 logger = logging.getLogger(__name__)
+
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    """Custom token view that accepts either email or username"""
+    serializer_class = CustomTokenObtainPairSerializer
 
 
 @api_view(['GET'])
@@ -27,6 +34,24 @@ def health_check(request):
         'status': 'healthy',
         'service': 'accounts',
         'message': 'Accounts service is running'
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def student_count(request):
+    """Get total count of students (non-staff, non-superuser, active users)"""
+    # Count User objects directly (more accurate than counting profiles)
+    # Only count active users who are not staff and not superuser
+    # This ensures we count all students regardless of profile completeness
+    total_students = User.objects.filter(
+        is_staff=False,
+        is_superuser=False,
+        is_active=True
+    ).count()
+    
+    return Response({
+        'total_students': total_students
     })
 
 
@@ -180,32 +205,24 @@ def current_user(request):
                 elif request.data[field]:  # For regular users, only set if value provided
                     profile_data[field] = request.data[field]
         
-        # Handle department and course separately - convert to department_id and course_id
+        # Handle department and course separately - convert to department_code and course_code
         if 'department' in request.data:
             if is_admin_or_staff and (not request.data['department'] or request.data['department'] == ''):
                 # Allow admins to clear department
-                profile_data['department_id'] = None
+                profile_data['department_code'] = None
             elif request.data['department']:
-                try:
-                    profile_data['department_id'] = int(request.data['department'])
-                except (ValueError, TypeError):
-                    return Response(
-                        {'department': ['Invalid department ID']}, 
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
+                # Accept either code directly or as department_code
+                dept_value = request.data.get('department_code') or request.data['department']
+                profile_data['department_code'] = str(dept_value).strip()
         
         if 'course' in request.data:
             if is_admin_or_staff and (not request.data['course'] or request.data['course'] == ''):
                 # Allow admins to clear course
-                profile_data['course_id'] = None
+                profile_data['course_code'] = None
             elif request.data['course']:
-                try:
-                    profile_data['course_id'] = int(request.data['course'])
-                except (ValueError, TypeError):
-                    return Response(
-                        {'course': ['Invalid course ID']}, 
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
+                # Accept either code directly or as course_code
+                course_value = request.data.get('course_code') or request.data['course']
+                profile_data['course_code'] = str(course_value).strip()
         
         # Handle avatar file from request.FILES
         if 'avatar' in request.FILES:
@@ -483,9 +500,9 @@ class CourseViewSet(viewsets.ReadOnlyModelViewSet):
             program_type=Program.ProgramType.COURSE,
             is_active=True
         )
-        department_id = self.request.query_params.get('department', None)
-        if department_id:
-            queryset = queryset.filter(department_id=department_id)
+        department_code = self.request.query_params.get('department', None)
+        if department_code:
+            queryset = queryset.filter(department__code=department_code)
         return queryset
 
 
@@ -592,13 +609,11 @@ class ProgramViewSet(viewsets.ModelViewSet):
                         })
                         continue
                     
-                    # Handle department link for courses using department code instead of numeric ID
+                    # Handle department link for courses using department code
                     department = None
                     if program_type == 'course':
-                        # Prefer department_code column; fall back to department_id for backward compatibility
                         dept_code = row.get('department_code', '').strip()
-                        dept_id_str = row.get('department_id', '').strip()
-
+                        
                         if dept_code:
                             # Look up department by its program code (e.g., CCIS)
                             department = Program.objects.filter(
@@ -608,33 +623,13 @@ class ProgramViewSet(viewsets.ModelViewSet):
                             if not department:
                                 errors.append({
                                     'row': row_num,
-                                    'error': f'Department with code \"{dept_code}\" does not exist (expected an existing department program with that code)'
-                                })
-                                continue
-                        elif dept_id_str:
-                            # Legacy support: still accept numeric department_id if provided
-                            try:
-                                department_id = int(dept_id_str)
-                                department = Program.objects.filter(
-                                    id=department_id,
-                                    program_type=Program.ProgramType.DEPARTMENT
-                                ).first()
-                                if not department:
-                                    errors.append({
-                                        'row': row_num,
-                                        'error': f'Department with ID {department_id} does not exist'
-                                    })
-                                    continue
-                            except ValueError:
-                                errors.append({
-                                    'row': row_num,
-                                    'error': f'Invalid department_id: {dept_id_str}'
+                                    'error': f'Department with code "{dept_code}" does not exist (expected an existing department program with that code)'
                                 })
                                 continue
                         else:
                             errors.append({
                                 'row': row_num,
-                                'error': 'Courses must include a department_code (recommended) or department_id'
+                                'error': 'Courses must include a department_code'
                             })
                             continue
                     

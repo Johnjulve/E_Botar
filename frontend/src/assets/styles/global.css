@@ -1,4 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import './variables.css';
+
 
 /* Disable all animations and transitions for a more professional look */
 *, *::before, *::after {
@@ -10,10 +12,11 @@
 
 /* Enable text and image selection globally */
 * {
-  -webkit-user-select: text;
-  -moz-user-select: text;
-  -ms-user-select: text;
-  user-select: text;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  cursor: auto;
 }
 
 /* Allow images to be selectable and draggable */
@@ -30,8 +33,8 @@ img {
   pointer-events: auto;
 }
 
-/* Ensure text content is selectable */
-p, h1, h2, h3, h4, h5, h6, span, div, td, th, label, .text-selectable {
+/* Ensure text content is selectable - only actual text elements get text cursor */
+p, h1, h2, h3, h4, h5, h6, td, th, label, .text-selectable {
   -webkit-user-select: text;
   -moz-user-select: text;
   -ms-user-select: text;
@@ -45,6 +48,7 @@ button, .btn, a, input, select, textarea, .nav-link {
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
+  cursor: pointer;
 }
 
 /* Allow selecting text within sidebar navigation items */
@@ -77,35 +81,11 @@ button:hover, button:focus, button:active,
   text-decoration: none !important;
 }
 
-:root {
-  --primary-color: #2563eb;
-  --primary-dark: #1d4ed8;
-  --secondary-color: #64748b;
-  --accent-color: #f59e0b;
-  --success-color: #10b981;
-  --danger-color: #ef4444;
-  --warning-color: #f59e0b;
-  --info-color: #06b6d4;
-  --light-bg: #f8fafc;
-  --card-bg: #ffffff;
-  --text-primary: #1e293b;
-  --text-secondary: #64748b;
-  --text-muted: #94a3b8;
-  --border-color: #e2e8f0;
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-  /* Brand palette (logo-based) */
-  --brand-green: #0b6e3b;          /* primary green from header */
-  --brand-green-dark: #075a30;     /* darker green */
-  --brand-yellow: #f4cc5c;         /* yellow used in sidebars */
-  --brand-yellow-dark: #e6b93e;    /* deeper yellow for contrast */
-}
+
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  font-family: var(--font-sans);
+  background: linear-gradient(135deg, var(--gray-50) 0%, var(--gray-200) 100%);
   min-height: 100vh;
   margin: 0;
   padding: 0;
@@ -130,12 +110,12 @@ body {
 }
 
 .topbar {
-  background: #0b6e3b;
-  color: #fff;
+  background: var(--brand-green-dark);
+  color: var(--white);
   padding: 8px 0;
   position: sticky;
   top: 0;
-  z-index: 1000;
+  z-index: var(--z-sticky);
   box-shadow: var(--shadow-lg);
   height: 88px;
   display: flex;
@@ -158,12 +138,12 @@ body {
 }
 
 .brand-text {
-  color: #fff;
-  font-weight: 700;
+  color: var(--white);
+  font-weight: var(--font-weight-bold);
   line-height: 1.1;
   letter-spacing: 0.2px;
   text-transform: uppercase;
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
 }
 
 .menu-btn {
@@ -1459,7 +1439,7 @@ a:hover {
 
 /* Footer */
 .footer {
-  background: linear-gradient(135deg, var(--brand-green) 0%, var(--brand-green-dark) 100%);
+  background: var(--brand-green-dark);
   color: white;
   padding: 2.5rem 0 1.5rem;
   margin-top: auto;

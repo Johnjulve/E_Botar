@@ -9,7 +9,7 @@ import { Container } from '../../../components/layout';
 import { LoadingSpinner } from '../../../components/common';
 import { electionService } from '../../../services';
 import { formatDate, getElectionStatus } from '../../../utils/formatters';
-import '../../../assets/styles/admin.css';
+import '../admin.css';
 
 // SVG Icon Component
 const Icon = ({ name, size = 20, className = '' }) => {
@@ -262,7 +262,7 @@ const ElectionManagementPage = () => {
                       color: '#22c55e',
                       fontSize: '1.1rem'
                     }}>
-                      {election.positions?.length || 0}
+                      {election.total_positions || 0}
                     </div>
                     <small style={{ color: '#6b7280' }}>Positions</small>
                   </div>

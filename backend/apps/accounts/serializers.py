@@ -1,6 +1,7 @@
 from django.contrib.auth.models import User
 from django.conf import settings
 from rest_framework import serializers
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import UserProfile, Program
 
 
@@ -14,34 +15,45 @@ class DepartmentSerializer(serializers.ModelSerializer):
 
 class CourseSerializer(serializers.ModelSerializer):
     """Serializer for course-type programs"""
-    department = serializers.IntegerField(source='department_id', read_only=True)
-    department_name = serializers.CharField(source='department.name', read_only=True)
-    department_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+    department = serializers.CharField(source='department.code', read_only=True, allow_null=True)
+    department_name = serializers.CharField(source='department.name', read_only=True, allow_null=True)
+    department_code = serializers.CharField(write_only=True, required=False, allow_null=True)
     
     class Meta:
         model = Program
         fields = [
-            'id', 'department', 'department_id', 'department_name',
+            'id', 'department', 'department_code', 'department_name',
             'name', 'code', 'program_type', 'description',
             'is_active', 'created_at', 'updated_at'
         ]
         read_only_fields = ['created_at', 'updated_at', 'department', 'department_name', 'program_type']
     
     def create(self, validated_data):
-        """Override create to handle department_id"""
-        department_id = validated_data.pop('department_id', None)
+        """Override create to handle department_code"""
+        department_code = validated_data.pop('department_code', None)
         validated_data['program_type'] = Program.ProgramType.COURSE
         program = Program.objects.create(**validated_data)
-        if department_id:
-            program.department_id = department_id
-            program.save()
+        if department_code:
+            try:
+                department = Program.objects.get(code=department_code, program_type=Program.ProgramType.DEPARTMENT)
+                program.department = department
+                program.save()
+            except Program.DoesNotExist:
+                raise serializers.ValidationError({'department_code': f'Department with code "{department_code}" does not exist.'})
         return program
     
     def update(self, instance, validated_data):
-        """Override update to handle department_id"""
-        department_id = validated_data.pop('department_id', None)
-        if department_id is not None:
-            instance.department_id = department_id
+        """Override update to handle department_code"""
+        department_code = validated_data.pop('department_code', None)
+        if department_code is not None:
+            if department_code:
+                try:
+                    department = Program.objects.get(code=department_code, program_type=Program.ProgramType.DEPARTMENT)
+                    instance.department = department
+                except Program.DoesNotExist:
+                    raise serializers.ValidationError({'department_code': f'Department with code "{department_code}" does not exist.'})
+            else:
+                instance.department = None
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
@@ -50,15 +62,15 @@ class CourseSerializer(serializers.ModelSerializer):
 
 class ProgramSerializer(serializers.ModelSerializer):
     """Full serializer for Program model with all fields"""
-    department = serializers.IntegerField(source='department_id', read_only=True)
+    department = serializers.CharField(source='department.code', read_only=True, allow_null=True)
     department_name = serializers.CharField(source='department.name', read_only=True, allow_null=True)
-    department_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+    department_code = serializers.CharField(write_only=True, required=False, allow_null=True)
     
     class Meta:
         model = Program
         fields = [
             'id', 'name', 'code', 'program_type', 'description',
-            'department', 'department_id', 'department_name',
+            'department', 'department_code', 'department_name',
             'is_active', 'created_at', 'updated_at'
         ]
         read_only_fields = ['created_at', 'updated_at', 'department', 'department_name']
@@ -66,30 +78,41 @@ class ProgramSerializer(serializers.ModelSerializer):
     def validate(self, data):
         """Validate that courses have a department"""
         program_type = data.get('program_type', self.instance.program_type if self.instance else None)
-        department_id = data.get('department_id')
+        department_code = data.get('department_code')
         
-        if program_type == Program.ProgramType.COURSE and not department_id:
+        if program_type == Program.ProgramType.COURSE and not department_code:
             # If updating, check if instance has department
-            if not self.instance or not self.instance.department_id:
+            if not self.instance or not self.instance.department:
                 raise serializers.ValidationError({
-                    'department_id': 'Courses must have a department assigned.'
+                    'department_code': 'Courses must have a department assigned.'
                 })
         return data
     
     def create(self, validated_data):
-        """Override create to handle department_id"""
-        department_id = validated_data.pop('department_id', None)
+        """Override create to handle department_code"""
+        department_code = validated_data.pop('department_code', None)
         program = Program.objects.create(**validated_data)
-        if department_id:
-            program.department_id = department_id
-            program.save()
+        if department_code:
+            try:
+                department = Program.objects.get(code=department_code, program_type=Program.ProgramType.DEPARTMENT)
+                program.department = department
+                program.save()
+            except Program.DoesNotExist:
+                raise serializers.ValidationError({'department_code': f'Department with code "{department_code}" does not exist.'})
         return program
     
     def update(self, instance, validated_data):
-        """Override update to handle department_id"""
-        department_id = validated_data.pop('department_id', None)
-        if department_id is not None:
-            instance.department_id = department_id
+        """Override update to handle department_code"""
+        department_code = validated_data.pop('department_code', None)
+        if department_code is not None:
+            if department_code:
+                try:
+                    department = Program.objects.get(code=department_code, program_type=Program.ProgramType.DEPARTMENT)
+                    instance.department = department
+                except Program.DoesNotExist:
+                    raise serializers.ValidationError({'department_code': f'Department with code "{department_code}" does not exist.'})
+            else:
+                instance.department = None
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
@@ -147,21 +170,32 @@ class UserProfileSerializer(serializers.ModelSerializer):
     department = DepartmentSerializer(read_only=True, allow_null=True)
     course = CourseSerializer(read_only=True, allow_null=True)
     avatar_url = serializers.SerializerMethodField()
+    is_profile_complete = serializers.SerializerMethodField()
+    missing_fields = serializers.SerializerMethodField()
     
     # Write-only fields for updates
-    department_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
-    course_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+    department_code = serializers.CharField(write_only=True, required=False, allow_null=True)
+    course_code = serializers.CharField(write_only=True, required=False, allow_null=True)
     
     class Meta:
         model = UserProfile
         fields = [
             'id', 'user', 'student_id', 
-            'department', 'department_id',
-            'course', 'course_id',
+            'department', 'department_code',
+            'course', 'course_code',
             'year_level', 'avatar', 'avatar_url', 
-            'is_verified', 'created_at', 'updated_at'
+            'is_verified', 'is_profile_complete', 'missing_fields',
+            'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'avatar_url', 'department', 'course']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'avatar_url', 'department', 'course', 'is_profile_complete', 'missing_fields']
+    
+    def get_is_profile_complete(self, obj):
+        """Check if profile is complete"""
+        return obj.is_profile_complete()
+    
+    def get_missing_fields(self, obj):
+        """Get list of missing required fields"""
+        return obj.get_missing_fields()
     
     def validate(self, data):
         """Validate profile data - make academic fields optional for staff/admin"""
@@ -225,16 +259,30 @@ class UserProfileSerializer(serializers.ModelSerializer):
         return None
     
     def update(self, instance, validated_data):
-        """Override update to handle department_id and course_id"""
-        # Handle department_id -> department
-        department_id = validated_data.pop('department_id', None)
-        if department_id is not None:
-            instance.department_id = department_id
+        """Override update to handle department_code and course_code"""
+        # Handle department_code -> department
+        department_code = validated_data.pop('department_code', None)
+        if department_code is not None:
+            if department_code:
+                try:
+                    department = Program.objects.get(code=department_code, program_type=Program.ProgramType.DEPARTMENT)
+                    instance.department = department
+                except Program.DoesNotExist:
+                    raise serializers.ValidationError({'department_code': f'Department with code "{department_code}" does not exist.'})
+            else:
+                instance.department = None
         
-        # Handle course_id -> course
-        course_id = validated_data.pop('course_id', None)
-        if course_id is not None:
-            instance.course_id = course_id
+        # Handle course_code -> course
+        course_code = validated_data.pop('course_code', None)
+        if course_code is not None:
+            if course_code:
+                try:
+                    course = Program.objects.get(code=course_code, program_type=Program.ProgramType.COURSE)
+                    instance.course = course
+                except Program.DoesNotExist:
+                    raise serializers.ValidationError({'course_code': f'Course with code "{course_code}" does not exist.'})
+            else:
+                instance.course = None
         
         # Update other fields
         for attr, value in validated_data.items():
@@ -242,6 +290,74 @@ class UserProfileSerializer(serializers.ModelSerializer):
         
         instance.save()
         return instance
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """Custom token serializer that accepts either email or username"""
+    username_field = 'username'  # Keep default for compatibility
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Make username field accept both username and email
+        # Also support explicit email field for clarity
+        self.fields['username'] = serializers.CharField(required=False)
+        self.fields['email'] = serializers.EmailField(required=False)
+    
+    def validate(self, attrs):
+        username = attrs.get('username', '').strip()
+        email = attrs.get('email', '').strip()
+        password = attrs.get('password')
+        
+        # Ensure at least one identifier is provided
+        if not username and not email:
+            raise serializers.ValidationError({
+                'username': 'Either username or email is required.',
+                'email': 'Either username or email is required.'
+            })
+        
+        # Determine which field to use for authentication
+        # Priority: explicit email field > username field that looks like email > username
+        lookup_email = email
+        
+        # If no explicit email but username contains @, treat it as email
+        if not lookup_email and '@' in username:
+            lookup_email = username
+        
+        if lookup_email:
+            # Try to find user by email
+            try:
+                user = User.objects.get(email=lookup_email)
+                username = user.username
+            except User.DoesNotExist:
+                raise serializers.ValidationError({
+                    'username': 'No account found with this email address.',
+                    'email': 'No account found with this email address.'
+                })
+            except User.MultipleObjectsReturned:
+                # If multiple users have the same email, use the first one
+                user = User.objects.filter(email=lookup_email).first()
+                if user:
+                    username = user.username
+                else:
+                    raise serializers.ValidationError({
+                        'username': 'Multiple accounts found with this email. Please contact support.',
+                        'email': 'Multiple accounts found with this email. Please contact support.'
+                    })
+        
+        # Ensure we have a username for authentication
+        if not username:
+            raise serializers.ValidationError({
+                'username': 'Invalid username or email.',
+                'email': 'Invalid username or email.'
+            })
+        
+        # Use username for authentication (standard Django auth)
+        attrs['username'] = username
+        attrs.pop('email', None)  # Remove email from attrs as it's not needed for authentication
+        
+        # Call parent validate with updated attrs
+        data = super().validate(attrs)
+        return data
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -268,7 +384,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
                 f"Email must be from an allowed domain. Allowed domains: {', '.join(allowed_domains)}"
             )
         return value
-
+    
     def create(self, validated_data):
         validated_data.pop('password_confirm')
         user = User.objects.create_user(

@@ -9,7 +9,7 @@ import { Container } from '../../../components/layout';
 import { LoadingSpinner } from '../../../components/common';
 import { candidateService, electionService } from '../../../services';
 import { getInitials } from '../../../utils/helpers';
-import './candidates.css';
+import '../candidates.css';
 
 const CandidateListPage = () => {
   const [searchParams] = useSearchParams();
@@ -84,51 +84,28 @@ const CandidateListPage = () => {
   return (
     <Container>
       {/* Page Header */}
-      <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{
-          fontSize: '2rem',
-          fontWeight: '600',
-          color: '#1a202c',
-          marginBottom: '0.5rem'
-        }}>
+      <div className="candidates-header">
+        <h1>
           Candidates
         </h1>
-        <p style={{ color: '#718096', fontSize: '1rem', margin: 0 }}>
+        <p>
           Browse candidates running for student government positions
         </p>
       </div>
 
       {/* Election Filter */}
-      <div style={{
-        background: 'white',
-        border: '1px solid #e2e8f0',
-        borderRadius: '8px',
-        padding: '1.5rem',
-        marginBottom: '2rem',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-      }}>
+      <div className="candidates-filter-card">
         <div className="row align-items-center">
           <div className="col-md-3">
-            <label style={{
-              fontWeight: '600',
-              color: '#2d3748',
-              fontSize: '0.95rem',
-              marginBottom: '0.5rem'
-            }}>
+            <label className="candidates-filter-label">
               Filter by Election
             </label>
           </div>
           <div className="col-md-9">
             <select
-              className="form-select"
+              className="form-select candidates-filter-select"
               value={selectedElection}
               onChange={(e) => setSelectedElection(e.target.value)}
-              style={{
-                border: '1px solid #cbd5e0',
-                borderRadius: '6px',
-                padding: '0.625rem 1rem',
-                fontSize: '0.95rem'
-              }}
             >
               <option value="">All Elections</option>
               {elections.map(election => (
@@ -145,116 +122,47 @@ const CandidateListPage = () => {
       {Object.keys(candidatesByPosition).length > 0 ? (
         <div>
           {Object.entries(candidatesByPosition).map(([positionName, positionCandidates]) => (
-            <div key={positionName} style={{ 
-              background: 'white',
-              borderRadius: '8px',
-              padding: '2rem',
-              marginBottom: '2rem',
-              border: '1px solid #e2e8f0',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-            }}>
-              <div style={{
-                marginBottom: '1.5rem',
-                paddingBottom: '1rem',
-                borderBottom: '2px solid #e2e8f0'
-              }}>
-                <h4 style={{ 
-                  margin: 0,
-                  fontSize: '1.25rem',
-                  fontWeight: '600',
-                  color: '#1a202c',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px'
-                }}>{positionName}</h4>
+            <div key={positionName} className="position-section">
+              <div className="position-header">
+                <h4>{positionName}</h4>
               </div>
               
               <div className="row g-3">
                 {positionCandidates.map(candidate => (
                   <div key={candidate.id} className="col-md-6 col-lg-4">
-                    <div style={{
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '8px',
-                      padding: '1.5rem',
-                      height: '100%',
-                      transition: 'all 0.2s ease',
-                      backgroundColor: 'white'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = '#cbd5e0';
-                      e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = '#e2e8f0';
-                      e.currentTarget.style.boxShadow = 'none';
-                    }}>
-                      <div style={{ marginBottom: '1rem' }}>
-                        <h6 style={{ 
-                          fontSize: '1.1rem',
-                          fontWeight: '600',
-                          color: '#2d3748',
-                          marginBottom: '0.5rem'
-                        }}>
+                    <div className="candidate-card">
+                      <div className="candidate-card-body">
+                        <h6 className="candidate-name">
                           {candidate.user?.first_name} {candidate.user?.last_name}
                         </h6>
                         {candidate.party && (
-                          <div style={{
-                            fontSize: '0.875rem',
-                            color: '#718096',
-                            marginBottom: '0.5rem'
-                          }}>
+                          <div className="candidate-party-badge">
                             {candidate.party.name}
                           </div>
                         )}
                         {candidate.election && (
-                          <div style={{
-                            fontSize: '0.875rem',
-                            color: '#a0aec0'
-                          }}>
+                          <div className="candidate-election-info">
                             {candidate.election.title}
                           </div>
                         )}
-                      </div>
                     
                       {candidate.manifesto && (
-                        <p style={{
-                          fontSize: '0.875rem',
-                          color: '#4a5568',
-                          lineHeight: '1.5',
-                          marginBottom: '1rem'
-                        }}>
+                        <p className="candidate-manifesto-preview">
                           {candidate.manifesto.length > 100 
                             ? `${candidate.manifesto.substring(0, 100)}...` 
                             : candidate.manifesto}
                         </p>
                       )}
                     
-                      <Link 
-                        to={`/candidates/${candidate.id}`}
-                        style={{
-                          display: 'block',
-                          width: '100%',
-                          padding: '0.625rem',
-                          textAlign: 'center',
-                          border: '1px solid #2d3748',
-                          backgroundColor: 'white',
-                          color: '#2d3748',
-                          borderRadius: '6px',
-                          fontSize: '0.9rem',
-                          fontWeight: '500',
-                          textDecoration: 'none',
-                          transition: 'all 0.2s ease'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = '#2d3748';
-                          e.currentTarget.style.color = 'white';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = 'white';
-                          e.currentTarget.style.color = '#2d3748';
-                        }}
-                      >
-                        View Profile
-                      </Link>
+                      <div className="candidate-card-footer">
+                        <Link 
+                          to={`/candidates/${candidate.id}`}
+                          className="candidate-view-btn"
+                        >
+                          View Profile
+                        </Link>
+                      </div>
+                      </div>
                     </div>
                   </div>
                 ))}

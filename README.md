@@ -1,17 +1,17 @@
 # E-Botar - Blockchain-Inspired Electronic Voting System
 
-**Version 0.7.6** | A secure, privacy-preserving electronic voting platform for student government elections
+**Version 0.7.7** | A secure, privacy-preserving electronic voting platform for student government elections
 
 [![Django](https://img.shields.io/badge/Django-5.2.8-green.svg)](https://www.djangoproject.com/)
 [![DRF](https://img.shields.io/badge/DRF-3.16.1-red.svg)](https://www.django-rest-framework.org/)
-[![React](https://img.shields.io/badge/React-18.3-blue.svg)](https://reactjs.org/)
+[![React](https://img.shields.io/badge/React-19.2-blue.svg)](https://reactjs.org/)
 [![License](https://img.shields.io/badge/License-Proprietary-yellow.svg)](#)
 
 ---
 
 ## 📖 Table of Contents
 
-- [Release Highlights (0.7.6)](#-release-highlights-076)
+- [Release Highlights (0.7.7)](#-release-highlights-077)
 - [Quick Start](#quick-start)
 - [Key Features](#key-features)
 - [Role-Based Access Control](#role-based-access-control)
@@ -22,8 +22,42 @@
 
 ---
 
-## 🚀 Release Highlights (0.7.6)
+## 🚀 Release Highlights (0.7.7)
 
+- **Results Hidden During Voting**: Protect election integrity by withholding live results and statistics from non-admin users until the election ends, showing a lock notice with the scheduled end date.
+
+- **Profile Completeness Validation**: Enhanced data integrity with profile completeness checks
+  - **Candidate Applications**: Users must complete their profile (Student ID, Department, Course, Year Level) before applying as candidates
+  - **Voting Restrictions**: Users cannot vote until their profile is complete, with clear warnings and guidance
+  - **Frontend Warnings**: Incomplete profile warnings displayed on application and voting pages with links to profile edit
+  - **Backend Validation**: Server-side validation prevents incomplete profile submissions for both applications and votes
+  - **Missing Fields Display**: Users see exactly which fields need to be completed
+
+- **Position Management Improvements**: Streamlined position ordering system
+  - **Auto-Assignment**: Display order automatically assigned starting from 1 (no manual input required)
+  - **Smart Reordering**: Swap-based reordering ensures unique and contiguous ordering without gaps
+  - **Button Controls**: Move up/down buttons with proper boundary checks (disabled at top/bottom)
+  - **Simplified UI**: Removed display order input field from form for cleaner interface
+
+- **Candidate Directory Enhancements**: Improved candidate information display
+  - **Course/Year Display**: Replaced "Voting Period" with "Course/Year" showing format "BSCS (course code) - 4 (Year level)"
+  - **Visual Updates**: View Election button matches green theme color (#0b6e3b)
+  - **Profile Picture Styling**: Slight gray gradient for profile pictures with grayscale filter
+  - **Simplified Design**: Removed glow effects and extra design elements for cleaner appearance
+
+- **Student Count Fix**: Accurate student statistics for all users
+  - **New Endpoint**: Added `/api/auth/student-count/` endpoint for total student count
+  - **Permission Fix**: Non-admin users can now see correct total student count (previously showed only 1)
+  - **Election Statistics**: Results pages now show accurate eligible student counts
+  - **Dashboard Accuracy**: Homepage dashboard displays correct student statistics
+
+- **Guest Mode Privacy**: Enhanced privacy for unauthenticated users
+  - **Statistics Visibility**: Statistics cards (Students, Votes Recorded) are hidden for guest/unauthenticated users
+  - **Conditional Data Fetching**: Student count and vote statistics only fetched when user is authenticated
+  - **Public Data Access**: Guest users can still view elections, candidates, and winners (public information)
+  - **Security Enhancement**: Prevents unauthorized access to sensitive statistics
+
+### Previous Highlights (0.7.6)
 - **General-Purpose Algorithm Library**: Comprehensive suite of efficient algorithms for data processing
   - **Sorting Algorithms**: Quicksort and Merge Sort implementations for efficient data sorting
   - **Searching Algorithms**: Binary search and linear search with flexible key functions
@@ -565,7 +599,7 @@ locust -f locustfile.py --host=http://localhost:8000
 
 ---
 
-**E-Botar v0.7.6** | Last Updated: December 2025 | Performance Tested & Optimized  
+**E-Botar v0.7.7** | Last Updated: December 2025 | Performance Tested & Optimized  
 **Status**: Production Ready | Full Stack Complete
 
 > 📖 **For complete documentation**, see [Information.md](Information.md)

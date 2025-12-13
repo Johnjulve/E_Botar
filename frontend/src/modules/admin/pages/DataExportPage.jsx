@@ -78,16 +78,15 @@ const DataExportPage = () => {
             
             // If it's a department election, automatically set and lock the department
             if (electionData.election_type === 'department' && electionData.allowed_department) {
-              const allowedDeptId = typeof electionData.allowed_department === 'object' 
-                ? electionData.allowed_department.id 
+              const allowedDeptCode = typeof electionData.allowed_department === 'object' 
+                ? electionData.allowed_department.code 
                 : electionData.allowed_department;
               
-              if (allowedDeptId) {
-                const deptIdStr = String(allowedDeptId);
-                setSelectedDept(deptIdStr);
+              if (allowedDeptCode) {
+                setSelectedDept(String(allowedDeptCode));
                 // Fetch courses for this department
                 try {
-                  const coursesResponse = await programService.getCourses(allowedDeptId);
+                  const coursesResponse = await programService.getCourses(allowedDeptCode);
                   setCourses(coursesResponse.data || []);
                 } catch (courseError) {
                   console.error('Error fetching courses:', courseError);
@@ -142,6 +141,7 @@ const DataExportPage = () => {
   }, [selectedElectionForStudents]);
 
   // Fetch votes by category function (defined before fetchElectionResults)
+  // Organizes votes by: Candidate → Department → Course → Year Level
   const fetchVotesByCategory = useCallback(async (electionId, electionData, allProfiles) => {
     try {
       // If we have mock votes (frontend-only), use those instead of fetching from database
@@ -160,74 +160,115 @@ const DataExportPage = () => {
         return ballotElectionId === parseInt(electionId) || ballotElectionId === electionId;
       });
       
-      // Get user IDs who voted
-      const voterUserIds = new Set();
-      electionBallots.forEach(ballot => {
-        const userId = ballot.user?.id || ballot.user;
-        if (userId) {
-          voterUserIds.add(userId);
+      // Create a map of user ID to profile for quick lookup
+      const profileMap = {};
+      allProfiles.forEach(profile => {
+        if (profile.user && profile.user.id) {
+          profileMap[profile.user.id] = profile;
         }
       });
       
-      // Match voters with profiles
-      const voterProfiles = allProfiles.filter(profile => 
-        profile.user && voterUserIds.has(profile.user.id)
-      );
-      
-      // Organize votes by category
+      // Organize votes by candidate, then by department/course/year level
+      // Structure: Candidate Name → Department → Course → Year Level → Count
       const votesMap = {};
       
-      voterProfiles.forEach(profile => {
+      electionBallots.forEach(ballot => {
+        const userId = ballot.user?.id || ballot.user;
+        if (!userId) return;
+        
+        const profile = profileMap[userId];
+        if (!profile) return;
+        
         const deptName = profile.department?.name || 'Unassigned Department';
         const deptCode = profile.department?.code || 'N/A';
         const courseName = profile.course?.name || 'Unassigned Course';
         const courseCode = profile.course?.code || 'N/A';
         const yearLevel = profile.year_level || 'N/A';
         
-        // For department elections, organize by course → year level only
-        // For university elections, organize by department → course → year level
-        if (electionData.election_type === 'department') {
-          // Department election: Course → Year Level
-          if (!votesMap[courseName]) {
-            votesMap[courseName] = {
-              code: courseCode,
-              yearLevels: {}
+        // Get vote choices (candidates voted for) from this ballot
+        const choices = ballot.choices || [];
+        
+        choices.forEach(choice => {
+          const candidateId = choice.candidate;
+          const candidateName = choice.candidate_name || `Candidate ${candidateId}`;
+          const positionName = choice.position_name || 'Unknown Position';
+          
+          // Initialize candidate in map if not exists
+          if (!votesMap[candidateName]) {
+            votesMap[candidateName] = {
+              candidate_id: candidateId,
+              position_name: positionName,
+              departments: {}
             };
           }
-          if (!votesMap[courseName].yearLevels[yearLevel]) {
-            votesMap[courseName].yearLevels[yearLevel] = {
-              count: 0
-            };
+          
+          // For department elections, organize by course → year level only
+          // For university elections, organize by department → course → year level
+          if (electionData.election_type === 'department') {
+            // Department election: Course → Year Level
+            if (!votesMap[candidateName].departments[courseName]) {
+              votesMap[candidateName].departments[courseName] = {
+                code: courseCode,
+                yearLevels: {}
+              };
+            }
+            if (!votesMap[candidateName].departments[courseName].yearLevels[yearLevel]) {
+              votesMap[candidateName].departments[courseName].yearLevels[yearLevel] = {
+                count: 0
+              };
+            }
+            votesMap[candidateName].departments[courseName].yearLevels[yearLevel].count++;
+          } else {
+            // University election: Department → Course → Year Level
+            if (!votesMap[candidateName].departments[deptName]) {
+              votesMap[candidateName].departments[deptName] = {
+                code: deptCode,
+                courses: {}
+              };
+            }
+            if (!votesMap[candidateName].departments[deptName].courses[courseName]) {
+              votesMap[candidateName].departments[deptName].courses[courseName] = {
+                code: courseCode,
+                yearLevels: {}
+              };
+            }
+            if (!votesMap[candidateName].departments[deptName].courses[courseName].yearLevels[yearLevel]) {
+              votesMap[candidateName].departments[deptName].courses[courseName].yearLevels[yearLevel] = {
+                count: 0
+              };
+            }
+            votesMap[candidateName].departments[deptName].courses[courseName].yearLevels[yearLevel].count++;
           }
-          votesMap[courseName].yearLevels[yearLevel].count++;
-        } else {
-          // University election: Department → Course → Year Level
-          if (!votesMap[deptName]) {
-            votesMap[deptName] = {
-              code: deptCode
-            };
-          }
-          if (!votesMap[deptName][courseName]) {
-            votesMap[deptName][courseName] = {
-              code: courseCode,
-              yearLevels: {}
-            };
-          }
-          if (!votesMap[deptName][courseName].yearLevels[yearLevel]) {
-            votesMap[deptName][courseName].yearLevels[yearLevel] = {
-              count: 0
-            };
-          }
-          votesMap[deptName][courseName].yearLevels[yearLevel].count++;
-        }
+        });
       });
       
       setVotesByCategory(votesMap);
     } catch (error) {
       console.error('Error fetching votes by category:', error);
+      const errorMessage = error?.message || error?.toString() || 'Unknown error';
+      console.error('Error details:', errorMessage);
       setVotesByCategory({});
     }
   }, [mockVotesByCategory]);
+  
+  // Fetch votes by category for student data export when election is selected
+  useEffect(() => {
+    if (selectedElectionForStudents && electionForStudents) {
+      const fetchVotesForStudentExport = async () => {
+        try {
+          const profilesResponse = await authService.getAllProfiles();
+          const allProfiles = profilesResponse.data || [];
+          await fetchVotesByCategory(selectedElectionForStudents, electionForStudents, allProfiles);
+        } catch (error) {
+          console.error('Error fetching votes for student export:', error);
+          // Don't show error to user, just log it
+        }
+      };
+      fetchVotesForStudentExport();
+    }
+    // Note: We don't clear votesByCategory here to avoid conflicts with results tab
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedElectionForStudents, electionForStudents?.id]);
 
   // Fetch election results function
   const fetchElectionResults = useCallback(async (electionId) => {
@@ -277,18 +318,15 @@ const DataExportPage = () => {
         // If this is a department-specific election, filter by department
         const electionData = electionResponse.data;
         if (electionData.election_type === 'department' && electionData.allowed_department) {
-          // Handle both cases: allowed_department could be an ID (number) or an object with id
-          const allowedDeptId = typeof electionData.allowed_department === 'object' 
-            ? electionData.allowed_department.id 
+          // Handle both cases: allowed_department could be a code (string) or an object with code
+          const allowedDeptCode = typeof electionData.allowed_department === 'object' 
+            ? electionData.allowed_department.code 
             : electionData.allowed_department;
           
-          if (allowedDeptId) {
-            // Convert to number for consistent comparison
-            const deptIdNum = Number(allowedDeptId);
+          if (allowedDeptCode) {
             studentList = studentList.filter(profile => {
-              const profileDeptId = profile.department?.id;
-              // Convert to number for comparison to handle string/number mismatches
-              return profileDeptId && Number(profileDeptId) === deptIdNum;
+              const profileDeptCode = profile.department?.code;
+              return profileDeptCode && profileDeptCode === allowedDeptCode;
             });
           }
         }
@@ -400,12 +438,23 @@ const DataExportPage = () => {
       setAllCourses(courseList);
       
       // Fetch all students (staff can access all profiles)
+      // Note: getAllProfiles() returns all profiles for staff/admin users
       const profilesResponse = await authService.getAllProfiles();
       const allProfiles = profilesResponse.data || [];
-      const studentProfiles = allProfiles.filter(profile => 
-        profile.user && !profile.user.is_staff && !profile.user.is_superuser
-      );
+      
+      // Filter to get only student profiles (non-staff, non-superuser, active users)
+      const studentProfiles = allProfiles.filter(profile => {
+        if (!profile || !profile.user) return false;
+        // Only include active users who are not staff and not superuser
+        return !profile.user.is_staff && 
+               !profile.user.is_superuser && 
+               (profile.user.is_active !== false); // Include if active is true or undefined
+      });
+      
       setStudents(studentProfiles);
+      
+      // Log for debugging
+      console.log(`Loaded ${studentProfiles.length} student profiles out of ${allProfiles.length} total profiles`);
     } catch (error) {
       console.error('Error fetching data:', error);
       // Show error to user if critical
@@ -426,9 +475,22 @@ const DataExportPage = () => {
     }
   };
 
-  const fetchCourses = async (departmentId) => {
+  const fetchCourses = async (departmentCodeOrId) => {
     try {
-      const response = await programService.getCourses(departmentId);
+      // If departmentCodeOrId is a number, find the department code first
+      let deptCode = departmentCodeOrId;
+      if (departmentCodeOrId && !isNaN(departmentCodeOrId) && departments.length > 0) {
+        // It might be an ID, try to find the department code
+        const dept = departments.find(d => 
+          String(d.id) === String(departmentCodeOrId) || 
+          d.id === parseInt(departmentCodeOrId)
+        );
+        if (dept && dept.code) {
+          deptCode = dept.code;
+        }
+        // If no code found, use the value as-is (might be a code that looks like a number)
+      }
+      const response = await programService.getCourses(deptCode);
       setCourses(response.data || []);
     } catch (error) {
       console.error('Error fetching courses:', error);
@@ -443,15 +505,14 @@ const DataExportPage = () => {
     if (selectedElectionForStudents && electionForStudents) {
       // If this is a department-specific election, filter by department
       if (electionForStudents.election_type === 'department' && electionForStudents.allowed_department) {
-        const allowedDeptId = typeof electionForStudents.allowed_department === 'object' 
-          ? electionForStudents.allowed_department.id 
+        const allowedDeptCode = typeof electionForStudents.allowed_department === 'object' 
+          ? electionForStudents.allowed_department.code 
           : electionForStudents.allowed_department;
         
-        if (allowedDeptId) {
-          const deptIdNum = Number(allowedDeptId);
+        if (allowedDeptCode) {
           filtered = filtered.filter(student => {
-            const studentDeptId = student.department?.id;
-            return studentDeptId && Number(studentDeptId) === deptIdNum;
+            const studentDeptCode = student.department?.code;
+            return studentDeptCode && studentDeptCode === allowedDeptCode;
           });
         }
       }
@@ -462,13 +523,13 @@ const DataExportPage = () => {
     // Then apply manual department/course filters (if any)
     if (selectedDept) {
       filtered = filtered.filter(student => 
-        student.department?.id === parseInt(selectedDept)
+        student.department?.code === selectedDept
       );
     }
     
     if (selectedCourse) {
       filtered = filtered.filter(student => 
-        student.course?.id === parseInt(selectedCourse)
+        student.course?.code === selectedCourse
       );
     }
     
@@ -525,13 +586,13 @@ const DataExportPage = () => {
     
     // If lists are empty but we have selected values, use those
     if (availableDepartments.length === 0 && selectedDept) {
-      // Try to find in departments array first
-      const selectedDeptObj = departments.find(d => String(d.id) === selectedDept);
+      // Try to find in departments array first (selectedDept is now a code)
+      const selectedDeptObj = departments.find(d => d.code === selectedDept);
       if (selectedDeptObj) {
         availableDepartments = [selectedDeptObj];
       } else {
         // If not found, try to get from the courses array's department reference
-        const courseWithDept = courses.find(c => c.department && String(c.department.id) === selectedDept);
+        const courseWithDept = courses.find(c => c.department && c.department.code === selectedDept);
         if (courseWithDept && courseWithDept.department) {
           availableDepartments = [courseWithDept.department];
         }
@@ -1161,6 +1222,7 @@ const DataExportPage = () => {
       }
 
       // Add Vote Counts by Category if enabled OR if we have mock votes
+      // Structure: Candidate → Department → Course → Year Level
       const votesToUse = mockVotesByCategory || votesByCategory;
       if ((categorizeVotes || mockVotesByCategory) && votesToUse && Object.keys(votesToUse).length > 0) {
         doc.addPage();
@@ -1171,9 +1233,7 @@ const DataExportPage = () => {
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(11, 110, 59);
         doc.text(
-          electionToUse.election_type === 'department' 
-            ? 'Vote Counts by Course and Year Level' 
-            : 'Vote Counts by Department, Course, and Year Level',
+          'Vote Counts by Candidate, Department, Course, and Year Level',
           pageWidth / 2,
           yPosition,
           { align: 'center' }
@@ -1193,92 +1253,134 @@ const DataExportPage = () => {
         yPosition += 10;
         doc.setTextColor(0, 0, 0);
         
-        if (electionToUse.election_type === 'department') {
-          // Department election: Course → Year Level
-          Object.keys(votesToUse).sort().forEach(courseName => {
-            const courseData = votesToUse[courseName];
-            checkPageBreak(40);
-            
-            // Course header
-            doc.setFillColor(11, 110, 59);
-            doc.rect(margin, yPosition - 5, contentWidth, 8, 'F');
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(12);
-            doc.setFont('helvetica', 'bold');
-            const totalCourseVotes = Object.values(courseData.yearLevels).reduce((sum, yl) => sum + (yl.count || 0), 0);
-            doc.text(`${courseName} (${courseData.code || 'N/A'}) - Total Votes: ${totalCourseVotes}`, margin + 5, yPosition);
-            
-            yPosition += 10;
-            doc.setTextColor(0, 0, 0);
-            
-            // Year levels
-            Object.keys(courseData.yearLevels).sort().forEach(yearLevel => {
-              checkPageBreak(15);
-              const yearLevelData = courseData.yearLevels[yearLevel];
-              const voteCount = yearLevelData.count || 0;
-              
-              doc.setFontSize(10);
-              doc.setFont('helvetica', 'normal');
-              doc.setFillColor(243, 244, 246);
-              doc.rect(margin + 10, yPosition - 4, contentWidth - 20, 6, 'F');
-              doc.text(`${yearLevel}: ${voteCount} vote${voteCount !== 1 ? 's' : ''}`, margin + 15, yPosition);
-              
-              yPosition += 8;
-            });
-            
-            yPosition += 5; // Space between courses
-          });
-        } else {
-          // University election: Department → Course → Year Level
-          Object.keys(votesToUse).sort().forEach(deptName => {
-            checkPageBreak(50);
-            
-            // Department header
-            doc.setFillColor(11, 110, 59);
-            doc.rect(margin, yPosition - 5, contentWidth, 8, 'F');
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(13);
-            doc.setFont('helvetica', 'bold');
-            const deptCode = votesToUse[deptName]?.code || 'N/A';
-            doc.text(`${deptName} (${deptCode})`, margin + 5, yPosition);
-            
-            yPosition += 10;
-            doc.setTextColor(0, 0, 0);
-            
-            // Courses
-            Object.keys(votesToUse[deptName]).sort().forEach(courseName => {
-              const courseData = votesToUse[deptName][courseName];
-              checkPageBreak(40);
-              
-              // Course subheader
-              doc.setFontSize(11);
-              doc.setFont('helvetica', 'bold');
-              const totalCourseVotes = Object.values(courseData.yearLevels).reduce((sum, yl) => sum + (yl.count || 0), 0);
-              doc.text(`${courseName} (${courseData.code || 'N/A'}) - Total Votes: ${totalCourseVotes}`, margin + 5, yPosition);
-              
-              yPosition += 8;
-              
-              // Year levels
-              Object.keys(courseData.yearLevels).sort().forEach(yearLevel => {
-                checkPageBreak(15);
-                const yearLevelData = courseData.yearLevels[yearLevel];
-                const voteCount = yearLevelData.count || 0;
+        // Iterate through candidates
+        Object.keys(votesToUse).sort().forEach(candidateName => {
+          const candidateData = votesToUse[candidateName];
+          if (!candidateData || !candidateData.departments) return;
+          
+          const positionName = candidateData.position_name || 'Unknown Position';
+          
+          checkPageBreak(60);
+          
+          // Candidate header
+          doc.setFillColor(11, 110, 59);
+          doc.rect(margin, yPosition - 5, contentWidth, 10, 'F');
+          doc.setTextColor(255, 255, 255);
+          doc.setFontSize(14);
+          doc.setFont('helvetica', 'bold');
+          doc.text(`${candidateName}`, margin + 5, yPosition + 2);
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'normal');
+          doc.text(`Position: ${positionName}`, margin + 5, yPosition + 8);
+          
+          yPosition += 12;
+          doc.setTextColor(0, 0, 0);
+          
+          if (electionToUse.election_type === 'department') {
+            // Department election: Course → Year Level (no department grouping)
+            Object.keys(candidateData.departments)
+              .filter(key => candidateData.departments[key] && typeof candidateData.departments[key] === 'object' && candidateData.departments[key].yearLevels)
+              .sort()
+              .forEach(courseName => {
+                const courseData = candidateData.departments[courseName];
+                if (!courseData || !courseData.yearLevels) return;
                 
-                doc.setFontSize(10);
-                doc.setFont('helvetica', 'normal');
-                doc.setFillColor(243, 244, 246);
-                doc.rect(margin + 10, yPosition - 4, contentWidth - 20, 6, 'F');
-                doc.text(`${yearLevel}: ${voteCount} vote${voteCount !== 1 ? 's' : ''}`, margin + 15, yPosition);
+                checkPageBreak(40);
                 
-                yPosition += 8;
+                // Course header
+                doc.setFillColor(16, 185, 129);
+                doc.rect(margin + 5, yPosition - 5, contentWidth - 10, 8, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(11);
+                doc.setFont('helvetica', 'bold');
+                const totalCourseVotes = Object.values(courseData.yearLevels).reduce((sum, yl) => sum + (yl.count || 0), 0);
+                doc.text(`${courseName} (${courseData.code || 'N/A'}) - Total: ${totalCourseVotes}`, margin + 10, yPosition);
+                
+                yPosition += 10;
+                doc.setTextColor(0, 0, 0);
+                
+                // Year levels
+                Object.keys(courseData.yearLevels).sort().forEach(yearLevel => {
+                  checkPageBreak(15);
+                  const yearLevelData = courseData.yearLevels[yearLevel];
+                  const voteCount = yearLevelData.count || 0;
+                  
+                  doc.setFontSize(10);
+                  doc.setFont('helvetica', 'normal');
+                  doc.setFillColor(243, 244, 246);
+                  doc.rect(margin + 15, yPosition - 4, contentWidth - 30, 6, 'F');
+                  doc.text(`Year ${yearLevel}: ${voteCount} vote${voteCount !== 1 ? 's' : ''}`, margin + 20, yPosition);
+                  
+                  yPosition += 8;
+                });
+                
+                yPosition += 5; // Space between courses
               });
-              
-              yPosition += 5; // Space between courses
-            });
-            
-            yPosition += 5; // Space between departments
-          });
-        }
+          } else {
+            // University election: Department → Course → Year Level
+            Object.keys(candidateData.departments)
+              .filter(key => candidateData.departments[key] && typeof candidateData.departments[key] === 'object')
+              .sort()
+              .forEach(deptName => {
+                const deptData = candidateData.departments[deptName];
+                if (!deptData || !deptData.courses) return;
+                
+                checkPageBreak(50);
+                
+                // Department header
+                doc.setFillColor(16, 185, 129);
+                doc.rect(margin + 5, yPosition - 5, contentWidth - 10, 8, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(12);
+                doc.setFont('helvetica', 'bold');
+                const deptCode = deptData.code || 'N/A';
+                doc.text(`${deptName} (${deptCode})`, margin + 10, yPosition);
+                
+                yPosition += 10;
+                doc.setTextColor(0, 0, 0);
+                
+                // Courses
+                Object.keys(deptData.courses)
+                  .filter(key => deptData.courses[key] && typeof deptData.courses[key] === 'object' && deptData.courses[key].yearLevels)
+                  .sort()
+                  .forEach(courseName => {
+                    const courseData = deptData.courses[courseName];
+                    if (!courseData || !courseData.yearLevels) return;
+                    
+                    checkPageBreak(40);
+                    
+                    // Course subheader
+                    doc.setFontSize(10);
+                    doc.setFont('helvetica', 'bold');
+                    const totalCourseVotes = Object.values(courseData.yearLevels).reduce((sum, yl) => sum + (yl.count || 0), 0);
+                    doc.text(`${courseName} (${courseData.code || 'N/A'}) - Total: ${totalCourseVotes}`, margin + 15, yPosition);
+                    
+                    yPosition += 8;
+                    
+                    // Year levels
+                    Object.keys(courseData.yearLevels).sort().forEach(yearLevel => {
+                      checkPageBreak(15);
+                      const yearLevelData = courseData.yearLevels[yearLevel];
+                      const voteCount = yearLevelData.count || 0;
+                      
+                      doc.setFontSize(9);
+                      doc.setFont('helvetica', 'normal');
+                      doc.setFillColor(243, 244, 246);
+                      doc.rect(margin + 20, yPosition - 4, contentWidth - 40, 6, 'F');
+                      doc.text(`Year ${yearLevel}: ${voteCount} vote${voteCount !== 1 ? 's' : ''}`, margin + 25, yPosition);
+                      
+                      yPosition += 8;
+                    });
+                    
+                    yPosition += 5; // Space between courses
+                  });
+                
+                yPosition += 5; // Space between departments
+              });
+          }
+          
+          yPosition += 10; // Space between candidates
+        });
       }
 
       // Add Student Statistics by Department/Course on new page
@@ -1423,7 +1525,9 @@ const DataExportPage = () => {
       }
     } catch (error) {
       console.error('PDF export error:', error);
-      alert('Failed to export PDF. Please try again.');
+      const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
+      console.error('Error details:', errorMessage);
+      alert(`Failed to export PDF: ${errorMessage}. Please check the browser console (F12) for more details.`);
     } finally {
       setExporting(false);
     }
@@ -1715,6 +1819,166 @@ const DataExportPage = () => {
         });
       }
 
+      // Add Vote Categorization by Candidate if election is selected and we have vote data
+      if (electionForStudents && votesByCategory && Object.keys(votesByCategory).length > 0) {
+        doc.addPage();
+        yPosition = margin;
+        
+        // Title
+        doc.setFillColor(11, 110, 59);
+        doc.rect(0, 0, pageWidth, 50, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.text(
+          'Vote Counts by Candidate, Department, Course, and Year Level',
+          pageWidth / 2,
+          25,
+          { align: 'center' }
+        );
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(
+          `Election: ${electionForStudents.title || 'N/A'}`,
+          pageWidth / 2,
+          35,
+          { align: 'center' }
+        );
+        
+        yPosition = 60;
+        doc.setTextColor(0, 0, 0);
+        
+        // Iterate through candidates
+        Object.keys(votesByCategory).sort().forEach(candidateName => {
+          const candidateData = votesByCategory[candidateName];
+          if (!candidateData || !candidateData.departments) return;
+          
+          const positionName = candidateData.position_name || 'Unknown Position';
+          
+          checkPageBreak(60);
+          
+          // Candidate header
+          doc.setFillColor(11, 110, 59);
+          doc.rect(margin, yPosition - 5, contentWidth, 10, 'F');
+          doc.setTextColor(255, 255, 255);
+          doc.setFontSize(14);
+          doc.setFont('helvetica', 'bold');
+          doc.text(`${candidateName}`, margin + 5, yPosition + 2);
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'normal');
+          doc.text(`Position: ${positionName}`, margin + 5, yPosition + 8);
+          
+          yPosition += 12;
+          doc.setTextColor(0, 0, 0);
+          
+          if (electionForStudents.election_type === 'department') {
+            // Department election: Course → Year Level (no department grouping)
+            Object.keys(candidateData.departments)
+              .filter(key => candidateData.departments[key] && typeof candidateData.departments[key] === 'object' && candidateData.departments[key].yearLevels)
+              .sort()
+              .forEach(courseName => {
+                const courseData = candidateData.departments[courseName];
+                if (!courseData || !courseData.yearLevels) return;
+                
+                checkPageBreak(40);
+                
+                // Course header
+                doc.setFillColor(16, 185, 129);
+                doc.rect(margin + 5, yPosition - 5, contentWidth - 10, 8, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(11);
+                doc.setFont('helvetica', 'bold');
+                const totalCourseVotes = Object.values(courseData.yearLevels).reduce((sum, yl) => sum + (yl.count || 0), 0);
+                doc.text(`${courseName} (${courseData.code || 'N/A'}) - Total: ${totalCourseVotes}`, margin + 10, yPosition);
+                
+                yPosition += 10;
+                doc.setTextColor(0, 0, 0);
+                
+                // Year levels
+                Object.keys(courseData.yearLevels).sort().forEach(yearLevel => {
+                  checkPageBreak(15);
+                  const yearLevelData = courseData.yearLevels[yearLevel];
+                  const voteCount = yearLevelData.count || 0;
+                  
+                  doc.setFontSize(10);
+                  doc.setFont('helvetica', 'normal');
+                  doc.setFillColor(243, 244, 246);
+                  doc.rect(margin + 15, yPosition - 4, contentWidth - 30, 6, 'F');
+                  doc.text(`Year ${yearLevel}: ${voteCount} vote${voteCount !== 1 ? 's' : ''}`, margin + 20, yPosition);
+                  
+                  yPosition += 8;
+                });
+                
+                yPosition += 5; // Space between courses
+              });
+          } else {
+            // University election: Department → Course → Year Level
+            Object.keys(candidateData.departments)
+              .filter(key => candidateData.departments[key] && typeof candidateData.departments[key] === 'object')
+              .sort()
+              .forEach(deptName => {
+                const deptData = candidateData.departments[deptName];
+                if (!deptData || !deptData.courses) return;
+                
+                checkPageBreak(50);
+                
+                // Department header
+                doc.setFillColor(16, 185, 129);
+                doc.rect(margin + 5, yPosition - 5, contentWidth - 10, 8, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(12);
+                doc.setFont('helvetica', 'bold');
+                const deptCode = deptData.code || 'N/A';
+                doc.text(`${deptName} (${deptCode})`, margin + 10, yPosition);
+                
+                yPosition += 10;
+                doc.setTextColor(0, 0, 0);
+                
+                // Courses
+                Object.keys(deptData.courses)
+                  .filter(key => deptData.courses[key] && typeof deptData.courses[key] === 'object' && deptData.courses[key].yearLevels)
+                  .sort()
+                  .forEach(courseName => {
+                    const courseData = deptData.courses[courseName];
+                    if (!courseData || !courseData.yearLevels) return;
+                    
+                    checkPageBreak(40);
+                    
+                    // Course subheader
+                    doc.setFontSize(10);
+                    doc.setFont('helvetica', 'bold');
+                    const totalCourseVotes = Object.values(courseData.yearLevels).reduce((sum, yl) => sum + (yl.count || 0), 0);
+                    doc.text(`${courseName} (${courseData.code || 'N/A'}) - Total: ${totalCourseVotes}`, margin + 15, yPosition);
+                    
+                    yPosition += 8;
+                    
+                    // Year levels
+                    Object.keys(courseData.yearLevels).sort().forEach(yearLevel => {
+                      checkPageBreak(15);
+                      const yearLevelData = courseData.yearLevels[yearLevel];
+                      const voteCount = yearLevelData.count || 0;
+                      
+                      doc.setFontSize(9);
+                      doc.setFont('helvetica', 'normal');
+                      doc.setFillColor(243, 244, 246);
+                      doc.rect(margin + 20, yPosition - 4, contentWidth - 40, 6, 'F');
+                      doc.text(`Year ${yearLevel}: ${voteCount} vote${voteCount !== 1 ? 's' : ''}`, margin + 25, yPosition);
+                      
+                      yPosition += 8;
+                    });
+                    
+                    yPosition += 5; // Space between courses
+                  });
+                
+                yPosition += 5; // Space between departments
+              });
+          }
+          
+          yPosition += 10; // Space between candidates
+        });
+      }
+      
       // Footer
       const totalPages = doc.internal.getNumberOfPages();
       for (let i = 1; i <= totalPages; i++) {
@@ -1735,7 +1999,7 @@ const DataExportPage = () => {
         );
       }
 
-      const fileName = `Student_Export_${new Date().toISOString().split('T')[0]}.pdf`;
+      const fileName = `Student_Export_${electionForStudents?.title?.replace(/[^a-z0-9]/gi, '_') || 'Student_Data'}_${new Date().toISOString().split('T')[0]}.pdf`;
       doc.save(fileName);
       
       // If this was a mock data export, clear the data immediately after saving
@@ -2003,29 +2267,6 @@ const DataExportPage = () => {
                     >
                       {exporting ? 'Generating PDF...' : 'Export Results PDF'}
                     </Button>
-                    <Button
-                      onClick={async () => {
-                        setExporting(true);
-                        try {
-                          await votingService.downloadExport(selectedElection, 'json');
-                        } catch (error) {
-                          console.error('Export error:', error);
-                          alert('Failed to export results. Please try again.');
-                        } finally {
-                          setExporting(false);
-                        }
-                      }}
-                      disabled={exporting || !electionResults}
-                      style={{
-                        background: '#2563eb',
-                        color: 'white',
-                        padding: '0.75rem 1.5rem',
-                        fontSize: '0.875rem',
-                        fontWeight: 500
-                      }}
-                    >
-                      {exporting ? 'Exporting...' : 'Export JSON'}
-                    </Button>
                   </div>
                 </div>
               )}
@@ -2105,8 +2346,8 @@ const DataExportPage = () => {
                   >
                     <option value="">All Departments</option>
                     {departments.map(dept => (
-                      <option key={dept.id} value={String(dept.id)}>
-                        {dept.name}
+                      <option key={dept.id} value={dept.code || String(dept.id)}>
+                        {dept.name} {dept.code ? `(${dept.code})` : ''}
                       </option>
                     ))}
                   </select>
@@ -2131,7 +2372,7 @@ const DataExportPage = () => {
                   >
                     <option value="">All Courses</option>
                     {courses.map(course => (
-                      <option key={course.id} value={String(course.id)}>
+                      <option key={course.code} value={course.code}>
                         {course.name} ({course.code})
                       </option>
                     ))}

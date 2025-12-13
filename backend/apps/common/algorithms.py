@@ -880,50 +880,19 @@ class SearchingAlgorithm:
 
 
 class CryptographicAlgorithm:
-    """
-    Cryptographic algorithms for vote receipts and data hashing
-    """
     
     @staticmethod
     def sha256_hash(data: str) -> str:
-        """
-        Generate SHA-256 hash of data
-        Used for vote receipts and vote verification in the voting system
-        
-        Args:
-            data: String data to hash
-        
-        Returns:
-            SHA-256 hash as hexadecimal string (64 characters)
-        
-        Example:
-            receipt_hash = sha256_hash(receipt_code)
-        """
+
         return hashlib.sha256(data.encode()).hexdigest()
     
     @staticmethod
     def md5_hash(data: str) -> str:
-        """
-        Generate MD5 hash of data
-        Used for cache key generation in services
-        
-        Args:
-            data: String data to hash
-        
-        Returns:
-            MD5 hash as hexadecimal string (32 characters)
-        
-        Example:
-            cache_key = md5_hash(f"election_{election_id}")
-        """
         return hashlib.md5(data.encode()).hexdigest()
 
 
 class MemoizationAlgorithm:
-    """
-    Memoization utilities for caching expensive computations
-    """
-    
+
     @staticmethod
     def memoize_with_key(
         key_generator: Callable[..., str]
@@ -1127,11 +1096,6 @@ class SortingAlgorithm:
                 sorted_data[key] = value
         
         return sorted_data
-
-
-# ============================================================================
-# Utility Functions - High-level convenience functions
-# ============================================================================
 
 def group_by(items: Iterable[Any], key_func: Callable[[Any], Any]) -> Dict[Any, List[Any]]:
     """

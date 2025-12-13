@@ -65,7 +65,8 @@ class SchoolElection(models.Model):
         blank=True,
         limit_choices_to={'program_type': 'department'},
         related_name='department_elections',
-        help_text="Department allowed to vote (only for Department Election type)"
+        to_field='code',
+        help_text="Department allowed to vote (only for Department Election type) - referenced by code"
     )
     start_year = models.IntegerField(null=True, blank=True, help_text="Start year for AY format (e.g., 2025 for AY 2025-2026)")
     end_year = models.IntegerField(null=True, blank=True, help_text="End year for AY format (e.g., 2026 for AY 2025-2026)")
@@ -121,7 +122,7 @@ class SchoolElection(models.Model):
         elif self.election_type == 'department':
             if not hasattr(user, 'profile') or not user.profile.department:
                 return False
-            return self.allowed_department and self.allowed_department.id == user.profile.department.id
+            return self.allowed_department and self.allowed_department.code == user.profile.department.code
         return False
     
     def is_user_eligible_to_apply(self, user):
@@ -131,7 +132,7 @@ class SchoolElection(models.Model):
         elif self.election_type == 'department':
             if not hasattr(user, 'profile') or not user.profile.department:
                 return False
-            return self.allowed_department and self.allowed_department.id == user.profile.department.id
+            return self.allowed_department and self.allowed_department.code == user.profile.department.code
         return False
     
     def auto_reject_pending_applications(self):

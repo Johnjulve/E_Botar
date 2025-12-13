@@ -13,7 +13,7 @@ import { formatDate } from '../../../utils/formatters';
 import '../../../modules/profile/dashboard.css';
 
 const DashboardPage = () => {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isAuthenticated } = useAuth();
   const [loading, setLoading] = useState(true);
   const [currentElection, setCurrentElection] = useState(null);
   const [previousElection, setpreviousElection] = useState(null);
@@ -24,23 +24,23 @@ const DashboardPage = () => {
 
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+  }, [isAuthenticated]);
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
       
-      // Fetch active election
+      // Fetch active election (public data, available to all)
       const activeResponse = await electionService.getActive();
       const activeElection = activeResponse.data?.[0] || null;
       setCurrentElection(activeElection);
       
-      // Fetch finished elections (for previous winners/current administration)
+      // Fetch finished elections (for previous winners/current administration) - public data
       const finishedResponse = await electionService.getFinished();
       const lastFinished = finishedResponse.data?.[0] || null;
       setpreviousElection(lastFinished);
       
-      // Fetch winners from the last completed election (current administration)
+      // Fetch winners from the last completed election (current administration) - public data
       if (lastFinished) {
         try {
           const resultsResponse = await votingService.getElectionResults(lastFinished.id);
@@ -74,46 +74,39 @@ const DashboardPage = () => {
         setCurrentAdministration([]);
       }
       
-      // Fetch candidates for current election
+      // Fetch candidates for current election (public data)
       if (activeElection) {
         const candidatesResponse = await candidateService.getByElection(activeElection.id);
         setCandidates(candidatesResponse.data || []);
         
-        // Fetch statistics
-        try {
-          const statsResponse = await votingService.getStatistics(activeElection.id);
-          setStatistics(statsResponse.data);
-        } catch (error) {
-          console.error('Stats not available:', error);
+        // Fetch statistics - only if authenticated
+        if (isAuthenticated) {
+          try {
+            const statsResponse = await votingService.getStatistics(activeElection.id);
+            setStatistics(statsResponse.data);
+          } catch (error) {
+            console.error('Stats not available:', error);
+            setStatistics(null);
+          }
+        } else {
+          setStatistics(null);
         }
       }
       
-      // Fetch total students count (all users with profiles)
-      try {
-        // Fetch profiles to count total students
-        // Note: This only works if user has admin access, otherwise will be limited
+      // Fetch total students count - only if authenticated
+      if (isAuthenticated) {
         try {
-          const profilesResponse = await authService.getAllProfiles();
-          // Count active students (users who are not staff/admin)
-          const allProfiles = profilesResponse.data || [];
-          const studentCount = allProfiles.filter(profile => 
-            profile.user && !profile.user.is_staff && !profile.user.is_superuser
-          ).length;
-          // Use voters count as minimum to ensure consistency
-          const votersCount = statistics?.total_voters || 0;
-          setTotalStudents(Math.max(studentCount, votersCount));
-        } catch (profileError) {
-          // If user doesn't have access, use voters count as fallback
-          // This ensures consistency: votes recorded should match or be less than students
-          console.log('Cannot fetch student count, using voters count as fallback');
-          const votersCount = statistics?.total_voters || 0;
-          setTotalStudents(votersCount);
+          const studentCountResponse = await authService.getStudentCount();
+          const studentCount = studentCountResponse.data?.total_students || 0;
+          setTotalStudents(studentCount);
+        } catch (error) {
+          console.error('Error fetching student count:', error);
+          // Don't set to 0, just leave it as is or set to null
+          setTotalStudents(0);
         }
-      } catch (error) {
-        console.error('Error fetching student count:', error);
-        // Fallback to voters count
-        const votersCount = statistics?.total_voters || 0;
-        setTotalStudents(votersCount);
+      } else {
+        // For guest users, don't show student count
+        setTotalStudents(0);
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -279,7 +272,7 @@ const DashboardPage = () => {
                     alignItems: 'center',
                     gap: '0.5rem'
                   }}>
-                    <span>View Full Results</span>
+                    <span>View Results</span>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="9 18 15 12 9 6"/>
                     </svg>
@@ -303,35 +296,37 @@ const DashboardPage = () => {
         {/* Current Election Info */}
         {currentElection ? (
           <>
-            {/* Statistics Cards */}
-            <div className="stats-grid">
-              <div className="stat-card-modern">
-                <div className="stat-icon" style={{ background: 'rgba(99, 102, 241, 0.1)', color: '#6366f1' }}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                    <circle cx="9" cy="7" r="4"/>
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                  </svg>
+            {/* Statistics Cards - Only show if authenticated */}
+            {isAuthenticated && (
+              <div className="stats-grid">
+                <div className="stat-card-modern">
+                  <div className="stat-icon" style={{ background: 'rgba(99, 102, 241, 0.1)', color: '#6366f1' }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                      <circle cx="9" cy="7" r="4"/>
+                      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                  </div>
+                  <div className="stat-content">
+                    <div className="stat-value">{totalStudents || 0}</div>
+                    <div className="stat-label">Students</div>
+                  </div>
                 </div>
-                <div className="stat-content">
-                  <div className="stat-value">{totalStudents || 0}</div>
-                  <div className="stat-label">Students</div>
+                <div className="stat-card-modern">
+                  <div className="stat-icon votes-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 11l3 3L22 4"/>
+                      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                    </svg>
+                  </div>
+                  <div className="stat-content">
+                    <div className="stat-value">{statistics?.total_voters || statistics?.total_ballots || 0}</div>
+                    <div className="stat-label">Votes Recorded</div>
+                  </div>
                 </div>
               </div>
-              <div className="stat-card-modern">
-                <div className="stat-icon votes-icon">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M9 11l3 3L22 4"/>
-                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-                  </svg>
-                </div>
-                <div className="stat-content">
-                  <div className="stat-value">{statistics?.total_voters || statistics?.total_ballots || 0}</div>
-                  <div className="stat-label">Votes Recorded</div>
-                </div>
-              </div>
-            </div>
+            )}
 
             {/* Election Candidates */}
             <Card className="candidates-section">

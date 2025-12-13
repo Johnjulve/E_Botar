@@ -405,27 +405,21 @@
   .hero-title {
     font-size: 2rem;
   }
-
   .hero-subtitle {
     font-size: 1rem;
   }
-
   .stats-grid {
     grid-template-columns: 1fr;
   }
-
   .candidates-row {
     grid-template-columns: 1fr;
   }
-
   .election-dates {
     grid-template-columns: 1fr;
   }
-
   .actions-grid {
     grid-template-columns: 1fr;
   }
-
   .card-header-custom {
     flex-direction: column;
     text-align: center;

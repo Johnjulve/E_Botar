@@ -4,10 +4,10 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Container } from '../../../components/layout';
 import { Card, Button, Alert, LoadingSpinner, EmptyState, Modal } from '../../../components/common';
-import { electionService, candidateService, votingService } from '../../../services';
+import { electionService, candidateService, votingService, authService } from '../../../services';
 import { formatDate } from '../../../utils/formatters';
 import { useAuth } from '../../../hooks/useAuth';
 
@@ -26,6 +26,8 @@ const VotingPage = () => {
   const [receipt, setReceipt] = useState(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [hasVoted, setHasVoted] = useState(false);
+  const [profileComplete, setProfileComplete] = useState(true);
+  const [missingFields, setMissingFields] = useState([]);
   const isPreview = (searchParams.get('preview') === '1' || searchParams.get('preview') === 'true') && isAdmin;
   const isAdminBypassActive = isAdmin && !isPreview;
 
@@ -36,6 +38,23 @@ const VotingPage = () => {
   const fetchVotingData = async () => {
     try {
       setLoading(true);
+      
+      // Check profile completeness (skip for admin/staff)
+      if (!isAdmin) {
+        try {
+          const userResponse = await authService.getCurrentUser();
+          const profile = userResponse.data?.profile;
+          if (profile) {
+            const isComplete = profile.is_profile_complete ?? true;
+            const missing = profile.missing_fields || [];
+            setProfileComplete(isComplete);
+            setMissingFields(missing);
+          }
+        } catch (profileError) {
+          console.error('Error checking profile completeness:', profileError);
+          // Don't block voting if we can't check profile
+        }
+      }
       
       // Check if user has already voted (skip in admin preview)
       if (!isPreview) {
@@ -125,6 +144,12 @@ const VotingPage = () => {
   };
 
   const handleSubmit = () => {
+    // Check profile completeness before allowing vote submission
+    if (!isAdmin && !profileComplete) {
+      setError(`Your profile is incomplete. Please complete your profile with the following information before voting: ${missingFields.join(', ')}. You can update your profile in the Profile section.`);
+      return;
+    }
+    
     if (!validateVotes()) {
       return;
     }
@@ -158,7 +183,31 @@ const VotingPage = () => {
       }, 3000);
     } catch (error) {
       console.error('Error submitting ballot:', error);
-      setError(error.response?.data?.detail || 'Failed to submit ballot. Please try again.');
+      const errorData = error.response?.data || {};
+      
+      // Handle different error formats
+      let errorMessage = 'Failed to submit ballot. Please try again.';
+      
+      if (errorData.detail) {
+        errorMessage = errorData.detail;
+      } else if (errorData.non_field_errors) {
+        // Profile completeness or other validation errors
+        errorMessage = Array.isArray(errorData.non_field_errors)
+          ? errorData.non_field_errors.join(', ')
+          : errorData.non_field_errors;
+      } else if (errorData.election_id) {
+        errorMessage = Array.isArray(errorData.election_id)
+          ? errorData.election_id.join(', ')
+          : errorData.election_id;
+      } else if (typeof errorData === 'object') {
+        // Try to extract first error message from any field
+        const firstError = Object.values(errorData).find(val => val);
+        if (firstError) {
+          errorMessage = Array.isArray(firstError) ? firstError[0] : firstError;
+        }
+      }
+      
+      setError(errorMessage);
       setShowConfirmModal(false);
     } finally {
       setSubmitting(false);
@@ -241,6 +290,37 @@ const VotingPage = () => {
 
       {error && <Alert variant="danger" dismissible onClose={() => setError('')}>{error}</Alert>}
 
+      {/* Profile Incomplete Warning */}
+      {!profileComplete && !isAdmin && (
+        <Alert variant="warning" className="mb-4" style={{
+          background: '#fef3c7',
+          border: '1px solid #fbbf24',
+          color: '#92400e'
+        }}>
+          <div className="d-flex align-items-start">
+            <i className="fas fa-exclamation-triangle me-2 mt-1" style={{ fontSize: '1.25rem' }}></i>
+            <div style={{ flex: 1 }}>
+              <strong>Profile Incomplete</strong>
+              <p className="mb-2 mt-2" style={{ marginBottom: '0.5rem' }}>
+                Please complete your profile with the following information before voting: <strong>{missingFields.join(', ')}</strong>
+              </p>
+              <Link 
+                to="/profile/edit" 
+                className="btn btn-sm"
+                style={{ 
+                  background: '#92400e',
+                  color: 'white',
+                  border: 'none',
+                  textDecoration: 'none'
+                }}
+              >
+                Complete Profile →
+              </Link>
+            </div>
+          </div>
+        </Alert>
+      )}
+
       {/* Voting Instructions */}
       <Alert variant="info" className="mb-4">
         <i className="fas fa-info-circle me-2"></i>
@@ -321,7 +401,8 @@ const VotingPage = () => {
             variant="success" 
             size="lg"
             onClick={isPreview ? () => setError('Submission is disabled in preview mode.') : handleSubmit}
-            disabled={isPreview || Object.keys(votes).length === 0}
+            disabled={isPreview || Object.keys(votes).length === 0 || (!isAdmin && !profileComplete)}
+            title={!isAdmin && !profileComplete ? 'Please complete your profile before voting' : ''}
           >
             <i className="fas fa-paper-plane me-2"></i>
             Submit Ballot

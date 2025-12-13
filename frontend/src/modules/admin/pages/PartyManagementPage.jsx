@@ -7,7 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { Container } from '../../../components/layout';
 import { LoadingSpinner } from '../../../components/common';
 import { electionService } from '../../../services';
-import '../../../assets/styles/admin.css';
+import '../admin.css';
 
 // SVG Icon Component
 const Icon = ({ name, size = 20, className = '' }) => {

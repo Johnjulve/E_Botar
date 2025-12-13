@@ -9,7 +9,7 @@ import { Container } from '../../../components/layout';
 import { LoadingSpinner } from '../../../components/common';
 import { electionService, candidateService, votingService, authService } from '../../../services';
 import { formatNumber } from '../../../utils/formatters';
-import '../../../assets/styles/admin.css';
+import '../admin.css';
 
 // SVG Icon Component
 const Icon = ({ name, size = 20, className = '' }) => {
@@ -251,7 +251,7 @@ const AdminDashboardPage = () => {
           gap: '0.75rem',
           flexWrap: 'wrap'
         }}>
-          <Link to="/admin/elections/create" className="admin-btn primary">
+          <Link to="/admin/elections/create" className="admin-btn">
             <Icon name="plus" size={16} />
             Create Election
           </Link>

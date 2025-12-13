@@ -10,7 +10,7 @@ import { LoadingSpinner } from '../../../components/common';
 import { authService } from '../../../services';
 import { useAuth } from '../../../hooks/useAuth';
 import { getInitials } from '../../../utils/helpers';
-import './profile.css';
+import '../profile.css';
 
 const ProfileEditPage = () => {
   const navigate = useNavigate();
@@ -82,15 +82,15 @@ const ProfileEditPage = () => {
         username: user?.username || '',
         email: user?.email || '',
         student_id: profile?.student_id || '',
-        department: profile?.department?.id || '',
-        course: profile?.course?.id || '',
+        department: profile?.department?.code || '',
+        course: profile?.course?.code || '',
         year_level: profile?.year_level || '',
       });
 
       setDepartments(departmentsResponse.data || []);
       
-      if (profile?.department?.id) {
-        const coursesResponse = await authService.getCoursesByDepartment(profile.department.id);
+      if (profile?.department?.code) {
+        const coursesResponse = await authService.getCoursesByDepartment(profile.department.code);
         setCourses(coursesResponse.data || []);
       }
     } catch (error) {
@@ -101,9 +101,9 @@ const ProfileEditPage = () => {
     }
   };
 
-  const fetchCourses = async (departmentId) => {
+  const fetchCourses = async (departmentCode) => {
     try {
-      const response = await authService.getCoursesByDepartment(departmentId);
+      const response = await authService.getCoursesByDepartment(departmentCode);
       setCourses(response.data || []);
     } catch (error) {
       console.error('Error fetching courses:', error);
@@ -117,12 +117,17 @@ const ProfileEditPage = () => {
       [name]: value
     }));
     
-    // Reset course when department changes
+    // Reset course when department changes and fetch courses for new department
     if (name === 'department') {
       setFormData(prev => ({
         ...prev,
         course: ''
       }));
+      if (value) {
+        fetchCourses(value); // value is now department code
+      } else {
+        setCourses([]);
+      }
     }
   };
 
@@ -483,7 +488,7 @@ const ProfileEditPage = () => {
                 >
                   <option value="">Select Department</option>
                   {departments.map(dept => (
-                    <option key={dept.id} value={dept.id}>
+                    <option key={dept.code} value={dept.code}>
                       {dept.name}
                     </option>
                   ))}
@@ -507,7 +512,7 @@ const ProfileEditPage = () => {
                     {formData.department ? 'Select Course' : 'Select Department First'}
                   </option>
                   {courses.map(course => (
-                    <option key={course.id} value={course.id}>
+                    <option key={course.code} value={course.code}>
                       {course.name}
                     </option>
                   ))}

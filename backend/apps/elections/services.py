@@ -155,15 +155,35 @@ class ElectionDataService:
         # Count total positions in this election
         total_positions = election.election_positions.filter(is_enabled=True).count()
         
+        # Count eligible students based on election type
+        from apps.accounts.models import UserProfile
+        if election.election_type == 'university':
+            # For university elections, all students are eligible
+            total_eligible_students = UserProfile.objects.filter(
+                user__is_staff=False,
+                user__is_superuser=False
+            ).count()
+        elif election.election_type == 'department' and election.allowed_department:
+            # For department elections, only students from that department are eligible
+            total_eligible_students = UserProfile.objects.filter(
+                department=election.allowed_department,
+                user__is_staff=False,
+                user__is_superuser=False
+            ).count()
+        else:
+            # Fallback: use total voters as estimate
+            total_eligible_students = total_voters
+        
         # Calculate turnout safely using memoized function
         ballots_count = election.ballots.count() if hasattr(election, 'ballots') else 0
         from apps.voting.services import VotingDataService
-        turnout_percentage = VotingDataService.calculate_turnout_percentage(total_voters, ballots_count)
+        turnout_percentage = VotingDataService.calculate_turnout_percentage(total_voters, total_eligible_students)
         
         return {
             'election_id': election_id,
             'total_votes': total_votes,
             'total_voters': total_voters,
+            'total_eligible_students': total_eligible_students,
             'total_candidates': total_candidates,
             'total_positions': total_positions,
             'candidates_by_position': list(candidates_by_position),

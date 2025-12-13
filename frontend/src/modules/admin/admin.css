@@ -1,27 +1,10 @@
 /* ==================== Admin Pages Styles ==================== */
 
+/* Import global styles */
+@import '../../assets/styles/global.css';
+
 /* Enable text and image selection for admin dashboard content */
-.admin-header h1,
-.admin-header p,
-.admin-stat-value,
-.admin-stat-label,
-.admin-card-title,
-.admin-card-subtitle,
-.admin-card-body,
-.admin-card-meta,
-.admin-card-meta-item,
-.admin-table th,
-.admin-table td,
-.admin-info-card-label,
-.admin-info-card-value,
-.admin-empty-state-title,
-.admin-empty-state-message {
-  -webkit-user-select: text !important;
-  -moz-user-select: text !important;
-  -ms-user-select: text !important;
-  user-select: text !important;
-  cursor: text;
-}
+
 
 /* Allow images to be selectable and draggable */
 .admin-dashboard img,
@@ -595,3 +578,4 @@ button:hover,
     font-size: 1.2rem;
   }
 }
+

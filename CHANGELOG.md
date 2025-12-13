@@ -9,6 +9,126 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.7] - 2025-12-XX
+### Added
+- **Result Visibility Controls**: Election results and statistics are hidden for non-admin users while an election is active
+  - Results endpoint returns 403 with `available_after`, `results_locked`, and election metadata during the voting period
+  - Statistics endpoint follows the same lock behavior until the election end date
+  - Frontend results page shows a lock notice with the formatted end date instead of live tallies
+
+- **Profile Completeness Validation System**: Comprehensive validation to ensure users have complete profiles before critical actions
+  - **UserProfile Model**: Added `is_profile_complete()` method to check if Student ID, Department, Course, and Year Level are present
+  - **Missing Fields Tracking**: Added `get_missing_fields()` method to return list of incomplete fields
+  - **Serializer Fields**: Added `is_profile_complete` and `missing_fields` to `UserProfileSerializer` for frontend access
+  - **Candidate Application Validation**: Backend validation in `CandidateApplicationCreateSerializer` checks profile completeness before allowing application submission
+  - **Voting Validation**: Backend validation in `BallotSubmissionSerializer` checks profile completeness before allowing ballot submission
+  - **Frontend Warnings**: Application and voting pages display warnings with missing fields list and link to profile edit page
+  - **Button Disabling**: Submit buttons disabled when profile is incomplete to prevent submission attempts
+
+- **Student Count Endpoint**: New API endpoint for accurate student statistics
+  - **Endpoint**: `GET /api/auth/student-count/` - Returns total count of non-staff/non-superuser profiles
+  - **Accessibility**: Available to all authenticated users (not restricted to admins)
+  - **Usage**: Used by dashboard and results pages to display accurate student counts
+  - **Frontend Service**: Added `getStudentCount()` method to `authService.js`
+
+- **Election Statistics Enhancement**: Improved election statistics with eligible student counts
+  - **Election Service**: `get_election_statistics()` now includes `total_eligible_students` based on election type
+  - **Results API**: Election results endpoint includes `total_eligible_students` for accurate turnout calculations
+  - **Frontend Integration**: Results page uses backend-provided eligible student count instead of frontend calculation
+
+### Changed
+- **Candidates Module Styles**: Centralized styling imports after CSS relocation
+  - `candidates.css` and `applications.css` now live at `frontend/src/modules/candidates/`
+  - Updated JSX imports to use relative paths to the shared styles directory
+
+- **Position Management Form**: Removed "Display Order" input field from position creation/edit form
+  - **Auto-Assignment**: Display order automatically calculated: `max(display_order) + 1` for new positions (starts at 1)
+  - **Edit Behavior**: Existing positions preserve their display order when edited
+  - **Reordering Logic**: Changed from simple increment/decrement to swap-based mechanism
+    - `handleMoveUp()` and `handleMoveDown()` now swap `display_order` values between adjacent positions
+    - Ensures unique and contiguous ordering without gaps or duplicates
+  - **Boundary Checks**: Added `canMoveUp()` and `canMoveDown()` functions to disable buttons at boundaries
+  - **Table Display**: Shows `position.display_order` or `index + 1` as fallback
+
+- **Candidate Directory Display**: Updated candidate profile information display
+  - **Course/Year Section**: Replaced "Voting Period" section with "Course/Year" display
+    - Format: "BSCS (course code) - 4 (Year level)"
+    - Icon changed from `fa-clock` to `fa-graduation-cap`
+    - Data sourced from `candidate.user.course_code` and `candidate.user.year_level`
+  - **View Election Button**: Updated styling to match green theme color (#0b6e3b)
+    - Removed box-shadow and hover effects for simpler appearance
+    - Solid green background matching header color
+  - **Profile Picture**: Updated to use slight gray gradient
+    - Default background: `linear-gradient(135deg, #9ca3af 0%, #6b7280 100%)`
+    - Applied `grayscale(0.2) brightness(0.95)` filter when photo exists
+    - Removed shimmer animation for cleaner appearance
+
+- **Candidate User Serializer**: Added course code and year level fields
+  - **Fields Added**: `course_code` and `year_level` as `SerializerMethodField`
+  - **Data Source**: Fetched from `obj.profile.course.code` and `obj.profile.year_level`
+  - **Usage**: Used by candidate directory to display academic information
+
+- **Dashboard Student Count**: Changed from filtering all profiles to using dedicated endpoint
+  - **Previous**: Fetched all profiles and filtered on frontend (showed only 1 for non-admin users)
+  - **Current**: Uses `authService.getStudentCount()` to get accurate count from backend
+  - **Fix**: Non-admin users now see correct total student count
+
+- **Results Page Statistics**: Updated to use backend-provided eligible student count
+  - **Previous**: Frontend fetched all profiles to count eligible students
+  - **Current**: Uses `total_eligible_students` from `resultsData` received from backend
+  - **Fallback**: Falls back to `total_voters` if `total_eligible_students` not available
+
+- **Dashboard Statistics Visibility**: Added authentication-based conditional display
+  - **Previous**: Statistics cards (Students, Votes Recorded) displayed for all users including guests
+  - **Current**: Statistics cards only displayed when user is authenticated (`isAuthenticated === true`)
+  - **Implementation**: Conditional rendering wraps statistics cards, data fetching also gated by authentication
+  - **Public Access**: Guest users can still view elections, candidates, and winners (public information)
+  - **Security**: Prevents unauthorized access to sensitive statistics
+
+### Fixed
+- **Student Count Display**: Fixed issue where non-admin users saw only 1 student instead of total count
+  - **Root Cause**: `getAllProfiles()` endpoint was restricted to return only current user's profile for non-admin users
+  - **Solution**: Created dedicated `/api/auth/student-count/` endpoint accessible to all authenticated users
+  - **Impact**: Dashboard and results pages now show accurate student statistics for all users
+
+- **Profile Completeness Validation**: Fixed issue where users could apply as candidates or vote with incomplete profiles
+  - **Solution**: Added validation checks on both frontend (UI warnings, button disabling) and backend (serializer validation)
+  - **Impact**: Ensures data integrity and better user experience with clear guidance
+
+- **Guest Mode Statistics Display**: Fixed issue where guest/unauthenticated users could see sensitive statistics
+  - **Root Cause**: Dashboard was fetching and displaying student count and vote statistics for all users, including guests
+  - **Solution**: Added authentication check (`isAuthenticated`) before fetching and displaying statistics cards
+  - **Implementation**: 
+    - Statistics cards wrapped in conditional rendering: `{isAuthenticated && (...)}`
+    - Student count and statistics only fetched when `isAuthenticated === true`
+    - Public data (elections, candidates, winners) still accessible to all users
+  - **Impact**: Enhanced privacy and security by preventing unauthorized access to sensitive statistics
+
+### Technical Details
+- **Backend Changes**:
+  - `apps/accounts/models.py`: Added `is_profile_complete()` and `get_missing_fields()` methods to `UserProfile`
+  - `apps/accounts/serializers.py`: Added `is_profile_complete` and `missing_fields` fields to `UserProfileSerializer`
+  - `apps/accounts/views.py`: Added `student_count` action to `UserProfileViewSet`
+  - `apps/accounts/urls.py`: Added URL pattern for `student_count` endpoint
+  - `apps/candidates/serializers.py`: Added profile completeness validation to `CandidateApplicationCreateSerializer`
+  - `apps/candidates/serializers.py`: Added `course_code` and `year_level` to `CandidateUserSerializer`
+  - `apps/voting/serializers.py`: Added profile completeness validation to `BallotSubmissionSerializer.validate()`
+  - `apps/elections/services.py`: Updated `get_election_statistics()` to include `total_eligible_students`
+  - `apps/voting/views.py`: Added `total_eligible_students` to election results response; locked results/statistics for active elections (non-admin)
+
+- **Frontend Changes**:
+  - `modules/admin/pages/PositionManagementPage.jsx`: Removed display_order field, updated reordering logic
+  - `modules/candidates/pages/CandidateProfilePage.jsx`: Updated Course/Year display, button styling, profile picture
+  - `modules/candidates/pages/candidates.css`: Updated profile avatar styling
+  - `modules/candidates/pages/ApplicationFormPage.jsx`: Added profile completeness check and warning
+  - `modules/voting/pages/VotingPage.jsx`: Added profile completeness check, warning, and button disabling
+  - `modules/profile/pages/DashboardPage.jsx`: Changed to use `authService.getStudentCount()`, added authentication check for statistics display
+  - `modules/results/pages/ResultsDetailsPage.jsx`: Updated to use `total_eligible_students` from backend; shows lock notice with election end date when results are hidden during voting
+  - `modules/candidates/pages/*`: Updated CSS import paths to shared `candidates.css` / `applications.css` directory
+  - `services/authService.js`: Added `getStudentCount()` method
+
+---
+
 ## [0.7.6] - 2025-12-XX
 ### Added
 - **General-Purpose Algorithm Library**: Comprehensive suite of efficient algorithms for data processing
