@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.db import OperationalError, ProgrammingError
 from django.core.exceptions import ImproperlyConfigured
-from .models import SecurityEvent, ActivityLog
+from .models import SecurityEvent, ActivityLog, SystemSettings
 import logging
 
 logger = logging.getLogger(__name__)
@@ -88,5 +88,19 @@ class ActivityLogAdmin(admin.ModelAdmin):
             logger.error(f"Error displaying description: {e}")
             return str(obj.description) if hasattr(obj, 'description') else ''
     description_short.short_description = 'Description'
+
+
+@admin.register(SystemSettings)
+class SystemSettingsAdmin(admin.ModelAdmin):
+    list_display = ['key', 'value', 'updated_at', 'updated_by']
+    search_fields = ['key', 'value', 'description']
+    readonly_fields = ['updated_at', 'updated_by']
+    
+    def save_model(self, request, obj, form, change):
+        if not change:  # New object
+            obj.updated_by = request.user
+        elif form.has_changed():  # Updated object
+            obj.updated_by = request.user
+        super().save_model(request, obj, form, change)
 
 

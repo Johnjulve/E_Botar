@@ -54,7 +54,7 @@
 
 /* Success message styling */
 .auth-success-message {
-  background-color: rgb(16 185 129 / 0.1);
+  background-color: var(--success-soft-bg);
   border-left: 4px solid var(--success-color);
   padding: var(--spacing-md);
   border-radius: var(--radius-md);

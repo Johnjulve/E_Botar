@@ -1,4 +1,4 @@
-﻿/**
+/**
  * VotingPage
  * Ballot submission interface
  */
@@ -10,6 +10,7 @@ import { Card, Button, Alert, LoadingSpinner, EmptyState, Modal } from '../../..
 import { electionService, candidateService, votingService, authService } from '../../../services';
 import { formatDate } from '../../../utils/formatters';
 import { useAuth } from '../../../hooks/useAuth';
+import '../voting.css';
 
 const VotingPage = () => {
   const { id } = useParams();
@@ -245,7 +246,7 @@ const VotingPage = () => {
     return (
       <Container>
         <Card className="text-center">
-          <i className="fas fa-check-circle text-success" style={{ fontSize: '4rem' }}></i>
+          <i className="fas fa-check-circle text-success voting-success-icon"></i>
           <h2 className="mt-3 mb-3">Vote Submitted Successfully!</h2>
           <p className="text-muted mb-3">Your vote has been securely recorded.</p>
           {receipt && (
@@ -292,27 +293,17 @@ const VotingPage = () => {
 
       {/* Profile Incomplete Warning */}
       {!profileComplete && !isAdmin && (
-        <Alert variant="warning" className="mb-4" style={{
-          background: '#fef3c7',
-          border: '1px solid #fbbf24',
-          color: '#92400e'
-        }}>
+        <Alert variant="warning" className="mb-4 voting-alert-warning-custom">
           <div className="d-flex align-items-start">
-            <i className="fas fa-exclamation-triangle me-2 mt-1" style={{ fontSize: '1.25rem' }}></i>
-            <div style={{ flex: 1 }}>
+            <i className="fas fa-exclamation-triangle me-2 mt-1 voting-alert-icon"></i>
+            <div className="voting-alert-content">
               <strong>Profile Incomplete</strong>
-              <p className="mb-2 mt-2" style={{ marginBottom: '0.5rem' }}>
+              <p className="mb-2 mt-2 voting-alert-text">
                 Please complete your profile with the following information before voting: <strong>{missingFields.join(', ')}</strong>
               </p>
               <Link 
                 to="/profile/edit" 
-                className="btn btn-sm"
-                style={{ 
-                  background: '#92400e',
-                  color: 'white',
-                  border: 'none',
-                  textDecoration: 'none'
-                }}
+                className="btn btn-sm voting-alert-link"
               >
                 Complete Profile →
               </Link>
@@ -333,7 +324,7 @@ const VotingPage = () => {
           {Object.entries(candidatesByPosition).map(([positionId, data]) => (
             <Card key={positionId} className="mb-4">
               <div className="mb-4 pb-3 border-bottom">
-                <h4 className="mb-0" style={{ color: '#1a202c', fontWeight: '600', fontSize: '1.25rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                <h4 className="mb-0 voting-position-title">
                   {data.position.name}
                 </h4>
                 <p className="text-muted small mb-0 mt-1">Select one candidate</p>
@@ -343,32 +334,26 @@ const VotingPage = () => {
                 {data.candidates.map(candidate => (
                   <div 
                     key={candidate.id}
-                    className={`p-3 border rounded ${
-                      votes[positionId] === candidate.id ? 'border-dark border-2' : ''
+                    className={`p-3 border rounded voting-candidate-card ${
+                      votes[positionId] === candidate.id ? 'border-dark border-2 selected' : ''
                     }`}
                     onClick={() => handleVoteChange(positionId, candidate.id)}
-                    style={{ 
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      backgroundColor: votes[positionId] === candidate.id ? '#f8f9fa' : 'white'
-                    }}
                   >
                     <div className="form-check d-flex align-items-center">
                       <input
                         type="radio"
-                        className="form-check-input mt-0"
+                        className="form-check-input mt-0 voting-radio-input"
                         name={`position-${positionId}`}
                         id={`candidate-${candidate.id}`}
                         checked={votes[positionId] === candidate.id}
                         onChange={() => handleVoteChange(positionId, candidate.id)}
-                        style={{ cursor: 'pointer' }}
                       />
-                      <label className="form-check-label w-100 ms-3" htmlFor={`candidate-${candidate.id}`} style={{ cursor: 'pointer' }}>
-                        <div className="fw-semibold" style={{ fontSize: '1rem', color: '#2d3748' }}>
+                      <label className="form-check-label w-100 ms-3 voting-candidate-label" htmlFor={`candidate-${candidate.id}`}>
+                        <div className="fw-semibold voting-candidate-name">
                           {candidate.user?.first_name} {candidate.user?.last_name}
                         </div>
                         {candidate.party && (
-                          <div className="small mt-1" style={{ color: '#718096' }}>
+                          <div className="small mt-1 voting-candidate-party">
                             {candidate.party.name}
                           </div>
                         )}

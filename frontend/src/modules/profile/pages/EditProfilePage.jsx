@@ -1,4 +1,4 @@
-﻿/**
+/**
  * EditProfilePage
  * Edit user profile information
  */
@@ -21,6 +21,7 @@ const EditProfilePage = () => {
   
   const [formData, setFormData] = useState({
     first_name: '',
+    middle_name: '',
     last_name: '',
     email: '',
     student_id: '',
@@ -52,6 +53,7 @@ const EditProfilePage = () => {
       
       setFormData({
         first_name: userData.user?.first_name || '',
+        middle_name: userData.profile?.middle_name || '',
         last_name: userData.user?.last_name || '',
         email: userData.user?.email || '',
         student_id: userData.profile?.student_id || '',
@@ -164,6 +166,18 @@ const EditProfilePage = () => {
               />
             </div>
             
+            <div className="col-md-6">
+              <label className="form-label">Middle Name</label>
+              <input
+                type="text"
+                name="middle_name"
+                className="form-control"
+                value={formData.middle_name}
+                onChange={handleChange}
+                placeholder="Middle name (optional)"
+              />
+            </div>
+
             <div className="col-md-6">
               <label className="form-label">Last Name *</label>
               <input

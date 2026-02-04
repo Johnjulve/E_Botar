@@ -1,6 +1,6 @@
 # E-Botar - Blockchain-Inspired Electronic Voting System
 
-**Version 0.7.7** | A secure, privacy-preserving electronic voting platform for student government elections
+**Version 0.7.8** | A secure, privacy-preserving electronic voting platform for student government elections
 
 [![Django](https://img.shields.io/badge/Django-5.2.8-green.svg)](https://www.djangoproject.com/)
 [![DRF](https://img.shields.io/badge/DRF-3.16.1-red.svg)](https://www.django-rest-framework.org/)
@@ -11,7 +11,7 @@
 
 ## 📖 Table of Contents
 
-- [Release Highlights (0.7.7)](#-release-highlights-077)
+- [Release Highlights (0.7.8)](#-release-highlights-078)
 - [Quick Start](#quick-start)
 - [Key Features](#key-features)
 - [Role-Based Access Control](#role-based-access-control)
@@ -22,7 +22,16 @@
 
 ---
 
-## 🚀 Release Highlights (0.7.7)
+## 🚀 Release Highlights (0.7.8)
+
+- **College Terminology Alignment**: UI now consistently uses "College" (instead of "Department") for program-type labels and profile academic info, while keeping existing data model values (`department`, `course`) unchanged.
+- **Program Type Badge**: Program list badges now show "College" for department-type entries and "Course" for courses.
+- **Profile Edit Terminology**: Academic info fields and placeholders use "College," plus the dependent course selector now prompts "Select College First."
+- **Data Export Terminology**: Data export pages updated to use "College" terminology consistently throughout PDF exports, labels, dropdowns, and election type references.
+- **Election Creation & Management**: Spam-click prevention (frontend ref guard + backend 10s rate limit), duplicate A.Y. prevention (cannot create another election for same academic year and category—USC or department), and Delete option on edit election for superusers (with confirmation).
+- **Academic Year Selector (Home)**: Dashboard academic year dropdown shortened to 2 years past and 5 years ahead (8 options total) for a manageable list.
+
+### Previous Highlights (0.7.7)
 
 - **Results Hidden During Voting**: Protect election integrity by withholding live results and statistics from non-admin users until the election ends, showing a lock notice with the scheduled end date.
 
@@ -532,6 +541,8 @@ E-Botar implements a **three-tier role system**:
 - **[README.md](README.md)** - Quick start guide (this file)
 - **[Information.md](Information.md)** - Complete system information and technical details
 - **[CHANGELOG.md](CHANGELOG.md)** - Version history and changes
+- **[frontend/CSS_ARCHITECTURE_STRATEGY.md](frontend/CSS_ARCHITECTURE_STRATEGY.md)** - Frontend CSS architecture (foundation, global, module layers) and naming rules
+- **[frontend/CSS_STRUCTURE_REVIEW.md](frontend/CSS_STRUCTURE_REVIEW.md)** - CSS structure review and migration status
 
 ### Quick Reference
 
@@ -539,6 +550,7 @@ E-Botar implements a **three-tier role system**:
 1. Start with [Information.md](Information.md) for complete system documentation
 2. Check [CHANGELOG.md](CHANGELOG.md) for recent changes
 3. Reference [Phase_Implementation.md](Phase_Implementation.md) for architecture
+4. For frontend CSS (variables, module prefixes, loading order), see [frontend/CSS_ARCHITECTURE_STRATEGY.md](frontend/CSS_ARCHITECTURE_STRATEGY.md)
 
 **For Administrators**:
 1. Follow Quick Start guide above
@@ -599,7 +611,7 @@ locust -f locustfile.py --host=http://localhost:8000
 
 ---
 
-**E-Botar v0.7.7** | Last Updated: December 2025 | Performance Tested & Optimized  
+**E-Botar v0.7.8** | Last Updated: December 2025 | Performance Tested & Optimized  
 **Status**: Production Ready | Full Stack Complete
 
 > 📖 **For complete documentation**, see [Information.md](Information.md)

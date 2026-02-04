@@ -10,6 +10,7 @@ import { LoadingSpinner } from '../../../components/common';
 import { electionService, candidateService, votingService, authService } from '../../../services';
 import { formatNumber } from '../../../utils/formatters';
 import '../admin.css';
+import '../admin-dashboard.css';
 
 // SVG Icon Component
 const Icon = ({ name, size = 20, className = '' }) => {
@@ -170,7 +171,6 @@ const AdminDashboardPage = () => {
       {/* Page Header */}
       <div className="admin-header">
         <h1>
-          <Icon name="cog" size={28} style={{ color: '#2563eb' }} />
           Admin Dashboard
         </h1>
         <p>Manage elections, candidates, and monitor system activity</p>
@@ -228,29 +228,12 @@ const AdminDashboardPage = () => {
       </div>
 
       {/* Quick Actions */}
-      <div style={{
-        background: 'white',
-        border: '1px solid #e5e7eb',
-        borderRadius: '0.75rem',
-        padding: '1.5rem',
-        marginBottom: '2rem'
-      }}>
-        <h5 style={{
-          marginBottom: '1rem',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          color: '#1f2937',
-          fontWeight: 600
-        }}>
-          <Icon name="zap" size={20} style={{ color: '#eab308' }} />
+      <div className="admin-card-container">
+        <h5 className="admin-section-header">
+          <Icon name="zap" size={20} className="admin-icon-warning" />
           Quick Actions
         </h5>
-        <div style={{
-          display: 'flex',
-          gap: '0.75rem',
-          flexWrap: 'wrap'
-        }}>
+        <div className="admin-flex-row">
           <Link to="/admin/elections/create" className="admin-btn">
             <Icon name="plus" size={16} />
             Create Election
@@ -279,33 +262,12 @@ const AdminDashboardPage = () => {
       </div>
 
       {/* Recent Data Cards */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
-        gap: '1.5rem'
-      }}>
+      <div className="admin-grid-auto-fit">
         {/* Recent Elections */}
-        <div style={{
-          background: 'white',
-          border: '1px solid #e5e7eb',
-          borderRadius: '0.75rem',
-          padding: '1.5rem'
-        }}>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '1.5rem'
-          }}>
-            <h5 style={{
-              margin: 0,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              color: '#1f2937',
-              fontWeight: 600
-            }}>
-              <Icon name="calendar" size={20} style={{ color: '#2563eb' }} />
+        <div className="admin-card-container" style={{ marginBottom: 0 }}>
+          <div className="admin-flex-between" style={{ marginBottom: '1.5rem' }}>
+            <h5 className="admin-section-header">
+              <Icon name="calendar" size={20} className="admin-icon-primary" />
               Recent Elections
             </h5>
             <Link to="/admin/elections" className="admin-btn secondary">
@@ -314,39 +276,19 @@ const AdminDashboardPage = () => {
           </div>
 
           {recentElections.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div className="admin-flex-column">
               {recentElections.map(election => (
-                <div key={election.id} style={{
-                  padding: '1rem',
-                  background: '#f9fafb',
-                  borderRadius: '0.5rem',
-                  borderLeft: '3px solid #2563eb'
-                }}>
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'start',
-                    gap: '1rem'
-                  }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{
-                        fontWeight: 600,
-                        color: '#1f2937',
-                        marginBottom: '0.25rem'
-                      }}>
+                <div key={election.id} className="admin-list-item">
+                  <div className="admin-flex-start">
+                    <div className="admin-flex-1">
+                      <div className="admin-list-item-title">
                         {election.title}
                       </div>
-                      <div style={{
-                        fontSize: '0.85rem',
-                        color: '#6b7280'
-                      }}>
+                      <div className="admin-list-item-subtitle">
                         {election.total_votes || 0} votes
                       </div>
                     </div>
-                    <div className="admin-status-badge" style={{
-                      background: election.is_active_now ? 'rgba(34, 197, 94, 0.15)' : 'rgba(107, 114, 128, 0.15)',
-                      color: election.is_active_now ? '#166534' : '#374151'
-                    }}>
+                    <div className={`admin-status-badge ${election.is_active_now ? 'admin-status-badge-active' : 'admin-status-badge-inactive'}`}>
                       {election.is_active_now ? 'Active' : 'Inactive'}
                     </div>
                   </div>
@@ -354,38 +296,17 @@ const AdminDashboardPage = () => {
               ))}
             </div>
           ) : (
-            <div style={{
-              textAlign: 'center',
-              padding: '2rem 1rem',
-              color: '#6b7280'
-            }}>
-              <p style={{ margin: 0 }}>No elections yet</p>
+            <div className="admin-empty-state">
+              <p>No elections yet</p>
             </div>
           )}
         </div>
 
         {/* Pending Applications */}
-        <div style={{
-          background: 'white',
-          border: '1px solid #e5e7eb',
-          borderRadius: '0.75rem',
-          padding: '1.5rem'
-        }}>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '1.5rem'
-          }}>
-            <h5 style={{
-              margin: 0,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              color: '#1f2937',
-              fontWeight: 600
-            }}>
-              <Icon name="clock" size={20} style={{ color: '#eab308' }} />
+        <div className="admin-card-container" style={{ marginBottom: 0 }}>
+          <div className="admin-flex-between" style={{ marginBottom: '1.5rem' }}>
+            <h5 className="admin-section-header">
+              <Icon name="clock" size={20} className="admin-icon-warning" />
               Pending Applications
             </h5>
             <Link to="/admin/applications" className="admin-btn secondary">
@@ -394,39 +315,21 @@ const AdminDashboardPage = () => {
           </div>
 
           {pendingApplications.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div className="admin-flex-column">
               {pendingApplications.map(app => (
-                <div key={app.id} style={{
-                  padding: '1rem',
-                  background: '#f9fafb',
-                  borderRadius: '0.5rem',
-                  borderLeft: '3px solid #eab308'
-                }}>
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'start',
-                    gap: '1rem'
-                  }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{
-                        fontWeight: 600,
-                        color: '#1f2937',
-                        marginBottom: '0.25rem'
-                      }}>
+                <div key={app.id} className="admin-list-item-warning">
+                  <div className="admin-flex-start">
+                    <div className="admin-flex-1">
+                      <div className="admin-list-item-title">
                         {app.user?.first_name} {app.user?.last_name}
                       </div>
-                      <div style={{
-                        fontSize: '0.85rem',
-                        color: '#6b7280'
-                      }}>
+                      <div className="admin-list-item-subtitle">
                         {app.position?.name} - {app.election?.title}
                       </div>
                     </div>
                     <Link
                       to={`/admin/applications/${app.id}`}
-                      className="admin-btn secondary"
-                      style={{ whiteSpace: 'nowrap' }}
+                      className="admin-btn secondary admin-nowrap"
                     >
                       <Icon name="arrow" size={14} />
                     </Link>
@@ -435,12 +338,8 @@ const AdminDashboardPage = () => {
               ))}
             </div>
           ) : (
-            <div style={{
-              textAlign: 'center',
-              padding: '2rem 1rem',
-              color: '#6b7280'
-            }}>
-              <p style={{ margin: 0 }}>No pending applications</p>
+            <div className="admin-empty-state">
+              <p>No pending applications</p>
             </div>
           )}
         </div>

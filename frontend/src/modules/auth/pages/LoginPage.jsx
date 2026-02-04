@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Container, Row, Col, Form } from 'react-bootstrap';
 import { useAuth } from '../../../hooks/useAuth';
+import { useBranding } from '../../../contexts/BrandingContext';
 import './auth.css';
 
 const LoginPage = () => {
@@ -20,6 +21,7 @@ const LoginPage = () => {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -84,14 +86,16 @@ const LoginPage = () => {
     }
   };
 
+  const branding = useBranding();
+
   return (
     <div className="auth-page d-flex align-items-center">
       <Container className="auth-container">
         <Row className="justify-content-center">
-          <Col md={6} lg={5} xl={4}>
+          <Col md={8} lg={6} xl={5}>
             <div className="auth-header">
               <h1>Welcome Back</h1>
-              <p>Sign in to continue to E-Botar</p>
+              <p>Sign in to continue to {branding.app_name}</p>
             </div>
 
             <div className="auth-card">
@@ -135,15 +139,26 @@ const LoginPage = () => {
                     <i className="fas fa-lock"></i>
                     Password
                   </Form.Label>
-                  <Form.Control
-                    type="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    isInvalid={!!errors.password}
-                    placeholder="Enter your password"
-                    disabled={loading}
-                  />
+                  <div className="auth-password-wrap">
+                    <Form.Control
+                      type={showPassword ? 'text' : 'password'}
+                      name="password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      isInvalid={!!errors.password}
+                      placeholder="Enter your password"
+                      disabled={loading}
+                    />
+                    <button
+                      type="button"
+                      className="auth-password-toggle"
+                      onClick={() => setShowPassword((p) => !p)}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      tabIndex={-1}
+                    >
+                      <i className={showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'}></i>
+                    </button>
+                  </div>
                   {errors.password && (
                     <div className="invalid-feedback d-block">
                       {errors.password}

@@ -6,21 +6,24 @@
 import React from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { BrandingProvider } from './contexts/BrandingContext';
 import { Navbar, Footer } from './components/layout';
 import AppRoutes from './routes/AppRoutes';
-import './assets/styles/global.css';
+/* Note: Global styles are now loaded in main.jsx at app level */
 
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <div className="app-shell d-flex flex-column">
-          <Navbar />
-          <main className="main-content flex-grow-1">
-            <AppRoutes />
-          </main>
-          <Footer />
-        </div>
+        <BrandingProvider>
+          <div className="app-shell d-flex flex-column">
+            <Navbar />
+            <main className="main-content flex-grow-1">
+              <AppRoutes />
+            </main>
+            <Footer />
+          </div>
+        </BrandingProvider>
       </AuthProvider>
     </BrowserRouter>
   );

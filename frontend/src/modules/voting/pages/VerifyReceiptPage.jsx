@@ -64,24 +64,9 @@ const VerifyReceiptPage = () => {
       </div>
 
       {/* Info Card */}
-      <div style={{
-        background: '#f0f9ff',
-        border: '1px solid #bfdbfe',
-        borderRadius: '0.75rem',
-        padding: '1.5rem',
-        marginBottom: '2rem'
-      }}>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-          <div style={{
-            width: '40px',
-            height: '40px',
-            background: '#2563eb',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0
-          }}>
+      <div className="verify-info-card">
+        <div className="verify-info-content">
+          <div className="verify-info-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10"/>
               <line x1="12" y1="16" x2="12" y2="12"/>
@@ -89,10 +74,10 @@ const VerifyReceiptPage = () => {
             </svg>
           </div>
           <div>
-            <h4 style={{ margin: '0 0 0.5rem', color: '#1e40af', fontSize: '1rem', fontWeight: 600 }}>
+            <h4 className="verify-info-title">
               How to Verify Your Vote
             </h4>
-            <ul style={{ margin: 0, paddingLeft: '1.25rem', color: '#1e3a8a', fontSize: '0.9rem', lineHeight: '1.6' }}>
+            <ul className="verify-info-list">
               <li>After voting, you received a unique receipt code</li>
               <li>Enter this code below to verify your vote was recorded</li>
               <li>The system will confirm your vote details without revealing your choices</li>
@@ -103,21 +88,10 @@ const VerifyReceiptPage = () => {
       </div>
 
       {/* Verification Form */}
-      <div style={{
-        background: 'white',
-        border: '1px solid #e5e7eb',
-        borderRadius: '0.75rem',
-        padding: '2rem',
-        marginBottom: '2rem'
-      }}>
+      <div className="verify-form-card">
         <form onSubmit={handleVerify}>
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{
-              display: 'block',
-              fontWeight: 600,
-              marginBottom: '0.5rem',
-              color: '#374151'
-            }}>
+          <div className="verify-form-group">
+            <label className="verify-form-label">
               Receipt Code *
             </label>
             <input
@@ -126,46 +100,23 @@ const VerifyReceiptPage = () => {
               onChange={(e) => setReceiptCode(e.target.value)}
               placeholder="Enter your receipt code (e.g., VR-XXXX-XXXX-XXXX-XXXX)"
               disabled={verifying || result}
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '1px solid #d1d5db',
-                borderRadius: '0.5rem',
-                fontSize: '0.95rem',
-                fontFamily: 'monospace',
-                letterSpacing: '0.05em'
-              }}
+              className="verify-form-input"
             />
-            <small style={{ color: '#6b7280', marginTop: '0.5rem', display: 'block' }}>
+            <small className="verify-form-help">
               Find your receipt code in "My Voting History"
             </small>
           </div>
 
           {error && (
-            <Alert variant="danger" dismissible onClose={() => setError('')} style={{ marginBottom: '1.5rem' }}>
+            <Alert variant="danger" dismissible onClose={() => setError('')} className="verify-alert-mb">
               {error}
             </Alert>
           )}
 
           {result && (
-            <div style={{
-              background: result.valid ? '#f0fdf4' : '#fef2f2',
-              border: `1px solid ${result.valid ? '#bbf7d0' : '#fecaca'}`,
-              borderRadius: '0.5rem',
-              padding: '1.5rem',
-              marginBottom: '1.5rem'
-            }}>
-              <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-                <div style={{
-                  width: '48px',
-                  height: '48px',
-                  background: result.valid ? '#22c55e' : '#ef4444',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0
-                }}>
+            <div className={`verify-result-card ${result.valid ? 'valid' : 'invalid'}`}>
+              <div className="verify-result-content">
+                <div className={`verify-result-icon ${result.valid ? 'valid' : 'invalid'}`}>
                   {result.valid ? (
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="20 6 9 17 4 12"/>
@@ -177,38 +128,24 @@ const VerifyReceiptPage = () => {
                     </svg>
                   )}
                 </div>
-                <div style={{ flex: 1 }}>
-                  <h4 style={{
-                    margin: '0 0 0.75rem',
-                    color: result.valid ? '#166534' : '#991b1b',
-                    fontSize: '1.1rem',
-                    fontWeight: 600
-                  }}>
+                <div className="verify-result-text">
+                  <h4 className={`verify-result-title ${result.valid ? 'valid' : 'invalid'}`}>
                     {result.valid ? '✓ Receipt Verified Successfully' : '✗ Receipt Verification Failed'}
                   </h4>
-                  <p style={{
-                    margin: '0 0 1rem',
-                    color: result.valid ? '#15803d' : '#b91c1c',
-                    fontSize: '0.9rem'
-                  }}>
+                  <p className={`verify-result-message ${result.valid ? 'valid' : 'invalid'}`}>
                     {result.message}
                   </p>
                   
                   {result.valid && result.election && (
-                    <div style={{
-                      background: 'white',
-                      border: '1px solid #bbf7d0',
-                      borderRadius: '0.5rem',
-                      padding: '1rem'
-                    }}>
-                      <div style={{ marginBottom: '0.5rem' }}>
-                        <strong style={{ color: '#166534' }}>Election:</strong>
-                        <span style={{ marginLeft: '0.5rem', color: '#15803d' }}>{result.election}</span>
+                    <div className="verify-result-details">
+                      <div className="verify-result-detail-row">
+                        <strong className="verify-result-detail-label">Election:</strong>
+                        <span className="verify-result-detail-value">{result.election}</span>
                       </div>
                       {result.voted_at && (
-                        <div>
-                          <strong style={{ color: '#166534' }}>Voted At:</strong>
-                          <span style={{ marginLeft: '0.5rem', color: '#15803d' }}>
+                        <div className="verify-result-detail-row">
+                          <strong className="verify-result-detail-label">Voted At:</strong>
+                          <span className="verify-result-detail-value">
                             {formatDate(result.voted_at, 'datetime')}
                           </span>
                         </div>
@@ -220,16 +157,16 @@ const VerifyReceiptPage = () => {
             </div>
           )}
 
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <div className="verify-actions">
             {!result ? (
               <Button 
                 type="submit" 
                 variant="primary"
                 loading={verifying}
                 disabled={verifying || !receiptCode.trim()}
-                style={{ flex: 1 }}
+                className="verify-btn-full"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '0.5rem' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="verify-icon-spacing">
                   <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
                   <polyline points="22 4 12 14.01 9 11.01"/>
                 </svg>
@@ -240,7 +177,7 @@ const VerifyReceiptPage = () => {
                 type="button" 
                 variant="secondary"
                 onClick={handleReset}
-                style={{ flex: 1 }}
+                className="verify-btn-full"
               >
                 Verify Another Receipt
               </Button>
@@ -250,32 +187,18 @@ const VerifyReceiptPage = () => {
       </div>
 
       {/* Security Notice */}
-      <div style={{
-        background: '#fffbeb',
-        border: '1px solid #fde68a',
-        borderRadius: '0.75rem',
-        padding: '1.5rem'
-      }}>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-          <div style={{
-            width: '40px',
-            height: '40px',
-            background: '#eab308',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0
-          }}>
+      <div className="verify-security-notice">
+        <div className="verify-security-content">
+          <div className="verify-security-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
             </svg>
           </div>
           <div>
-            <h4 style={{ margin: '0 0 0.5rem', color: '#92400e', fontSize: '1rem', fontWeight: 600 }}>
+            <h4 className="verify-security-title">
               Security & Privacy
             </h4>
-            <p style={{ margin: 0, color: '#78350f', fontSize: '0.9rem', lineHeight: '1.6' }}>
+            <p className="verify-security-text">
               Receipt verification confirms your vote was recorded without revealing your actual choices. 
               Keep your receipt code private and secure. Never share it with anyone.
             </p>

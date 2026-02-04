@@ -287,16 +287,15 @@ const SystemLogsPage = () => {
       {/* Header */}
       <div className="admin-header">
         <h1>
-          <Icon name="activity" size={28} style={{ color: '#2563eb' }} />
+          <Icon name="activity" size={28} className="admin-icon-primary" />
           System Logs & Monitoring
         </h1>
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <p style={{ margin: 0 }}>View system activity and monitor events</p>
+        <div className="admin-logs-header-actions">
+          <p className="admin-logs-header-text">View system activity and monitor events</p>
           <button
             onClick={() => loadLogs({ silent: true })}
             disabled={isRefreshing}
-            className="admin-btn"
-            style={{ padding: '0.5rem 0.85rem' }}
+            className="admin-btn admin-btn-refresh"
           >
             {isRefreshing ? 'Refreshing...' : 'Refresh Logs'}
           </button>
@@ -310,39 +309,15 @@ const SystemLogsPage = () => {
       )}
 
       {showBackupReminder && (
-        <div
-          style={{
-            marginBottom: '1.5rem',
-            padding: '1rem 1.25rem',
-            borderRadius: '0.75rem',
-            border: '1px solid #fbbf24',
-            background: '#fffbeb',
-            display: 'flex',
-            gap: '0.75rem',
-            alignItems: 'flex-start'
-          }}
-        >
-          <div
-            style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '9999px',
-              background: '#facc15',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#92400e',
-              flexShrink: 0,
-              fontWeight: 700
-            }}
-          >
+        <div className="admin-logs-backup-reminder">
+          <div className="admin-logs-backup-icon">
             !
           </div>
-          <div style={{ fontSize: '0.9rem', color: '#92400e' }}>
-            <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>
+          <div className="admin-logs-backup-content">
+            <div className="admin-logs-backup-title">
               Monthly backup reminder
             </div>
-            <p style={{ margin: 0 }}>
+            <p className="admin-logs-backup-text">
               You are in the last week of the month. For transparency and data safety, export and
               back up your system and security logs for this period and store them in secure
               offline or archival storage.
@@ -387,57 +362,22 @@ const SystemLogsPage = () => {
       </div>
 
       {/* Advanced Filters */}
-      <div style={{
-        background: 'white',
-        border: '1px solid #e5e7eb',
-        borderRadius: '0.75rem',
-        padding: '1.5rem',
-        marginBottom: '1.5rem'
-      }}>
-        <h5 style={{
-          marginBottom: '1rem',
-          fontSize: '0.875rem',
-          fontWeight: 600,
-          color: '#374151',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem'
-        }}>
+      <div className="admin-logs-filters-section">
+        <h5 className="admin-logs-filters-title">
           <Icon name="activity" size={18} />
           Filter Options
         </h5>
         
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '1rem',
-          marginBottom: '1rem'
-        }}>
+        <div className="admin-logs-filters-grid">
           {/* Log Type Filter */}
           <div>
-            <label style={{
-              display: 'block',
-              marginBottom: '0.5rem',
-              fontSize: '0.75rem',
-              fontWeight: 500,
-              color: '#6b7280',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px'
-            }}>
+            <label className="admin-logs-filter-label">
               Log Type
             </label>
             <select
               value={logTypeFilter}
               onChange={(e) => setLogTypeFilter(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '0.5rem',
-                border: '1px solid #d1d5db',
-                borderRadius: '0.5rem',
-                fontSize: '0.875rem',
-                background: 'white',
-                cursor: 'pointer'
-              }}
+              className="admin-logs-filter-select"
             >
               <option value="all">All Logs</option>
               <option value="security">Security Events</option>
@@ -447,29 +387,13 @@ const SystemLogsPage = () => {
 
           {/* Resource Type Filter */}
           <div>
-            <label style={{
-              display: 'block',
-              marginBottom: '0.5rem',
-              fontSize: '0.75rem',
-              fontWeight: 500,
-              color: '#6b7280',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px'
-            }}>
+            <label className="admin-logs-filter-label">
               Resource Type
             </label>
             <select
               value={resourceTypeFilter}
               onChange={(e) => setResourceTypeFilter(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '0.5rem',
-                border: '1px solid #d1d5db',
-                borderRadius: '0.5rem',
-                fontSize: '0.875rem',
-                background: 'white',
-                cursor: 'pointer'
-              }}
+              className="admin-logs-filter-select"
             >
               <option value="all">All Resources</option>
               {uniqueResourceTypes.map(type => (
@@ -480,29 +404,13 @@ const SystemLogsPage = () => {
 
           {/* Action Filter */}
           <div>
-            <label style={{
-              display: 'block',
-              marginBottom: '0.5rem',
-              fontSize: '0.75rem',
-              fontWeight: 500,
-              color: '#6b7280',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px'
-            }}>
+            <label className="admin-logs-filter-label">
               Action
             </label>
             <select
               value={actionFilter}
               onChange={(e) => setActionFilter(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '0.5rem',
-                border: '1px solid #d1d5db',
-                borderRadius: '0.5rem',
-                fontSize: '0.875rem',
-                background: 'white',
-                cursor: 'pointer'
-              }}
+              className="admin-logs-filter-select"
             >
               <option value="all">All Actions</option>
               {uniqueActions.map(action => (
@@ -515,15 +423,7 @@ const SystemLogsPage = () => {
 
           {/* Search */}
           <div>
-            <label style={{
-              display: 'block',
-              marginBottom: '0.5rem',
-              fontSize: '0.75rem',
-              fontWeight: 500,
-              color: '#6b7280',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px'
-            }}>
+            <label className="admin-logs-filter-label">
               Search
             </label>
             <input
@@ -531,13 +431,7 @@ const SystemLogsPage = () => {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Search logs..."
-              style={{
-                width: '100%',
-                padding: '0.5rem',
-                border: '1px solid #d1d5db',
-                borderRadius: '0.5rem',
-                fontSize: '0.875rem'
-              }}
+              className="admin-logs-filter-input"
             />
           </div>
         </div>
@@ -552,16 +446,7 @@ const SystemLogsPage = () => {
               setSearchInput('');
               setSearchQuery('');
             }}
-            style={{
-              padding: '0.5rem 1rem',
-              background: '#f3f4f6',
-              color: '#374151',
-              border: '1px solid #d1d5db',
-              borderRadius: '0.5rem',
-              fontSize: '0.875rem',
-              cursor: 'pointer',
-              fontWeight: 500
-            }}
+            className="admin-logs-clear-filters"
           >
             Clear All Filters
           </button>
@@ -574,12 +459,7 @@ const SystemLogsPage = () => {
           <button
             key={btn.key}
             onClick={() => setFilter(btn.key)}
-            className={`admin-filter-btn ${filter === btn.key ? 'active' : ''}`}
-            style={{
-              background: filter === btn.key ? '#2563eb' : 'white',
-              color: filter === btn.key ? 'white' : '#374151',
-              borderColor: filter === btn.key ? '#2563eb' : '#d1d5db'
-            }}
+            className={`admin-filter-btn ${filter === btn.key ? 'admin-filter-btn-active' : 'admin-filter-btn-inactive-default'}`}
           >
             {btn.label} ({btn.count})
           </button>
@@ -588,54 +468,28 @@ const SystemLogsPage = () => {
 
       {/* Logs List */}
       {filteredLogs.length > 0 ? (
-        <div style={{
-          background: 'white',
-          border: '1px solid #e5e7eb',
-          borderRadius: '0.75rem',
-          overflow: 'hidden'
-        }}>
-          {filteredLogs.map((log, index) => {
+        <div className="admin-logs-list">
+          {filteredLogs.map((log) => {
             const severity = getSeverity(log);
             const colors = getLogColor(severity);
             return (
               <div
                 key={log.id}
-                style={{
-                  padding: '1.25rem',
-                  borderBottom: index < filteredLogs.length - 1 ? '1px solid #e5e7eb' : 'none',
-                  display: 'flex',
-                  gap: '1rem',
-                  alignItems: 'flex-start'
-                }}
+                className="admin-logs-item"
               >
-                <div style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '0.5rem',
-                  background: colors.bg,
-                  color: colors.color,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0
-                }}>
+                <div 
+                  className="admin-logs-icon-container"
+                  style={{ background: colors.bg, color: colors.color }}
+                >
                   {getLogIcon(severity)}
                 </div>
 
-                <div style={{ flex: 1 }}>
-                  <div style={{
-                    fontWeight: 500,
-                    color: '#1f2937',
-                    marginBottom: '0.25rem'
-                  }}>
+                <div className="admin-logs-content">
+                  <div className="admin-logs-message">
                     {log.message || log.event_label}
                   </div>
                   {log.event_label && (
-                    <div style={{
-                      fontSize: '0.8rem',
-                      color: '#94a3b8',
-                      marginBottom: '0.35rem'
-                    }}>
+                    <div className="admin-logs-event-label">
                       {log.event_label}
                       {log.source && (
                         <>
@@ -645,13 +499,7 @@ const SystemLogsPage = () => {
                       )}
                     </div>
                   )}
-                  <div style={{
-                    fontSize: '0.85rem',
-                    color: '#6b7280',
-                    display: 'flex',
-                    gap: '1rem',
-                    flexWrap: 'wrap'
-                  }}>
+                  <div className="admin-logs-meta">
                     <span>{formatDate(log.timestamp, 'datetime')}</span>
                     <span>•</span>
                     <span>By: {log.user || 'System'}</span>
@@ -659,16 +507,8 @@ const SystemLogsPage = () => {
                 </div>
 
                 <div
-                  style={{
-                    padding: '0.25rem 0.75rem',
-                    borderRadius: '0.4rem',
-                    background: colors.bg,
-                    color: colors.color,
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px'
-                  }}
+                  className="admin-logs-severity-badge"
+                  style={{ background: colors.bg, color: colors.color }}
                 >
                   {severity}
                 </div>
@@ -677,22 +517,12 @@ const SystemLogsPage = () => {
           })}
         </div>
       ) : (
-        <div style={{
-          background: 'white',
-          border: '1px solid #e5e7eb',
-          borderRadius: '0.75rem',
-          textAlign: 'center',
-          padding: '3rem 2rem'
-        }}>
-          <Icon name="activity" size={48} style={{ color: '#d1d5db', marginBottom: '1rem' }} />
-          <h5 style={{
-            color: '#1f2937',
-            marginBottom: '0.5rem',
-            fontWeight: 600
-          }}>
+        <div className="admin-card-container admin-empty-state">
+          <Icon name="activity" size={48} className="admin-empty-state-icon" />
+          <h5 className="admin-empty-state-title">
             No Logs Found
           </h5>
-          <p style={{ color: '#6b7280' }}>
+          <p className="admin-empty-state-message">
             No {filter !== 'all' ? filter : ''} logs to display.
           </p>
         </div>

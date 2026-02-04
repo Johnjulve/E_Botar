@@ -120,15 +120,10 @@ const ElectionManagementPage = () => {
     <Container>
       {/* Header */}
       <div className="admin-header">
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          gap: '2rem'
-        }}>
+        <div className="admin-election-header-flex">
           <div>
             <h1>
-              <Icon name="calendar" size={28} style={{ color: '#2563eb' }} />
+              <Icon name="calendar" size={28} className="admin-icon-primary" />
               Election Management
             </h1>
             <p>Create and manage all elections</p>
@@ -138,7 +133,6 @@ const ElectionManagementPage = () => {
               Back to Dashboard
             </Link>
             <Link to="/admin/elections/create" className="admin-btn primary">
-              <Icon name="plus" size={16} />
               Create Election
             </Link>
           </div>
@@ -151,12 +145,7 @@ const ElectionManagementPage = () => {
           <button
             key={btn.key}
             onClick={() => setFilter(btn.key)}
-            className={`admin-filter-btn ${filter === btn.key ? 'active' : ''}`}
-            style={{
-              background: filter === btn.key ? '#2563eb' : 'white',
-              color: filter === btn.key ? 'white' : '#374151',
-              borderColor: filter === btn.key ? '#2563eb' : '#d1d5db'
-            }}
+            className={`admin-filter-btn ${filter === btn.key ? 'admin-filter-btn-active' : 'admin-filter-btn-inactive-default'}`}
           >
             <Icon name={btn.icon} size={16} />
             {btn.label}
@@ -173,29 +162,15 @@ const ElectionManagementPage = () => {
             return (
               <div key={election.id} className="admin-card">
                 <div className="admin-card-header">
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                  <div className="admin-flex-1">
+                    <div className="admin-election-title-row">
                     <h3 className="admin-card-title">{election.title}</h3>
                       {election.election_type === 'university' ? (
-                        <span style={{
-                          padding: '0.125rem 0.5rem',
-                          borderRadius: '0.25rem',
-                          background: 'rgba(37, 99, 235, 0.15)',
-                          color: '#1e40af',
-                          fontSize: '0.75rem',
-                          fontWeight: 600
-                        }}>
+                        <span className="admin-election-type-badge admin-election-type-usc">
                           USC
                         </span>
                       ) : (
-                        <span style={{
-                          padding: '0.125rem 0.5rem',
-                          borderRadius: '0.25rem',
-                          background: 'rgba(34, 197, 94, 0.15)',
-                          color: '#166534',
-                          fontSize: '0.75rem',
-                          fontWeight: 600
-                        }}>
+                        <span className="admin-election-type-badge admin-election-type-dept">
                           {election.allowed_department_code || 'Dept'}
                         </span>
                       )}
@@ -204,14 +179,11 @@ const ElectionManagementPage = () => {
                       <p className="admin-card-subtitle">{election.description.substring(0, 60)}{election.description.length > 60 ? '...' : ''}</p>
                     )}
                   </div>
-                  <div className="admin-status-badge" style={{
-                    background: status.variant === 'success' ? 'rgba(34, 197, 94, 0.15)' : 
-                               status.variant === 'warning' ? 'rgba(234, 179, 8, 0.15)' :
-                               'rgba(107, 114, 128, 0.15)',
-                    color: status.variant === 'success' ? '#166534' :
-                           status.variant === 'warning' ? '#b45309' :
-                           '#374151'
-                  }}>
+                  <div className={`admin-status-badge ${
+                    status.variant === 'success' ? 'admin-status-badge-success' :
+                    status.variant === 'warning' ? 'admin-status-badge-warning' :
+                    'admin-status-badge-inactive'
+                  }`}>
                     {status.label}
                   </div>
                 </div>
@@ -227,44 +199,18 @@ const ElectionManagementPage = () => {
                   </div>
                 </div>
 
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(2, 1fr)',
-                  gap: '0.75rem',
-                  margin: '1rem 0',
-                  padding: '1rem 0',
-                  borderTop: '1px solid #e5e7eb',
-                  borderBottom: '1px solid #e5e7eb'
-                }}>
-                  <div style={{
-                    background: '#f9fafb',
-                    borderRadius: '0.5rem',
-                    padding: '0.75rem',
-                    textAlign: 'center'
-                  }}>
-                    <div style={{
-                      fontWeight: 700,
-                      color: '#2563eb',
-                      fontSize: '1.1rem'
-                    }}>
+                <div className="admin-election-stats-grid">
+                  <div className="admin-election-stat-box">
+                    <div className="admin-election-stat-value admin-election-stat-value-primary">
                       {election.total_votes || 0}
                     </div>
-                    <small style={{ color: '#6b7280' }}>Votes</small>
+                    <small className="admin-election-stat-label">Votes</small>
                   </div>
-                  <div style={{
-                    background: '#f9fafb',
-                    borderRadius: '0.5rem',
-                    padding: '0.75rem',
-                    textAlign: 'center'
-                  }}>
-                    <div style={{
-                      fontWeight: 700,
-                      color: '#22c55e',
-                      fontSize: '1.1rem'
-                    }}>
+                  <div className="admin-election-stat-box">
+                    <div className="admin-election-stat-value admin-election-stat-value-success">
                       {election.total_positions || 0}
                     </div>
-                    <small style={{ color: '#6b7280' }}>Positions</small>
+                    <small className="admin-election-stat-label">Positions</small>
                   </div>
                 </div>
 
@@ -296,33 +242,14 @@ const ElectionManagementPage = () => {
           })}
         </div>
       ) : (
-        <div style={{
-          background: 'white',
-          border: '1px solid #e5e7eb',
-          borderRadius: '0.75rem',
-          textAlign: 'center',
-          padding: '3rem 2rem'
-        }}>
-          <Icon name="calendar" size={48} style={{
-            color: '#d1d5db',
-            marginBottom: '1rem',
-            display: 'block'
-          }} />
-          <h5 style={{
-            color: '#1f2937',
-            marginBottom: '0.5rem',
-            fontWeight: 600
-          }}>
+        <div className="admin-card-container admin-empty-state">
+          <h5 className="admin-empty-state-title">
             No {filter !== 'all' ? filter : ''} Elections
           </h5>
-          <p style={{
-            color: '#6b7280',
-            marginBottom: '1.5rem'
-          }}>
+          <p className="admin-empty-state-message">
             There are no elections matching your filter criteria.
           </p>
           <Link to="/admin/elections/create" className="admin-btn primary">
-            <Icon name="plus" size={16} />
             Create Election
           </Link>
         </div>

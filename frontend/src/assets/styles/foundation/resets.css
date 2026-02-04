@@ -1,0 +1,123 @@
+/**
+ * Foundation: Resets
+ * Minimal global resets that don't conflict with Bootstrap
+ */
+
+/* Box-sizing reset */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Disable all animations and transitions for a more professional look */
+*, *::before, *::after {
+  animation-duration: 0s !important;
+  animation-delay: 0s !important;
+  transition-duration: 0s !important;
+  transition-delay: 0s !important;
+}
+
+/* Text selection - default to none */
+* {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  cursor: auto;
+}
+
+/* Allow images to be selectable and draggable */
+img {
+  -webkit-user-select: auto;
+  -moz-user-select: auto;
+  -ms-user-select: auto;
+  user-select: auto;
+  -webkit-user-drag: auto;
+  -khtml-user-drag: auto;
+  -moz-user-drag: auto;
+  -o-user-drag: auto;
+  user-drag: auto;
+  pointer-events: auto;
+}
+
+/* Ensure text content is selectable */
+p, h1, h2, h3, h4, h5, h6, td, th, label, .text-selectable {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+  cursor: text;
+}
+
+/* Buttons and interactive elements should not be selectable */
+button, .btn, a, input, select, textarea, .nav-link {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  cursor: pointer;
+}
+
+/* Allow selecting text within sidebar navigation items */
+.desktop-sidebar .side-item,
+.desktop-sidebar .side-item *,
+.desktop-sidebar .side-item-button,
+.desktop-sidebar .side-item-button *,
+.desktop-sidebar .side-item-collapsible,
+.desktop-sidebar .side-item-collapsible *,
+.desktop-sidebar .user-pill,
+.desktop-sidebar .user-pill *,
+.offcanvas .list-group-item,
+.offcanvas .list-group-item * {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+  cursor: pointer;
+}
+
+/* Remove all underlines from links and buttons */
+a, button, .btn, .nav-link {
+  text-decoration: none !important;
+}
+
+a:hover, a:focus, a:active,
+button:hover, button:focus, button:active,
+.btn:hover, .btn:focus, .btn:active,
+.nav-link:hover, .nav-link:focus, .nav-link:active {
+  text-decoration: none !important;
+}
+
+/* Minimum viewport width */
+html {
+  min-width: 375px;
+}
+
+body {
+  min-width: 375px;
+  margin: 0;
+  padding: 0;
+  overflow-x: auto;
+  /* Enable text selection by default */
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
+#root {
+  min-height: 100vh;
+  min-width: 375px;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-shell {
+  min-height: 100vh;
+  min-width: 375px;
+  display: flex;
+  flex-direction: column;
+}

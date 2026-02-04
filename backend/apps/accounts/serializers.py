@@ -180,10 +180,10 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
         fields = [
-            'id', 'user', 'student_id', 
+            'id', 'user', 'middle_name', 'student_id',
             'department', 'department_code',
             'course', 'course_code',
-            'year_level', 'avatar', 'avatar_url', 
+            'year_level', 'avatar', 'avatar_url',
             'is_verified', 'is_profile_complete', 'missing_fields',
             'created_at', 'updated_at'
         ]
@@ -364,29 +364,31 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     """Serializer for user registration"""
     password = serializers.CharField(write_only=True, min_length=8, style={'input_type': 'password'})
     password_confirm = serializers.CharField(write_only=True, min_length=8, style={'input_type': 'password'})
-    
+    middle_name = serializers.CharField(required=False, allow_blank=True, write_only=True)
+
     class Meta:
         model = User
-        fields = ['username', 'email', 'password', 'password_confirm', 'first_name', 'last_name']
-    
+        fields = ['username', 'email', 'password', 'password_confirm', 'first_name', 'middle_name', 'last_name']
+
     def validate(self, data):
         if data['password'] != data['password_confirm']:
             raise serializers.ValidationError({"password": "Passwords must match."})
         return data
-    
+
     def validate_email(self, value):
         """Validate email domain"""
         allowed_domains = ['snsu.edu.ph', 'ssct.edu.ph']  # Add your allowed domains
         email_domain = value.split('@')[-1].lower()
-        
+
         if email_domain not in allowed_domains:
             raise serializers.ValidationError(
                 f"Email must be from an allowed domain. Allowed domains: {', '.join(allowed_domains)}"
             )
         return value
-    
+
     def create(self, validated_data):
         validated_data.pop('password_confirm')
+        middle_name = validated_data.pop('middle_name', '')
         user = User.objects.create_user(
             username=validated_data['username'],
             email=validated_data['email'],
@@ -394,6 +396,5 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             first_name=validated_data.get('first_name', ''),
             last_name=validated_data.get('last_name', '')
         )
-        # Create associated UserProfile
-        UserProfile.objects.create(user=user)
+        profile = UserProfile.objects.create(user=user, middle_name=middle_name or '')
         return user

@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>E-Botar API Guide</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; margin: 0; padding: 2rem; background: #f8f9fa; color: #212529; line-height: 1.5; }
+    .container { max-width: 900px; margin: 0 auto; }
+    h1 { color: #0b6e3b; font-size: 1.75rem; margin-bottom: 0.5rem; }
+    .subtitle { color: #6c757d; margin-bottom: 2rem; }
+    section { background: #fff; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+    h2 { font-size: 1.25rem; margin: 0 0 1rem; color: #212529; border-bottom: 1px solid #dee2e6; padding-bottom: 0.5rem; }
+    h3 { font-size: 1rem; margin: 1rem 0 0.5rem; color: #212529; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th, td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid #dee2e6; }
+    th { background: #f1f3f5; font-weight: 600; }
+    code { background: #e9ecef; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.85em; }
+    pre { background: #2d2d2d; color: #f8f8f2; padding: 1rem; border-radius: 6px; overflow-x: auto; font-size: 0.85rem; margin: 0.75rem 0; white-space: pre-wrap; word-break: break-word; }
+    ul { margin: 0; padding-left: 1.25rem; }
+    .method { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+    .method-get { background: #d4edda; color: #155724; }
+    .method-post { background: #cce5ff; color: #004085; }
+    .method-patch { background: #fff3cd; color: #856404; }
+    .method-put { background: #e2d5f1; color: #4a2c6e; }
+    .method-delete { background: #f8d7da; color: #721c24; }
+    .base { font-size: 0.9rem; color: #6c757d; font-weight: 400; }
+    .footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #dee2e6; font-size: 0.9rem; color: #6c757d; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>E-Botar API Guide</h1>
+      <p class="subtitle">Reference for all REST API endpoints when only the backend is accessible. Base URL: this server + <code>/api</code>.</p>
+    </header>
+
+    <section>
+      <h2>Base URL</h2>
+      <ul>
+        <li><strong>This server:</strong> <code id="base-url">/api</code> (prepend your backend origin, e.g. <code>https://your-api.com</code>)</li>
+        <li>All endpoints below are relative to <code>/api</code>.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Authentication</h2>
+      <p>Most endpoints require a JWT. Send it in the request header:</p>
+      <pre>Authorization: Bearer &lt;access_token&gt;</pre>
+      <h3>Obtain token</h3>
+      <pre>POST /api/auth/token/
+Content-Type: application/json
+
+{"username": "your_username", "password": "your_password"}
+
+Response: {"access": "...", "refresh": "..."}</pre>
+      <h3>Refresh token</h3>
+      <pre>POST /api/auth/token/refresh/
+Content-Type: application/json
+
+{"refresh": "&lt;refresh_token&gt;"}</pre>
+    </section>
+
+    <section>
+      <h2>Accounts <span class="base">(/api/auth/)</span></h2>
+      <table>
+        <thead><tr><th>Endpoint</th><th>Method</th><th>Auth</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>/api/auth/health/</code></td><td><span class="method method-get">GET</span></td><td>Public</td><td>Health check</td></tr>
+          <tr><td><code>/api/auth/register/</code></td><td><span class="method method-post">POST</span></td><td>Public</td><td>User registration</td></tr>
+          <tr><td><code>/api/auth/token/</code></td><td><span class="method method-post">POST</span></td><td>Public</td><td>Obtain JWT token</td></tr>
+          <tr><td><code>/api/auth/token/refresh/</code></td><td><span class="method method-post">POST</span></td><td>Public</td><td>Refresh JWT token</td></tr>
+          <tr><td><code>/api/auth/me/</code></td><td><span class="method method-get">GET</span></td><td>Authenticated</td><td>Current user profile</td></tr>
+          <tr><td><code>/api/auth/departments/</code></td><td><span class="method method-get">GET</span></td><td>Public</td><td>List departments</td></tr>
+          <tr><td><code>/api/auth/departments/</code></td><td><span class="method method-post">POST</span></td><td>Superuser</td><td>Create department</td></tr>
+          <tr><td><code>/api/auth/courses/</code></td><td><span class="method method-get">GET</span></td><td>Public</td><td>List courses</td></tr>
+          <tr><td><code>/api/auth/courses/</code></td><td><span class="method method-post">POST</span></td><td>Superuser</td><td>Create course</td></tr>
+          <tr><td><code>/api/auth/profiles/</code></td><td><span class="method method-get">GET</span></td><td>Authenticated</td><td>List user profiles</td></tr>
+          <tr><td><code>/api/auth/profiles/{id}/</code></td><td><span class="method method-get">GET</span></td><td>Authenticated</td><td>Get user profile</td></tr>
+          <tr><td><code>/api/auth/profiles/{id}/</code></td><td><span class="method method-patch">PATCH</span></td><td>Authenticated</td><td>Update profile</td></tr>
+          <tr><td><code>/api/auth/profiles/{id}/toggle_active/</code></td><td><span class="method method-post">POST</span></td><td>Superuser</td><td>Toggle user active status</td></tr>
+          <tr><td><code>/api/auth/profiles/{id}/reset_password/</code></td><td><span class="method method-post">POST</span></td><td>Superuser</td><td>Reset user password</td></tr>
+          <tr><td><code>/api/auth/profiles/{id}/update_role/</code></td><td><span class="method method-post">POST</span></td><td>Superuser</td><td>Update user role</td></tr>
+          <tr><td><code>/api/auth/student-count/</code></td><td><span class="method method-get">GET</span></td><td>Authenticated</td><td>Total student count</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Elections <span class="base">(/api/elections/)</span></h2>
+      <table>
+        <thead><tr><th>Endpoint</th><th>Method</th><th>Auth</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>/api/elections/health/</code></td><td><span class="method method-get">GET</span></td><td>Public</td><td>Health check</td></tr>
+          <tr><td><code>/api/elections/parties/</code></td><td><span class="method method-get">GET</span></td><td>Public</td><td>List parties</td></tr>
+          <tr><td><code>/api/elections/parties/</code></td><td><span class="method method-post">POST</span></td><td>Superuser</td><td>Create party</td></tr>
+          <tr><td><code>/api/elections/positions/</code></td><td><span class="method method-get">GET</span></td><td>Public</td><td>List positions</td></tr>
+          <tr><td><code>/api/elections/positions/</code></td><td><span class="method method-post">POST</span></td><td>Superuser</td><td>Create position</td></tr>
+          <tr><td><code>/api/elections/elections/</code></td><td><span class="method method-get">GET</span></td><td>Public</td><td>List elections</td></tr>
+          <tr><td><code>/api/elections/elections/</code></td><td><span class="method method-post">POST</span></td><td>Staff/Admin</td><td>Create election</td></tr>
+          <tr><td><code>/api/elections/elections/{id}/</code></td><td><span class="method method-get">GET</span></td><td>Public</td><td>Get election details</td></tr>
+          <tr><td><code>/api/elections/elections/active/</code></td><td><span class="method method-get">GET</span></td><td>Public</td><td>Get active elections</td></tr>
+          <tr><td><code>/api/elections/elections/upcoming/</code></td><td><span class="method method-get">GET</span></td><td>Public</td><td>Get upcoming elections</td></tr>
+          <tr><td><code>/api/elections/elections/finished/</code></td><td><span class="method method-get">GET</span></td><td>Public</td><td>Get finished elections</td></tr>
+          <tr><td><code>/api/elections/elections/{id}/add_position/</code></td><td><span class="method method-post">POST</span></td><td>Staff/Admin</td><td>Add position to election</td></tr>
+          <tr><td><code>/api/elections/elections/{id}/remove_position/</code></td><td><span class="method method-post">POST</span></td><td>Staff/Admin</td><td>Remove position from election</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Candidates <span class="base">(/api/candidates/)</span></h2>
+      <table>
+        <thead><tr><th>Endpoint</th><th>Method</th><th>Auth</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>/api/candidates/health/</code></td><td><span class="method method-get">GET</span></td><td>Public</td><td>Health check</td></tr>
+          <tr><td><code>/api/candidates/candidates/</code></td><td><span class="method method-get">GET</span></td><td>Public</td><td>List approved candidates</td></tr>
+          <tr><td><code>/api/candidates/candidates/by_election/</code></td><td><span class="method method-get">GET</span></td><td>Public</td><td>Filter candidates by election</td></tr>
+          <tr><td><code>/api/candidates/applications/</code></td><td><span class="method method-get">GET</span></td><td>Authenticated</td><td>List applications</td></tr>
+          <tr><td><code>/api/candidates/applications/</code></td><td><span class="method method-post">POST</span></td><td>Authenticated</td><td>Submit application</td></tr>
+          <tr><td><code>/api/candidates/applications/{id}/</code></td><td><span class="method method-get">GET</span></td><td>Authenticated</td><td>Get application details</td></tr>
+          <tr><td><code>/api/candidates/applications/my_applications/</code></td><td><span class="method method-get">GET</span></td><td>Authenticated</td><td>User's applications</td></tr>
+          <tr><td><code>/api/candidates/applications/pending/</code></td><td><span class="method method-get">GET</span></td><td>Staff/Admin</td><td>Pending applications</td></tr>
+          <tr><td><code>/api/candidates/applications/{id}/review/</code></td><td><span class="method method-post">POST</span></td><td>Staff/Admin</td><td>Review application</td></tr>
+          <tr><td><code>/api/candidates/applications/bulk_review/</code></td><td><span class="method method-post">POST</span></td><td>Staff/Admin</td><td>Bulk review applications</td></tr>
+          <tr><td><code>/api/candidates/applications/{id}/withdraw/</code></td><td><span class="method method-post">POST</span></td><td>Authenticated</td><td>Withdraw application</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Voting <span class="base">(/api/voting/)</span></h2>
+      <table>
+        <thead><tr><th>Endpoint</th><th>Method</th><th>Auth</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>/api/voting/health/</code></td><td><span class="method method-get">GET</span></td><td>Public</td><td>Health check</td></tr>
+          <tr><td><code>/api/voting/ballots/</code></td><td><span class="method method-get">GET</span></td><td>Authenticated</td><td>List user's ballots</td></tr>
+          <tr><td><code>/api/voting/ballots/submit/</code></td><td><span class="method method-post">POST</span></td><td>Authenticated</td><td>Submit ballot</td></tr>
+          <tr><td><code>/api/voting/ballots/my_ballot/</code></td><td><span class="method method-get">GET</span></td><td>Authenticated</td><td>Ballot for election</td></tr>
+          <tr><td><code>/api/voting/receipts/</code></td><td><span class="method method-get">GET</span></td><td>Authenticated</td><td>List user's receipts</td></tr>
+          <tr><td><code>/api/voting/receipts/my_receipts/</code></td><td><span class="method method-get">GET</span></td><td>Authenticated</td><td>User's receipts</td></tr>
+          <tr><td><code>/api/voting/receipts/verify/</code></td><td><span class="method method-post">POST</span></td><td>Authenticated</td><td>Verify receipt code</td></tr>
+          <tr><td><code>/api/voting/results/election_results/</code></td><td><span class="method method-get">GET</span></td><td>Public*</td><td>Election results</td></tr>
+          <tr><td><code>/api/voting/results/my_vote_status/</code></td><td><span class="method method-get">GET</span></td><td>Authenticated</td><td>Vote status</td></tr>
+          <tr><td><code>/api/voting/results/export_results/</code></td><td><span class="method method-get">GET</span></td><td>Superuser</td><td>Export results (CSV/JSON)</td></tr>
+          <tr><td><code>/api/voting/results/statistics/</code></td><td><span class="method method-get">GET</span></td><td>Public*</td><td>Election statistics</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Common <span class="base">(/api/common/)</span></h2>
+      <table>
+        <thead><tr><th>Endpoint</th><th>Method</th><th>Auth</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>/api/common/branding/</code></td><td><span class="method method-get">GET</span></td><td>Public</td><td>Institution branding (logo, app name)</td></tr>
+          <tr><td><code>/api/common/academic-year/</code></td><td><span class="method method-get">GET</span></td><td>Public</td><td>Current academic year</td></tr>
+          <tr><td><code>/api/common/system-logs/</code></td><td><span class="method method-get">GET</span></td><td>Staff/Admin</td><td>System logs</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Example requests</h2>
+      <h3>Register</h3>
+      <pre>POST /api/auth/register/
+Content-Type: application/json
+
+{"username":"student123","email":"student@snsu.edu.ph","password":"SecurePass123!","password_confirm":"SecurePass123!","first_name":"John","last_name":"Doe"}</pre>
+      <h3>Submit ballot</h3>
+      <pre>POST /api/voting/ballots/submit/
+Authorization: Bearer &lt;token&gt;
+Content-Type: application/json
+
+{"election_id":1,"votes":[{"position_id":1,"candidate_id":5},{"position_id":2,"candidate_id":8}]}</pre>
+      <h3>Get election results</h3>
+      <pre>GET /api/voting/results/election_results/?election_id=1</pre>
+    </section>
+
+    <section>
+      <h2>Error responses</h2>
+      <p>Errors are returned as JSON with a <code>detail</code> field (or field-specific errors):</p>
+      <pre>{"detail": "Error message here"}</pre>
+    </section>
+
+    <footer class="footer">
+      <p>E-Botar API Guide — served by the backend. For full documentation see <strong>Information.md</strong>. DRF Browsable API: <code>/api/</code> on this server.</p>
+    </footer>
+  </div>
+  <script>
+    (function(){
+      var origin = window.location.origin;
+      document.getElementById('base-url').textContent = origin + '/api';
+    })();
+  </script>
+</body>
+</html>

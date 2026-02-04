@@ -196,7 +196,7 @@ def current_user(request):
         
         # Update profile fields
         profile_data = {}
-        profile_fields = ['student_id', 'year_level']
+        profile_fields = ['middle_name', 'student_id', 'year_level']
         for field in profile_fields:
             if field in request.data:
                 # For admins, allow empty strings to clear the field

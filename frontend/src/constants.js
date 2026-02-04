@@ -39,16 +39,6 @@ export const APPLICATION_STATUS = {
   WITHDRAWN: 'withdrawn'
 };
 
-// Position Types
-export const POSITION_TYPES = {
-  PRESIDENT: 'president',
-  VICE_PRESIDENT: 'vice_president',
-  SECRETARY: 'secretary',
-  TREASURER: 'treasurer',
-  AUDITOR: 'auditor',
-  PUBLIC_INFO: 'public_info',
-  OTHER: 'other'
-};
 
 // User Roles
 export const USER_ROLES = {
@@ -167,7 +157,6 @@ export default {
   STORAGE_KEYS,
   ELECTION_STATUS,
   APPLICATION_STATUS,
-  POSITION_TYPES,
   USER_ROLES,
   FILE_LIMITS,
   PAGINATION,

@@ -9,6 +9,80 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.8] - 2025-12-XX
+### Added
+- **Program Type Badge Labeling**: Program list now shows `College` for department-type programs, keeping `Course` unchanged.
+- **API Guide (Frontend)**: Public route `/guide` with React `GuidePage` displaying full API documentation (endpoints, auth, examples). Link added in footer under Quick Links.
+- **API Guide (Backend)**: Django-served HTML at `/guide/` so API docs are available when only the backend is accessible (e.g. `https://your-api.com/guide/`). Template: `backend/backend/templates/guide.html`; no frontend required.
+- **Configurable Branding**: Multi-school support via public `GET /api/common/branding/` (institution name, logo URL, app name from SystemSettings). Frontend `BrandingContext` and `useBranding()`; branding used in Navbar, Dashboard, Footer, Login, Register, and Data Export. See `backend/BRANDING.md` for configuration.
+- **Middle Name Support**: `UserProfile.middle_name` added; serializers and profile update logic updated. Frontend: Register form, Profile/ProfileEdit/EditProfile display and edit, `getFullName(user, profile)` helper for "first middle last" formatting. Migration: `apps/accounts/migrations/0003_add_middle_name.py` — run `python manage.py migrate accounts`.
+- **Profile Image Fallback**: When profile or candidate photos fail to load, UI shows initials placeholders instead of broken images. Implemented in ProfilePage, ProfileEditPage, Navbar, CandidateProfilePage via `onError` and local state. Backend: avatar file cleanup on profile save (replace/remove); management command `cleanup_unused_media` for orphaned profile/candidate images.
+- **CSS Documentation**: README and `frontend/CSS_STRUCTURE_REVIEW.md` updated for completed CSS architecture (foundation/global/vendors, no `global.css`). README Documentation section now links to `frontend/CSS_ARCHITECTURE_STRATEGY.md` and `frontend/CSS_STRUCTURE_REVIEW.md`.
+- **Election Create Spam-Click Prevention**: Frontend uses a ref guard and disables submit immediately after validation; backend returns 429 if the same user creates an election again within 10 seconds.
+- **Duplicate Election Prevention**: Backend validation prevents creating (or updating to) an election for the same academic year and category (USC or same department); returns a clear `non_field_errors` message. Frontend displays `non_field_errors` and `detail` in the save error alert.
+- **Delete Option on Edit Election**: When editing an election, superusers see a "Delete Election" button (with confirmation); delete is only allowed for superusers (backend `IsSuperUser` on destroy).
+
+### Changed
+- **Admin Programs UI Terminology**: Program type dropdown and filter wording updated to use `College` instead of `Department` for department-type programs.
+  - Program type dropdown shows "College" option instead of "Department"
+  - Table header changed from "Department" to "Colleges"
+  - Page subtitle updated to "Manage colleges and courses"
+- **Profile Edit Terminology**: Academic info section now labels the department field as `College`, including placeholders and helper text, to stay consistent with the admin Programs module.
+  - Field label changed from "Department" to "College"
+  - Placeholder text updated to "Select College" instead of "Select Department"
+  - Course selector helper text updated to "Select College First" instead of "Select Department First"
+- **Data Export Terminology**: Data export pages updated to use "College" terminology consistently.
+  - PDF export headers and labels changed from "Department" to "College"
+  - Student statistics section titled "Student Statistics by College" instead of "by Department"
+  - Vote categorization labels updated to "College, Course, and Year Level"
+  - Department election references changed to "College Election"
+  - Dropdown options updated to "All Colleges" instead of "All Departments"
+  - Unassigned department fallback text changed to "Unassigned College"
+- **Sidebar User Pill & Version Labels**: Refined admin navigation layout so the account pill and system version text have dedicated, non-overlapping space on both desktop and mobile.
+  - Desktop sidebar buttons now scroll within a constrained area and no longer appear behind the user pill
+  - Added `E-Botar v0.7.8` label above the user pill in the desktop sidebar and mobile offcanvas menu
+  - Ensured user pill avatar/name/email truncate gracefully and buttons keep a consistent height
+- **Global Layout Minimum Width**: Added a minimum viewport width to prevent the layout collapsing on ultra‑narrow screens while still allowing horizontal scrolling when needed.
+- **Dashboard Hero Mobile Readability**: Tweaked the profile dashboard hero section so the subtitle has extra horizontal padding and mobile-specific sizing, preventing the text from touching card edges.
+- **CSS Architecture**: Foundation/global/vendors structure in place; `global.css` removed. Foundation (variables, resets, typography), Bootstrap, Font Awesome, and global components are loaded once at app level; modules import only module-specific CSS. Layout/sidebar styles live in `assets/styles/global/layout.css` (and related foundation/global files).
+- **Academic Year Options (Dashboard)**: Home page academic year dropdown options shortened to 2 years past and 5 years ahead (8 options total) via `systemService.generateAcademicYearOptions()`.
+
+### Notes
+- **Database:** Middle name requires running `python manage.py migrate accounts` (migration `0003_add_middle_name`).
+- **API:** New endpoints: `GET /api/common/branding/` (public), backend-served `/guide/` (HTML API docs).
+- Student/department/course data model and program_type values unchanged (`department`, `course`).
+- College terminology, sidebar/version labels, API guide, branding, middle name, profile image fallback, and CSS docs are all part of 0.7.8.
+
+### Technical Details
+- **Frontend Changes**:
+  - `modules/admin/pages/ProgramManagementPage.jsx`: Updated program type labels, dropdown options, table headers, and page subtitle
+  - `modules/profile/pages/ProfileEditPage.jsx`: Updated department field label, placeholders, and course selector helper text; added middle name field
+  - `modules/admin/pages/DataExportPage.jsx`: Updated all department references to "College"; uses branding from `useBranding()`
+  - `assets/styles/global/layout.css` (and foundation/global): Minimum viewport width, desktop sidebar and mobile offcanvas layout (user pill, version label, truncation). Note: `global.css` removed in favor of foundation/global/vendors.
+  - `components/layout/Navbar.jsx`: Sidebar/offcanvas version labels, branding via `useBranding()`, avatar fallback to initials on load error
+  - `components/layout/Footer.jsx`: Branding via `useBranding()`, link to `/guide`
+  - `modules/profile/dashboard.css`: Hero padding and `.hero-subtitle`; dashboard uses branding
+  - `modules/guide/pages/GuidePage.jsx`, `modules/guide/guide.css`: API guide page at `/guide`
+  - `contexts/BrandingContext.jsx`, `services/systemService.js`: Branding fetch and provider
+  - `auth/pages/LoginPage.jsx`, `auth/pages/RegisterPage.jsx`: Branding and (Register) middle name field
+  - `utils/helpers.js`: `getFullName(user, profile)` for display names
+  - Profile and candidate pages: image `onError` fallback to initials
+  - `modules/admin/pages/ElectionFormPage.jsx`: Ref guard and early `setSubmitting` to prevent spam-create; delete button (superuser only) with `handleDelete`; error display uses `non_field_errors` and `detail`
+  - `modules/admin/admin.css`: `.admin-election-submit-actions` for delete/update button grouping
+  - `services/systemService.js`: `generateAcademicYearOptions()` now uses 2 years back, 5 years ahead (8 options)
+- **Backend Changes**:
+  - `apps/accounts/models.py`: `UserProfile.middle_name`; avatar cleanup in `save()`
+  - `apps/accounts/serializers.py`, `views.py`: Middle name in serializers and profile update
+  - `apps/common/views.py`, `urls.py`: `GET /api/common/branding/` (BrandingView)
+  - `backend/urls.py`: `path('guide/', TemplateView.as_view(template_name='guide.html'))`
+  - `backend/backend/templates/guide.html`: HTML API documentation
+  - `backend/settings.py`: `TEMPLATES['DIRS']` includes `backend/templates`
+  - `accounts/management/commands/cleanup_unused_media.py`: Orphaned media cleanup
+  - `apps/elections/views.py`: `SchoolElectionViewSet.create()` checks for recent create by same user (10s), returns 429; delete remains superuser-only
+  - `apps/elections/serializers.py`: `SchoolElectionCreateUpdateSerializer.validate()` prevents duplicate election for same A.Y. + category (university or department)
+
+---
+
 ## [0.7.7] - 2025-12-XX
 ### Added
 - **Result Visibility Controls**: Election results and statistics are hidden for non-admin users while an election is active

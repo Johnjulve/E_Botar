@@ -7,7 +7,6 @@ import api from './api';
 
 export const votingService = {
   // === Ballots ===
-  
   // Get user's ballots
   getMyBallots: () => {
     return api.get('/voting/ballots/');
@@ -22,9 +21,8 @@ export const votingService = {
   submitBallot: (ballotData) => {
     return api.post('/voting/ballots/submit/', ballotData);
   },
-
-  // === Vote Receipts ===
   
+  // === Vote Receipts ===
   // Get user's receipts
   getMyReceipts: () => {
     return api.get('/voting/receipts/my_receipts/');
@@ -94,4 +92,3 @@ export const votingService = {
 };
 
 export default votingService;
-

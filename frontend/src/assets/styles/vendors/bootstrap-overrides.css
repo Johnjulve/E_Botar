@@ -1,0 +1,10 @@
+/**
+ * Bootstrap Overrides
+ * Customizations for Bootstrap components
+ * 
+ * Note: Bootstrap is loaded at app level in main.jsx
+ * This file contains only necessary overrides
+ */
+
+/* Additional Bootstrap customizations can be added here if needed */
+/* Most overrides are handled in global/components.css */

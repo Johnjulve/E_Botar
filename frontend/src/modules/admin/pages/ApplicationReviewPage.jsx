@@ -180,25 +180,16 @@ const ApplicationReviewPage = () => {
           <Icon name="arrow" size={16} />
           Back to Applications
         </Link>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          gap: '2rem'
-        }}>
+        <div className="admin-review-header-flex">
           <div>
             <h1>Application Review</h1>
             <p>Review candidate application details</p>
           </div>
-          <div className="admin-status-badge" style={{
-            background: status.variant === 'warning' ? 'rgba(234, 179, 8, 0.15)' :
-                       status.variant === 'success' ? 'rgba(34, 197, 94, 0.15)' :
-                       'rgba(239, 68, 68, 0.15)',
-            color: status.variant === 'warning' ? '#b45309' :
-                   status.variant === 'success' ? '#166534' :
-                   '#991b1b',
-            padding: '0.5rem 1rem'
-          }}>
+          <div className={`admin-status-badge ${
+            status.variant === 'warning' ? 'admin-status-badge-warning' :
+            status.variant === 'success' ? 'admin-status-badge-success' :
+            'admin-status-badge-danger'
+          }`} style={{ padding: '0.5rem 1rem' }}>
             {status.label}
           </div>
         </div>
@@ -206,173 +197,66 @@ const ApplicationReviewPage = () => {
 
       {error && <Alert variant="danger" dismissible onClose={() => setError('')}>{error}</Alert>}
 
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-        gap: '1.5rem'
-      }}>
+      <div className="admin-review-grid">
         {/* Applicant Info */}
-        <div style={{
-          background: 'white',
-          border: '1px solid #e5e7eb',
-          borderRadius: '0.75rem',
-          padding: '1.5rem',
-          textAlign: 'center'
-        }}>
-          <div className="admin-avatar primary" style={{
-            width: '100px',
-            height: '100px',
-            fontSize: '2.5rem',
-            margin: '0 auto 1rem'
-          }}>
+        <div className="admin-review-card">
+          <div className="admin-avatar primary admin-review-avatar-large">
             {getInitials(`${application.user?.first_name} ${application.user?.last_name}`)}
           </div>
 
-          <h4 style={{
-            margin: '0 0 0.5rem',
-            color: '#1f2937',
-            fontWeight: 600
-          }}>
+          <h4 className="admin-review-name">
             {application.user?.first_name} {application.user?.last_name}
           </h4>
 
-          <p style={{
-            margin: '0 0 1.5rem',
-            color: '#6b7280',
-            fontSize: '0.9rem',
-            wordBreak: 'break-word'
-          }}>
+          <p className="admin-review-email">
             {application.user?.email}
           </p>
 
-          <div style={{
-            borderTop: '1px solid #e5e7eb',
-            borderBottom: '1px solid #e5e7eb',
-            padding: '1.5rem 0',
-            marginBottom: '1.5rem'
-          }}>
-            <div style={{
-              textAlign: 'left',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '1rem'
-            }}>
+          <div className="admin-review-divider">
+            <div className="admin-review-info-container">
               <div>
-                <div style={{
-                  fontSize: '0.8rem',
-                  textTransform: 'uppercase',
-                  color: '#6b7280',
-                  fontWeight: 600,
-                  marginBottom: '0.25rem'
-                }}>
-                  Position
-                </div>
-                <div style={{
-                  fontWeight: 600,
-                  color: '#1f2937'
-                }}>
-                  {application.position?.name}
-                </div>
+                <div className="admin-review-info-label">Position</div>
+                <div className="admin-review-info-value">{application.position?.name}</div>
               </div>
 
               <div>
-                <div style={{
-                  fontSize: '0.8rem',
-                  textTransform: 'uppercase',
-                  color: '#6b7280',
-                  fontWeight: 600,
-                  marginBottom: '0.25rem'
-                }}>
-                  Election
-                </div>
-                <div style={{
-                  fontWeight: 600,
-                  color: '#1f2937'
-                }}>
-                  {application.election?.title}
-                </div>
+                <div className="admin-review-info-label">Election</div>
+                <div className="admin-review-info-value">{application.election?.title}</div>
               </div>
 
               {application.party && (
                 <div>
-                  <div style={{
-                    fontSize: '0.8rem',
-                    textTransform: 'uppercase',
-                    color: '#6b7280',
-                    fontWeight: 600,
-                    marginBottom: '0.25rem'
-                  }}>
-                    Party
-                  </div>
-                  <div style={{
-                    fontWeight: 600,
-                    color: '#1f2937'
-                  }}>
-                    {application.party.name}
-                  </div>
+                  <div className="admin-review-info-label">Party</div>
+                  <div className="admin-review-info-value">{application.party.name}</div>
                 </div>
               )}
 
               <div>
-                <div style={{
-                  fontSize: '0.8rem',
-                  textTransform: 'uppercase',
-                  color: '#6b7280',
-                  fontWeight: 600,
-                  marginBottom: '0.25rem'
-                }}>
-                  Submitted
-                </div>
-                <div style={{
-                  fontWeight: 600,
-                  color: '#1f2937',
-                  fontSize: '0.9rem'
-                }}>
-                  {formatDate(application.submitted_at, 'datetime')}
-                </div>
+                <div className="admin-review-info-label">Submitted</div>
+                <div className="admin-review-info-value-small">{formatDate(application.submitted_at, 'datetime')}</div>
               </div>
 
               {application.reviewed_at && (
                 <div>
-                  <div style={{
-                    fontSize: '0.8rem',
-                    textTransform: 'uppercase',
-                    color: '#6b7280',
-                    fontWeight: 600,
-                    marginBottom: '0.25rem'
-                  }}>
-                    Reviewed
-                  </div>
-                  <div style={{
-                    fontWeight: 600,
-                    color: '#1f2937',
-                    fontSize: '0.9rem'
-                  }}>
-                    {formatDate(application.reviewed_at, 'datetime')}
-                  </div>
+                  <div className="admin-review-info-label">Reviewed</div>
+                  <div className="admin-review-info-value-small">{formatDate(application.reviewed_at, 'datetime')}</div>
                 </div>
               )}
             </div>
           </div>
 
           {canReview && (
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.75rem'
-            }}>
+            <div className="admin-review-actions">
               <button
-                className="admin-btn success"
+                className="admin-btn success admin-review-button-full"
                 onClick={() => handleReview('approve')}
-                style={{ width: '100%', justifyContent: 'center' }}
               >
                 <Icon name="checkCircle" size={16} />
                 Approve Application
               </button>
               <button
-                className="admin-btn danger"
+                className="admin-btn danger admin-review-button-full"
                 onClick={() => handleReview('reject')}
-                style={{ width: '100%', justifyContent: 'center' }}
               >
                 <Icon name="xCircle" size={16} />
                 Reject Application
@@ -384,44 +268,17 @@ const ApplicationReviewPage = () => {
         {/* Main Content */}
         <div>
           {/* Campaign Manifesto */}
-          <div style={{
-            background: 'white',
-            border: '1px solid #e5e7eb',
-            borderRadius: '0.75rem',
-            padding: '1.5rem',
-            marginBottom: '1.5rem'
-          }}>
-            <h5 style={{
-              margin: '0 0 1rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              color: '#1f2937',
-              fontWeight: 600
-            }}>
-              <Icon name="fileText" size={20} style={{ color: '#2563eb' }} />
+          <div className="admin-review-section">
+            <h5 className="admin-review-section-header">
+              <Icon name="fileText" size={20} className="admin-icon-primary" />
               Campaign Manifesto
             </h5>
             {application.manifesto ? (
-              <div style={{
-                background: '#f9fafb',
-                border: '1px solid #e5e7eb',
-                borderRadius: '0.5rem',
-                padding: '1rem',
-                whiteSpace: 'pre-wrap',
-                color: '#374151',
-                lineHeight: 1.6,
-                fontSize: '0.95rem',
-                maxHeight: '300px',
-                overflowY: 'auto'
-              }}>
+              <div className="admin-review-manifesto-box">
                 {application.manifesto}
               </div>
             ) : (
-              <p style={{
-                color: '#6b7280',
-                margin: 0
-              }}>
+              <p className="admin-empty-state-message" style={{ margin: 0 }}>
                 No manifesto provided
               </p>
             )}
@@ -429,75 +286,31 @@ const ApplicationReviewPage = () => {
 
           {/* Candidate Photo */}
           {application.photo && (
-            <div style={{
-              background: 'white',
-              border: '1px solid #e5e7eb',
-              borderRadius: '0.75rem',
-              padding: '1.5rem',
-              marginBottom: '1.5rem'
-            }}>
-              <h5 style={{
-                margin: '0 0 1rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                color: '#1f2937',
-                fontWeight: 600
-              }}>
-                <Icon name="image" size={20} style={{ color: '#2563eb' }} />
+            <div className="admin-review-section">
+              <h5 className="admin-review-section-header">
+                <Icon name="image" size={20} className="admin-icon-primary" />
                 Candidate Photo
               </h5>
               <img
                 src={application.photo}
                 alt="Candidate"
-                style={{
-                  maxWidth: '100%',
-                  maxHeight: '400px',
-                  borderRadius: '0.5rem',
-                  objectFit: 'contain',
-                  display: 'block'
-                }}
+                className="admin-review-image"
               />
             </div>
           )}
 
           {/* Review Notes */}
           {application.review_notes && (
-            <div style={{
-              background: 'white',
-              border: '1px solid #e5e7eb',
-              borderRadius: '0.75rem',
-              padding: '1.5rem'
-            }}>
-              <h5 style={{
-                margin: '0 0 1rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                color: '#1f2937',
-                fontWeight: 600
-              }}>
-                <Icon name="messageSquare" size={20} style={{ color: '#eab308' }} />
+            <div className="admin-review-section">
+              <h5 className="admin-review-section-header">
+                <Icon name="messageSquare" size={20} className="admin-icon-warning" />
                 Review Notes
               </h5>
-              <div style={{
-                background: '#f9fafb',
-                border: '1px solid #e5e7eb',
-                borderRadius: '0.5rem',
-                padding: '1rem',
-                color: '#374151',
-                whiteSpace: 'pre-wrap',
-                lineHeight: 1.6,
-                marginBottom: '1rem'
-              }}>
+              <div className="admin-review-notes-box">
                 {application.review_notes}
               </div>
               {application.reviewed_by && (
-                <p style={{
-                  margin: 0,
-                  fontSize: '0.9rem',
-                  color: '#6b7280'
-                }}>
+                <p className="admin-review-notes-text">
                   Reviewed by: <strong>{application.reviewed_by.first_name} {application.reviewed_by.last_name}</strong>
                 </p>
               )}
@@ -526,27 +339,14 @@ const ApplicationReviewPage = () => {
         </Alert>
 
         <div style={{ marginBottom: '1.5rem' }}>
-          <label style={{
-            display: 'block',
-            fontWeight: 600,
-            marginBottom: '0.5rem',
-            color: '#1f2937'
-          }}>
+          <label className="admin-modal-label">
             Review Notes
             {reviewAction === 'reject' && (
-              <span style={{ color: '#dc2626', marginLeft: '0.25rem' }}>*</span>
+              <span className="admin-modal-required">*</span>
             )}
           </label>
           <textarea
-            style={{
-              width: '100%',
-              padding: '0.75rem',
-              border: '1px solid #d1d5db',
-              borderRadius: '0.5rem',
-              fontFamily: 'inherit',
-              fontSize: '0.9rem',
-              color: '#374151'
-            }}
+            className="admin-modal-textarea"
             rows="4"
             value={reviewNotes}
             onChange={(e) => setReviewNotes(e.target.value)}
@@ -556,25 +356,13 @@ const ApplicationReviewPage = () => {
             required={reviewAction === 'reject'}
           />
           {reviewAction === 'reject' && (
-            <p style={{
-              margin: '0.5rem 0 0',
-              fontSize: '0.85rem',
-              color: '#6b7280'
-            }}>
+            <p className="admin-modal-help-text">
               Review notes are required when rejecting an application.
             </p>
           )}
         </div>
 
-        <div style={{
-          background: '#f9fafb',
-          border: '1px solid #e5e7eb',
-          borderRadius: '0.5rem',
-          padding: '1rem',
-          fontSize: '0.9rem',
-          color: '#374151',
-          lineHeight: 1.8
-        }}>
+        <div className="admin-modal-info-box">
           <strong>Applicant:</strong> {application.user?.first_name} {application.user?.last_name}<br />
           <strong>Position:</strong> {application.position?.name}<br />
           <strong>Election:</strong> {application.election?.title}

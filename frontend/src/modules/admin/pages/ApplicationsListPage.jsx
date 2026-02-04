@@ -123,7 +123,6 @@ const ApplicationsListPage = () => {
       <div className="admin-header">
         <div>
           <h1>
-            <Icon name="tasks" size={28} style={{ color: '#eab308' }} />
             Candidate Applications
           </h1>
           <p>Review and manage all candidate applications</p>
@@ -137,21 +136,26 @@ const ApplicationsListPage = () => {
 
       {/* Filter Tabs */}
       <div className="admin-filter-tabs">
-        {filterButtons.map(btn => (
-          <button
-            key={btn.key}
-            onClick={() => setFilter(btn.key)}
-            className={`admin-filter-btn ${filter === btn.key ? 'active' : ''}`}
-            style={{
-              background: filter === btn.key ? (btn.key === 'pending' ? '#eab308' : btn.key === 'approved' ? '#22c55e' : btn.key === 'rejected' ? '#ef4444' : '#2563eb') : 'white',
-              color: filter === btn.key && btn.key === 'pending' ? '#1f2937' : filter === btn.key ? 'white' : '#374151',
-              borderColor: filter === btn.key ? (btn.key === 'pending' ? '#eab308' : btn.key === 'approved' ? '#22c55e' : btn.key === 'rejected' ? '#ef4444' : '#2563eb') : '#d1d5db'
-            }}
-          >
-            <Icon name={btn.icon} size={16} />
-            {btn.label}
-          </button>
-        ))}
+        {filterButtons.map(btn => {
+          const isActive = filter === btn.key;
+          const btnClass = isActive 
+            ? (btn.key === 'pending' ? 'admin-filter-btn-pending' :
+               btn.key === 'approved' ? 'admin-filter-btn-approved' :
+               btn.key === 'rejected' ? 'admin-filter-btn-rejected' :
+               'admin-filter-btn-default')
+            : 'admin-filter-btn-inactive';
+          
+          return (
+            <button
+              key={btn.key}
+              onClick={() => setFilter(btn.key)}
+              className={`admin-filter-btn ${btnClass}`}
+            >
+              <Icon name={btn.icon} size={16} />
+              {btn.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Applications Grid */}
@@ -162,45 +166,25 @@ const ApplicationsListPage = () => {
             
             return (
               <div key={application.id} className="admin-card">
-                <div style={{
-                  display: 'flex',
-                  gap: '1rem',
-                  marginBottom: '1rem'
-                }}>
+                <div className="admin-app-card-header">
                   <div className="admin-avatar primary">
                     {getInitials(`${application.user?.first_name} ${application.user?.last_name}`)}
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <h3 style={{
-                      margin: 0,
-                      fontWeight: 600,
-                      color: '#1f2937',
-                      fontSize: '1rem'
-                    }}>
+                  <div className="admin-flex-1 admin-min-width-0">
+                    <h3 className="admin-app-card-name">
                       {application.user?.first_name} {application.user?.last_name}
                     </h3>
-                    <p style={{
-                      margin: '0.25rem 0 0',
-                      fontSize: '0.85rem',
-                      color: '#6b7280',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap'
-                    }}>
+                    <p className="admin-app-card-email">
                       {application.user?.email}
                     </p>
                   </div>
                 </div>
 
-                <div className="admin-status-badge" style={{
-                  background: status.variant === 'warning' ? 'rgba(234, 179, 8, 0.15)' :
-                             status.variant === 'success' ? 'rgba(34, 197, 94, 0.15)' :
-                             'rgba(239, 68, 68, 0.15)',
-                  color: status.variant === 'warning' ? '#b45309' :
-                         status.variant === 'success' ? '#166534' :
-                         '#991b1b',
-                  marginBottom: '1rem'
-                }}>
+                <div className={`admin-status-badge ${
+                  status.variant === 'warning' ? 'admin-status-badge-warning' :
+                  status.variant === 'success' ? 'admin-status-badge-success' :
+                  'admin-status-badge-danger'
+                }`} style={{ marginBottom: '1rem' }}>
                   {status.label}
                 </div>
 
@@ -215,41 +199,25 @@ const ApplicationsListPage = () => {
                   </div>
                   {application.party && (
                     <div className="admin-card-meta-item">
-                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#eab308' }}>★</span>
+                      <span className="admin-star-icon">★</span>
                       <span>{application.party.name}</span>
                     </div>
                   )}
                 </div>
 
-                <div style={{
-                  fontSize: '0.85rem',
-                  color: '#6b7280',
-                  margin: '1rem 0',
-                  paddingTop: '1rem',
-                  borderTop: '1px solid #e5e7eb'
-                }}>
+                <div className="admin-app-card-divider">
                   Submitted: {formatDate(application.submitted_at, 'date')}
                 </div>
 
                 {application.manifesto && (
-                  <p style={{
-                    fontSize: '0.9rem',
-                    color: '#6b7280',
-                    margin: '0.75rem 0',
-                    display: '-webkit-box',
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: 'vertical',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis'
-                  }}>
+                  <p className="admin-app-card-manifesto">
                     {application.manifesto}
                   </p>
                 )}
 
                 <Link
                   to={`/admin/applications/${application.id}`}
-                  className="admin-btn primary"
-                  style={{ width: '100%', justifyContent: 'center', marginTop: '1rem' }}
+                  className="admin-btn primary admin-app-card-button"
                 >
                   {application.status === 'pending' ? (
                     <>
@@ -268,28 +236,11 @@ const ApplicationsListPage = () => {
           })}
         </div>
       ) : (
-        <div style={{
-          background: 'white',
-          border: '1px solid #e5e7eb',
-          borderRadius: '0.75rem',
-          textAlign: 'center',
-          padding: '3rem 2rem'
-        }}>
-          <Icon name="tasks" size={48} style={{
-            color: '#d1d5db',
-            marginBottom: '1rem',
-            display: 'block'
-          }} />
-          <h5 style={{
-            color: '#1f2937',
-            marginBottom: '0.5rem',
-            fontWeight: 600
-          }}>
+        <div className="admin-card-container admin-empty-state">
+          <h5 className="admin-empty-state-title">
             No {filter !== 'all' ? filter : ''} Applications
           </h5>
-          <p style={{
-            color: '#6b7280'
-          }}>
+          <p className="admin-empty-state-message">
             There are no {filter !== 'all' ? filter : ''} applications at this time.
           </p>
         </div>

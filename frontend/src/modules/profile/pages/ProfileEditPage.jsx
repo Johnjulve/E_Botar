@@ -9,7 +9,7 @@ import { Container } from '../../../components/layout';
 import { LoadingSpinner } from '../../../components/common';
 import { authService } from '../../../services';
 import { useAuth } from '../../../hooks/useAuth';
-import { getInitials } from '../../../utils/helpers';
+import { getFullName, getInitials } from '../../../utils/helpers';
 import '../profile.css';
 
 const ProfileEditPage = () => {
@@ -30,6 +30,7 @@ const ProfileEditPage = () => {
   
   const [formData, setFormData] = useState({
     first_name: '',
+    middle_name: '',
     last_name: '',
     username: '',
     email: '',
@@ -78,6 +79,7 @@ const ProfileEditPage = () => {
 
       setFormData({
         first_name: user?.first_name || '',
+        middle_name: profile?.middle_name || '',
         last_name: user?.last_name || '',
         username: user?.username || '',
         email: user?.email || '',
@@ -175,6 +177,7 @@ const ProfileEditPage = () => {
       
       // Append user fields
       if (formData.first_name) submitData.append('first_name', formData.first_name);
+      if (formData.middle_name != null) submitData.append('middle_name', formData.middle_name);
       if (formData.last_name) submitData.append('last_name', formData.last_name);
       if (formData.email && !hasExistingEmail) submitData.append('email', formData.email);
       
@@ -249,7 +252,7 @@ const ProfileEditPage = () => {
           <h1 className="profile-title">Edit Profile</h1>
           <button 
             onClick={() => navigate('/profile')} 
-            className="back-btn"
+            className="profile-back-btn"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="19" y1="12" x2="5" y2="12"/>
@@ -261,48 +264,49 @@ const ProfileEditPage = () => {
 
         {/* Alerts */}
         {error && (
-          <div className="alert alert-error">
+          <div className="profile-alert profile-alert-error">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="10"/>
               <line x1="12" y1="8" x2="12" y2="12"/>
               <line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
             <span>{error}</span>
-            <button onClick={() => setError('')} className="alert-close">×</button>
+            <button onClick={() => setError('')} className="profile-alert-close">×</button>
           </div>
         )}
 
         {success && (
-          <div className="alert alert-success">
+          <div className="profile-alert profile-alert-success">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <polyline points="20 6 9 17 4 12"/>
             </svg>
             <span>{success}</span>
-            <button onClick={() => setSuccess('')} className="alert-close">×</button>
+            <button onClick={() => setSuccess('')} className="profile-alert-close">×</button>
           </div>
         )}
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="profile-form">
           {/* Profile Picture Section */}
-          <div className="form-section">
-            <h3 className="section-title">Profile Picture</h3>
-            <div className="avatar-upload-section">
-              <div className="avatar-preview-container">
+          <div className="profile-form-section">
+            <h3 className="profile-section-title">Profile Picture</h3>
+            <div className="profile-avatar-upload-section">
+              <div className="profile-avatar-preview-container">
                 {avatarPreview ? (
                   <img
                     src={avatarPreview}
                     alt="Profile Preview"
-                    className="avatar-preview"
+                    className="profile-avatar-preview"
+                    onError={() => setAvatarPreview(null)}
                   />
                 ) : (
-                  <div className="avatar-preview-placeholder">
-                    {currentUser && getInitials(`${currentUser.first_name} ${currentUser.last_name}`)}
+                  <div className="profile-avatar-preview-placeholder">
+                    {currentUser && getInitials(getFullName(currentUser, { middle_name: formData.middle_name }))}
                   </div>
                 )}
               </div>
               
-              <div className="avatar-upload-controls">
+              <div className="profile-avatar-upload-controls">
                 <input
                   type="file"
                   id="avatar"
@@ -310,7 +314,7 @@ const ProfileEditPage = () => {
                   onChange={handleAvatarChange}
                   style={{ display: 'none' }}
                 />
-                <label htmlFor="avatar" className="btn-upload">
+                <label htmlFor="avatar" className="profile-btn-upload">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                     <polyline points="17 8 12 3 7 8"/>
@@ -322,7 +326,7 @@ const ProfileEditPage = () => {
                   <button
                     type="button"
                     onClick={handleRemoveAvatar}
-                    className="btn-remove-avatar"
+                    className="profile-btn-remove-avatar"
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <polyline points="3 6 5 6 21 6"/>
@@ -333,23 +337,23 @@ const ProfileEditPage = () => {
                 )}
               </div>
               
-              <p className="avatar-help-text">
+              <p className="profile-avatar-help-text">
                 Recommended: Square image, at least 400x400 pixels. Max size: 5MB
               </p>
             </div>
           </div>
 
           {/* Personal Information */}
-          <div className="form-section">
-            <h3 className="section-title">Personal Information</h3>
-            <div className="form-grid">
-              <div className="form-group">
-                <label htmlFor="first_name" className="form-label">
-                  First Name <span className="required">*</span>
+          <div className="profile-form-section">
+            <h3 className="profile-section-title">Personal Information</h3>
+            <div className="profile-form-grid">
+              <div className="profile-form-group">
+                <label htmlFor="first_name" className="profile-form-label">
+                  First Name <span className="profile-required">*</span>
                 </label>
                 <input
                   type="text"
-                  className="form-input"
+                  className="profile-form-input"
                   id="first_name"
                   name="first_name"
                   value={formData.first_name}
@@ -359,13 +363,28 @@ const ProfileEditPage = () => {
                 />
               </div>
 
-              <div className="form-group">
-                <label htmlFor="last_name" className="form-label">
-                  Last Name <span className="required">*</span>
+              <div className="profile-form-group">
+                <label htmlFor="middle_name" className="profile-form-label">
+                  Middle Name
                 </label>
                 <input
                   type="text"
-                  className="form-input"
+                  className="profile-form-input"
+                  id="middle_name"
+                  name="middle_name"
+                  value={formData.middle_name}
+                  onChange={handleChange}
+                  placeholder="Enter middle name (optional)"
+                />
+              </div>
+
+              <div className="profile-form-group">
+                <label htmlFor="last_name" className="profile-form-label">
+                  Last Name <span className="profile-required">*</span>
+                </label>
+                <input
+                  type="text"
+                  className="profile-form-input"
                   id="last_name"
                   name="last_name"
                   value={formData.last_name}
@@ -375,15 +394,15 @@ const ProfileEditPage = () => {
                 />
               </div>
 
-              <div className="form-group">
-                <label htmlFor="username" className="form-label">
+              <div className="profile-form-group">
+                <label htmlFor="username" className="profile-form-label">
                   Username
                 </label>
-                <div className="input-with-prefix disabled">
-                  <span className="input-prefix">@</span>
+                <div className="profile-input-with-prefix disabled">
+                  <span className="profile-input-prefix">@</span>
                   <input
                     type="text"
-                    className="form-input with-prefix"
+                    className="profile-form-input profile-with-prefix"
                     id="username"
                     name="username"
                     value={formData.username}
@@ -391,16 +410,16 @@ const ProfileEditPage = () => {
                     placeholder="username"
                   />
                 </div>
-                <small className="form-help">Username cannot be changed</small>
+                <small className="profile-form-help">Username cannot be changed</small>
               </div>
 
-              <div className="form-group">
-                <label htmlFor="email" className="form-label">
-                  Email {!hasExistingEmail && <span className="required">*</span>}
+              <div className="profile-form-group">
+                <label htmlFor="email" className="profile-form-label">
+                  Email {!hasExistingEmail && <span className="profile-required">*</span>}
                 </label>
                 <input
                   type="email"
-                  className="form-input"
+                  className="profile-form-input"
                   id="email"
                   name="email"
                   value={formData.email}
@@ -410,35 +429,30 @@ const ProfileEditPage = () => {
                   placeholder="Enter email address"
                 />
                 {hasExistingEmail && (
-                  <small className="form-help">Email cannot be changed once set</small>
+                  <small className="profile-form-help">Email cannot be changed once set</small>
                 )}
               </div>
             </div>
           </div>
 
           {/* Academic Information */}
-          <div className="form-section">
-            <h3 className="section-title">
+          <div className="profile-form-section">
+            <h3 className="profile-section-title">
               Academic Information
               {isAdmin && (
-                <span style={{ 
-                  fontSize: '0.875rem', 
-                  fontWeight: 'normal', 
-                  color: '#6b7280',
-                  marginLeft: '0.5rem'
-                }}>
+                <span className="profile-section-title-subtext">
                   (Optional for Administrators)
                 </span>
               )}
             </h3>
-            <div className="form-grid">
-              <div className="form-group">
-                <label htmlFor="student_id" className="form-label">
-                  Student ID {!isAdmin && <span className="required">*</span>}
+            <div className="profile-form-grid">
+              <div className="profile-form-group">
+                <label htmlFor="student_id" className="profile-form-label">
+                  Student ID {!isAdmin && <span className="profile-required">*</span>}
                 </label>
                 <input
                   type="text"
-                  className="form-input"
+                  className="profile-form-input"
                   id="student_id"
                   name="student_id"
                   value={formData.student_id}
@@ -447,18 +461,18 @@ const ProfileEditPage = () => {
                   placeholder="e.g., 2021-12345"
                 />
                 {isAdmin && (
-                  <small className="form-help">
+                  <small className="profile-form-help">
                     Optional for administrators. Leave blank if not applicable.
                   </small>
                 )}
               </div>
 
-              <div className="form-group">
-                <label htmlFor="year_level" className="form-label">
-                  Year Level {!isAdmin && <span className="required">*</span>}
+              <div className="profile-form-group">
+                <label htmlFor="year_level" className="profile-form-label">
+                  Year Level {!isAdmin && <span className="profile-required">*</span>}
                 </label>
                 <select
-                  className="form-select"
+                  className="profile-form-select"
                   id="year_level"
                   name="year_level"
                   value={formData.year_level}
@@ -474,19 +488,19 @@ const ProfileEditPage = () => {
                 </select>
               </div>
 
-              <div className="form-group">
-                <label htmlFor="department" className="form-label">
-                  Department {!isAdmin && <span className="required">*</span>}
+              <div className="profile-form-group">
+                <label htmlFor="department" className="profile-form-label">
+                  College {!isAdmin && <span className="profile-required">*</span>}
                 </label>
                 <select
-                  className="form-select"
+                  className="profile-form-select"
                   id="department"
                   name="department"
                   value={formData.department}
                   onChange={handleChange}
                   required={!isAdmin}
                 >
-                  <option value="">Select Department</option>
+                  <option value="">Select College</option>
                   {departments.map(dept => (
                     <option key={dept.code} value={dept.code}>
                       {dept.name}
@@ -495,12 +509,12 @@ const ProfileEditPage = () => {
                 </select>
               </div>
 
-              <div className="form-group">
-                <label htmlFor="course" className="form-label">
-                  Course {!isAdmin && <span className="required">*</span>}
+              <div className="profile-form-group">
+                <label htmlFor="course" className="profile-form-label">
+                  Course {!isAdmin && <span className="profile-required">*</span>}
                 </label>
                 <select
-                  className="form-select"
+                  className="profile-form-select"
                   id="course"
                   name="course"
                   value={formData.course}
@@ -509,7 +523,7 @@ const ProfileEditPage = () => {
                   disabled={!formData.department}
                 >
                   <option value="">
-                    {formData.department ? 'Select Course' : 'Select Department First'}
+                    {formData.department ? 'Select Course' : 'Select College First'}
                   </option>
                   {courses.map(course => (
                     <option key={course.code} value={course.code}>
@@ -522,10 +536,10 @@ const ProfileEditPage = () => {
           </div>
 
           {/* Action Buttons */}
-          <div className="form-actions">
+          <div className="profile-form-actions">
             <button
               type="button"
-              className="btn-secondary"
+              className="profile-btn-secondary"
               onClick={() => navigate('/profile')}
               disabled={saving}
             >
@@ -533,12 +547,12 @@ const ProfileEditPage = () => {
             </button>
             <button
               type="submit"
-              className="btn-primary"
+              className="profile-btn-primary"
               disabled={saving}
             >
               {saving ? (
                 <>
-                  <span className="spinner"></span>
+                  <span className="profile-spinner"></span>
                   Saving...
                 </>
               ) : (

@@ -23,6 +23,48 @@
   --info-color: #06b6d4;
   --info-hover: #0891b2;
   
+  /* Soft Status Colors (Backgrounds / Borders / Text) */
+  /* Danger */
+  --danger-soft-bg: #fee2e2;
+  --danger-soft-border: #fecaca;
+  --danger-soft-border-strong: #fca5a5;
+  --danger-soft-text: #991b1b;
+
+  /* Success */
+  --success-soft-bg: #d1fae5;
+  --success-soft-border: #a7f3d0;
+  --success-soft-border-strong: #6ee7b7;
+  --success-soft-text: #065f46;
+
+  /* Warning / Notice */
+  --warning-soft-bg: #fef3c7;
+  --warning-soft-border: #fbbf24;
+  --warning-soft-alt-bg: #fffbeb;
+  --warning-soft-alt-border: #fde68a;
+  --warning-soft-text: #92400e;
+  --warning-soft-text-strong: #78350f;
+
+  /* Info */
+  --info-soft-bg: #dbeafe;
+  --info-soft-bg-alt: #f0f9ff;
+  --info-soft-border: #bfdbfe;
+  --info-soft-text: #1e40af;
+  --info-soft-text-alt: #1e3a8a;
+
+  /* Primary (blue) soft */
+  --primary-soft-bg: #eff6ff;
+
+  /* Accent (purple) - receipts, etc. */
+  --accent-purple: #8b5cf6;
+  --accent-purple-dark: #7c3aed;
+
+  /* Brand green darker (hover) */
+  --brand-green-darker: #054020;
+
+  /* Success soft alt (lighter bg) */
+  --success-soft-bg-alt: #ecfdf5;
+  --success-soft-border-alt: #bbf7d0;
+
   /* Neutral Colors */
   --white: #ffffff;
   --gray-50: #f8fafc;

@@ -22,26 +22,8 @@ load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Environment detection - Support multiple platforms
-# Match working E_Botar-FULL-Django pattern exactly
-IS_RAILWAY = (
-    os.environ.get('RAILWAY_ENVIRONMENT') is not None or
-    os.environ.get('RAILWAY') is not None or
-    os.environ.get('PORT') is not None  # Railway sets PORT
-)
-IS_HEROKU = os.environ.get('DYNO') is not None
-IS_RENDER = os.environ.get('RENDER') is not None
-IS_PRODUCTION = (
-    os.environ.get('DJANGO_ENV') == 'production' or
-    os.environ.get('ENVIRONMENT') == 'production' or
-    IS_RAILWAY or IS_HEROKU or IS_RENDER or
-    os.environ.get('PORT') is not None  # Most platforms set PORT
-)
+IS_PRODUCTION = os.getenv('IS_PRODUCTION', 'False').lower() == 'true'
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ.get('SECRET_KEY')
 if not SECRET_KEY:
     if IS_PRODUCTION:
@@ -58,72 +40,11 @@ if not SECRET_KEY:
     )
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true' if IS_PRODUCTION else True
+DEBUG = True
 
-# ALLOWED_HOSTS configuration - Dynamic and platform-agnostic
-# Based on working E_Botar-FULL-Django pattern
-def normalize_domain(domain_str):
-    """Normalize domain string by removing protocol and trailing slashes"""
-    if not domain_str:
-        return None
-    domain = domain_str.replace('https://', '').replace('http://', '').strip()
-    domain = domain.rstrip('/')
-    return domain
-
-# ALLOWED_HOSTS configuration - Match working E_Botar-FULL-Django pattern exactly
-if IS_RAILWAY:
-    # Railway: Match working project pattern exactly
-    allowed_hosts = ['*']  # Allow all hosts on Railway by default
-    railway_domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN', '')
-    if railway_domain:
-        allowed_hosts.append(railway_domain)
-    # Add custom domain if set
-    custom_domain = os.environ.get('CUSTOM_DOMAIN', '')
-    if custom_domain:
-        allowed_hosts.append(custom_domain)
-    # Also check for explicit ALLOWED_HOSTS env var
-    explicit_hosts = os.environ.get('ALLOWED_HOSTS', '')
-    if explicit_hosts:
-        allowed_hosts.extend([h.strip() for h in explicit_hosts.split(',') if h.strip()])
-    ALLOWED_HOSTS = allowed_hosts
-elif IS_PRODUCTION:
-    # Other production platforms
-    allowed_hosts = []
-    
-    # Explicit ALLOWED_HOSTS
-    explicit_hosts = os.environ.get('ALLOWED_HOSTS', '')
-    if explicit_hosts:
-        allowed_hosts = [h.strip() for h in explicit_hosts.split(',') if h.strip()]
-    else:
-        # Platform-specific
-        if IS_HEROKU:
-            heroku_domain = os.environ.get('HEROKU_APP_NAME', '')
-            if heroku_domain:
-                allowed_hosts.append(f'{heroku_domain}.herokuapp.com')
-        
-        if IS_RENDER:
-            render_domain = os.environ.get('RENDER_EXTERNAL_HOSTNAME', '')
-            if render_domain:
-                domain = normalize_domain(render_domain)
-                if domain:
-                    allowed_hosts.append(domain)
-        
-        # Generic variables
-        for var_name in ['PUBLIC_DOMAIN', 'DOMAIN', 'CUSTOM_DOMAIN']:
-            domain_value = os.environ.get(var_name, '')
-            if domain_value:
-                domain = normalize_domain(domain_value)
-                if domain:
-                    allowed_hosts.append(domain)
-        
-        if not allowed_hosts:
-            allowed_hosts = ['*']  # Fallback for other platforms
-    
-    ALLOWED_HOSTS = allowed_hosts
-else:
-    # Local development
-    ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',') if os.environ.get('ALLOWED_HOSTS') else ['localhost', '127.0.0.1']
-
+ALLOWED_HOSTS = [
+    'localhost', 
+    '127.0.0.1']
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
@@ -150,17 +71,10 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    # Access token lifetime: 30 minutes
-    # Note: Frontend implements inactivity detection (5 minutes) that auto-logs out users
-    # even if the token is still valid. This provides an additional security layer.
-    # The frontend tracks user activity (mouse, keyboard, clicks) and automatically
-    # logs out users after 5 minutes of inactivity, regardless of token validity.
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
 }
 
-
-# Application definition
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -199,7 +113,7 @@ ROOT_URLCONF = 'backend.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'backend' / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -310,163 +224,21 @@ BACKEND_BASE_URL = os.getenv('BACKEND_BASE_URL', None)
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS Configuration - Dynamic and platform-agnostic
-def get_cors_origins():
-    """Dynamically determine CORS allowed origins from environment variables"""
-    cors_origins = []
-    
-    # Priority 1: Explicit FRONTEND_URL (highest priority)
-    # Supports comma-separated values for multiple frontends
-    frontend_url = os.environ.get('FRONTEND_URL', '')
-    if frontend_url:
-        # Split by comma to support multiple URLs
-        urls = [url.strip() for url in frontend_url.split(',') if url.strip()]
-        for url in urls:
-            url = url.rstrip('/')
-            if url not in cors_origins:
-                cors_origins.append(url)
-                # Also add without protocol if needed (for internal routing)
-                if url.startswith('https://'):
-                    http_url = url.replace('https://', 'http://', 1)
-                    if http_url not in cors_origins:
-                        cors_origins.append(http_url)
-    
-    # Priority 2: Generic frontend domain variables
-    frontend_vars = ['FRONTEND_DOMAIN', 'CLIENT_URL', 'APP_URL', 'SITE_URL']
-    for var_name in frontend_vars:
-        url_value = os.environ.get(var_name, '')
-        if url_value:
-            url = url_value.rstrip('/')
-            if url not in cors_origins:
-                cors_origins.append(url)
-    
-    # Priority 3: If frontend is on same domain as backend (production platforms)
-    if IS_PRODUCTION:
-        # Check platform-specific domain variables
-        platform_domains = []
-        
-        if IS_RAILWAY:
-            railway_domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN', '')
-            if railway_domain:
-                domain = normalize_domain(railway_domain)
-                if domain:
-                    platform_domains.append(f'https://{domain}')
-                    platform_domains.append(f'http://{domain}')
-        
-        if IS_HEROKU:
-            heroku_domain = os.environ.get('HEROKU_APP_NAME', '')
-            if heroku_domain:
-                platform_domains.append(f'https://{heroku_domain}.herokuapp.com')
-                platform_domains.append(f'http://{heroku_domain}.herokuapp.com')
-        
-        if IS_RENDER:
-            render_domain = os.environ.get('RENDER_EXTERNAL_HOSTNAME', '')
-            if render_domain:
-                domain = normalize_domain(render_domain)
-                if domain:
-                    platform_domains.append(f'https://{domain}')
-                    platform_domains.append(f'http://{domain}')
-        
-        # Add generic domain variables
-        for var_name in ['PUBLIC_DOMAIN', 'DOMAIN', 'CUSTOM_DOMAIN']:
-            domain_value = os.environ.get(var_name, '')
-            if domain_value:
-                domain = normalize_domain(domain_value)
-                if domain:
-                    url = f'https://{domain}'
-                    if url not in cors_origins and url not in platform_domains:
-                        platform_domains.append(url)
-                        platform_domains.append(f'http://{domain}')
-        
-        cors_origins.extend(platform_domains)
-    
-    return cors_origins
 
-if IS_PRODUCTION:
-    # Production: Only allow specific origins
-    CORS_ALLOWED_ORIGINS = get_cors_origins()
-    
-    # If no CORS origins configured, allow all (for API-only deployments)
-    # Set FRONTEND_URL to restrict CORS if needed
-    if not CORS_ALLOWED_ORIGINS:
-        CORS_ALLOW_ALL_ORIGINS = True
-        import warnings
-        warnings.warn(
-            "No FRONTEND_URL set. CORS allows all origins. Set FRONTEND_URL to restrict CORS.",
-            UserWarning
-        )
-    CORS_ALLOW_CREDENTIALS = True
-else:
-    # Development: Allow all origins
-    CORS_ALLOW_ALL_ORIGINS = True
-    CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
 
 # Security settings for production
-if IS_PRODUCTION:
-    # HTTPS settings
-    SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', 'False').lower() == 'true'
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
-    SECURE_BROWSER_XSS_FILTER = True
-    SECURE_CONTENT_TYPE_NOSNIFF = True
-    X_FRAME_OPTIONS = 'DENY'
-    
-    # HSTS settings
-    SECURE_HSTS_SECONDS = 31536000  # 1 year
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
+"""
+SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', 'False').lower() == 'true'
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
 
-# CSRF trusted origins - Dynamic and platform-agnostic
-def get_csrf_trusted_origins():
-    """Dynamically determine CSRF trusted origins from environment variables"""
-    csrf_origins = []
-    
-    # Priority 1: Explicit CSRF_TRUSTED_ORIGINS (highest priority)
-    explicit_origins = os.environ.get('CSRF_TRUSTED_ORIGINS', '')
-    if explicit_origins:
-        origins = [o.strip() for o in explicit_origins.split(',') if o.strip()]
-        csrf_origins.extend(origins)
-        return csrf_origins  # If explicitly set, use only those
-    
-    # Priority 2: Platform-specific domains
-    if IS_PRODUCTION:
-        # Railway
-        if IS_RAILWAY:
-            railway_domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN', '')
-            if railway_domain:
-                domain = normalize_domain(railway_domain)
-                if domain:
-                    csrf_origins.append(f'https://{domain}')
-                    csrf_origins.append(f'http://{domain}')  # Also allow HTTP for internal routing
-        
-        # Heroku
-        if IS_HEROKU:
-            heroku_domain = os.environ.get('HEROKU_APP_NAME', '')
-            if heroku_domain:
-                csrf_origins.append(f'https://{heroku_domain}.herokuapp.com')
-                csrf_origins.append(f'http://{heroku_domain}.herokuapp.com')
-        
-        # Render
-        if IS_RENDER:
-            render_domain = os.environ.get('RENDER_EXTERNAL_HOSTNAME', '')
-            if render_domain:
-                domain = normalize_domain(render_domain)
-                if domain:
-                    csrf_origins.append(f'https://{domain}')
-                    csrf_origins.append(f'http://{domain}')
-        
-        # Generic domain variables
-        for var_name in ['PUBLIC_DOMAIN', 'DOMAIN', 'CUSTOM_DOMAIN', 'APP_URL', 'SITE_URL']:
-            domain_value = os.environ.get(var_name, '')
-            if domain_value:
-                domain = normalize_domain(domain_value)
-                if domain:
-                    url = f'https://{domain}'
-                    if url not in csrf_origins:
-                        csrf_origins.append(url)
-                        csrf_origins.append(f'http://{domain}')
-    
-    return csrf_origins
-
-csrf_trusted_origins = get_csrf_trusted_origins()
-if csrf_trusted_origins:
-    CSRF_TRUSTED_ORIGINS = csrf_trusted_origins
+# HSTS settings
+SECURE_HSTS_SECONDS = 31536000  # 1 year
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+"""

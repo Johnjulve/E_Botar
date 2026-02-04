@@ -1,15 +1,18 @@
 from collections import Counter
 from datetime import timedelta
 
+from django.conf import settings
 from django.db.models import Q
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework import status
 
-from .models import SecurityEvent, ActivityLog
+from .models import SecurityEvent, ActivityLog, SystemSettings
 from .permissions import IsStaffOrSuperUser
+from .serializers import AcademicYearSerializer
 
 
 def _parse_datetime_param(value):
@@ -226,4 +229,80 @@ class SystemLogListView(APIView):
             'warnings': counts.get('warning', 0),
             'errors': counts.get('error', 0),
         }
+
+
+class AcademicYearView(APIView):
+    """
+    API endpoint for getting and updating the academic year setting.
+    
+    GET: Returns current academic year (public, no auth required)
+    PUT: Updates academic year (admin only)
+    """
+    
+    def get_permissions(self):
+        """Different permissions for GET vs PUT"""
+        if self.request.method == 'GET':
+            return []  # Public access
+        return [IsAuthenticated(), IsStaffOrSuperUser()]  # Admin only for updates
+    
+    def get(self, request):
+        """Get current academic year"""
+        academic_year = SystemSettings.get_value('academic_year', default='2025-2026')
+        return Response({
+            'academic_year': academic_year,
+            'display': f'A.Y {academic_year}'
+        })
+    
+    def put(self, request):
+        """Update academic year (admin only)"""
+        serializer = AcademicYearSerializer(data=request.data)
+        if serializer.is_valid():
+            academic_year = serializer.validated_data['academic_year']
+            SystemSettings.set_value(
+                key='academic_year',
+                value=academic_year,
+                description='Current academic year for the system',
+                user=request.user
+            )
+            return Response({
+                'academic_year': academic_year,
+                'display': f'A.Y {academic_year}',
+                'message': 'Academic year updated successfully'
+            }, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class BrandingView(APIView):
+    """
+    Public API for institution branding (logo, name).
+    Used so the app can be deployed as a template for different schools.
+    GET: Returns institution_name, institution_name_line2, institution_logo_url, app_name.
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        institution_name = SystemSettings.get_value('institution_name', default='SURIGAO DEL NORTE')
+        institution_name_line2 = SystemSettings.get_value('institution_name_line2', default='STATE UNIVERSITY')
+        institution_logo = SystemSettings.get_value('institution_logo', default='')
+        app_name = SystemSettings.get_value('app_name', default='E-Botar')
+
+        logo_url = None
+        if institution_logo and institution_logo.strip():
+            path = institution_logo.strip().lstrip('/')
+            base = getattr(settings, 'BACKEND_BASE_URL', None)
+            if base:
+                logo_url = f"{base.rstrip('/')}/{settings.MEDIA_URL.rstrip('/')}/{path}"
+            else:
+                try:
+                    logo_url = request.build_absolute_uri(f"/{settings.MEDIA_URL.rstrip('/')}/{path}")
+                except Exception:
+                    logo_url = None
+
+        return Response({
+            'institution_name': institution_name,
+            'institution_name_line2': institution_name_line2,
+            'institution_logo_url': logo_url,
+            'app_name': app_name,
+            'institution_full_name': f"{institution_name} {institution_name_line2}".strip(),
+        })
 

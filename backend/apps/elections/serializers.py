@@ -287,7 +287,36 @@ class SchoolElectionCreateUpdateSerializer(serializers.ModelSerializer):
             # Clear department if switching to university type
             if allowed_department_code:
                 data['allowed_department_code'] = None
-        
+
+        # Prevent duplicate election for same A.Y. and category (university or department)
+        if start_year is not None and end_year is not None:
+            existing = SchoolElection.objects.filter(
+                start_year=start_year,
+                end_year=end_year,
+                election_type=election_type
+            )
+            if election_type == 'university':
+                existing = existing.filter(allowed_department__isnull=True)
+            else:
+                if allowed_department_code:
+                    existing = existing.filter(allowed_department__code=allowed_department_code)
+                else:
+                    existing = existing.none()
+            if self.instance:
+                existing = existing.exclude(pk=self.instance.pk)
+            if existing.exists():
+                if election_type == 'university':
+                    msg = (
+                        f'An election for USC AY {start_year}-{end_year} already exists. '
+                        'You cannot create another election for the same academic year and category.'
+                    )
+                else:
+                    msg = (
+                        f'An election for this department for AY {start_year}-{end_year} already exists. '
+                        'You cannot create another election for the same academic year and department.'
+                    )
+                raise serializers.ValidationError({'non_field_errors': [msg]})
+
         return data
     
     def create(self, validated_data):

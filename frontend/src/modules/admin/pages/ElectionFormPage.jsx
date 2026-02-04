@@ -3,10 +3,11 @@
  * Create or edit election with positions
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Container } from '../../../components/layout';
 import { LoadingSpinner, Alert } from '../../../components/common';
+import { useAuth } from '../../../hooks/useAuth';
 import { electionService, programService } from '../../../services';
 import '../admin.css';
 
@@ -45,10 +46,13 @@ const Icon = ({ name, size = 20, className = '' }) => {
 const ElectionFormPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   const isEdit = Boolean(id);
 
   const [loading, setLoading] = useState(isEdit);
   const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const isSubmittingRef = useRef(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [availablePositions, setAvailablePositions] = useState([]);
@@ -175,6 +179,7 @@ const ElectionFormPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmittingRef.current) return;
     setError('');
     setSuccess('');
 
@@ -200,9 +205,9 @@ const ElectionFormPage = () => {
       return;
     }
 
+    isSubmittingRef.current = true;
+    setSubmitting(true);
     try {
-      setSubmitting(true);
-
       // Prepare data with position_ids
       const dataToSubmit = {
         ...formData,
@@ -223,9 +228,30 @@ const ElectionFormPage = () => {
       }, 1500);
     } catch (error) {
       console.error('Error saving election:', error);
-      setError(error.response?.data?.detail || 'Failed to save election');
+      const data = error.response?.data;
+      const message = data?.non_field_errors?.[0] ?? data?.detail ?? 'Failed to save election';
+      setError(typeof message === 'string' ? message : 'Failed to save election');
     } finally {
+      isSubmittingRef.current = false;
       setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!id || !window.confirm('Are you sure you want to delete this election? This will remove the election and its positions. This action cannot be undone.')) {
+      return;
+    }
+    setError('');
+    setDeleting(true);
+    try {
+      await electionService.delete(id);
+      setSuccess('Election deleted successfully.');
+      setTimeout(() => navigate('/admin/elections'), 1000);
+    } catch (err) {
+      console.error('Error deleting election:', err);
+      setError(err.response?.data?.detail || 'Failed to delete election. Only superusers can delete elections.');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -237,7 +263,7 @@ const ElectionFormPage = () => {
     <Container>
       {/* Header */}
       <div className="admin-header">
-        <Link to="/admin/elections" className="admin-btn secondary" style={{ marginBottom: '1rem' }}>
+        <Link to="/admin/elections" className="admin-btn secondary admin-election-back-btn">
           <Icon name="arrow" size={16} />
           Back to Elections
         </Link>
@@ -257,59 +283,24 @@ const ElectionFormPage = () => {
 
       <form onSubmit={handleSubmit}>
         {/* Basic Info */}
-        <div style={{
-          background: 'white',
-          border: '1px solid #e5e7eb',
-          borderRadius: '0.75rem',
-          padding: '1.5rem',
-          marginBottom: '1.5rem'
-        }}>
-          <h5 style={{
-            margin: '0 0 1.5rem',
-            color: '#1f2937',
-            fontWeight: 600
-          }}>
+        <div className="admin-election-form-section">
+          <h5 className="admin-election-section-title">
             Election Details
           </h5>
 
           {/* School Year Section */}
-            <div style={{
-              background: '#f0f9ff',
-              border: '1px solid #bfdbfe',
-              borderRadius: '0.5rem',
-              padding: '1rem',
-              marginBottom: '1.25rem'
-            }}>
-              <p style={{
-                margin: '0 0 0.75rem',
-                fontSize: '0.9rem',
-                fontWeight: 600,
-                color: '#1e40af'
-              }}>
+            <div className="admin-election-info-box">
+              <p className="admin-election-info-title">
                 Academic Year: AY {formData.start_year}-{formData.end_year}
               </p>
-              <p style={{
-                margin: 0,
-                fontSize: '0.85rem',
-                color: '#1e3a8a'
-              }}>
+              <p className="admin-election-info-text">
                 The election title will be auto-generated based on the election type and academic year you select below.
               </p>
             </div>
 
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: '1.25rem',
-            marginBottom: '1.25rem'
-          }}>
+          <div className="admin-election-form-grid">
             <div>
-              <label style={{
-                display: 'block',
-                fontWeight: 600,
-                marginBottom: '0.5rem',
-                color: '#374151'
-              }}>
+              <label className="admin-election-form-label">
                 Start Year *
               </label>
               <input
@@ -320,33 +311,16 @@ const ElectionFormPage = () => {
                 min="2000"
                 max="2100"
                 required
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '0.5rem',
-                  fontSize: '0.95rem',
-                  fontFamily: 'inherit'
-                }}
+                className="admin-election-form-input"
                 placeholder="e.g., 2025"
               />
-              <small style={{ 
-                display: 'block', 
-                marginTop: '0.25rem', 
-                color: '#6b7280',
-                fontSize: '0.85rem' 
-              }}>
+              <small className="admin-election-form-help">
                 First year of the school year
               </small>
             </div>
 
             <div>
-              <label style={{
-                display: 'block',
-                fontWeight: 600,
-                marginBottom: '0.5rem',
-                color: '#374151'
-              }}>
+              <label className="admin-election-form-label">
                 End Year *
               </label>
               <input
@@ -358,36 +332,17 @@ const ElectionFormPage = () => {
                 max="2100"
                 required
                 disabled
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '0.5rem',
-                  fontSize: '0.95rem',
-                  fontFamily: 'inherit',
-                  background: '#f3f4f6',
-                  cursor: 'not-allowed'
-                }}
+                className="admin-election-form-input"
                 placeholder="Auto-filled"
               />
-              <small style={{ 
-                display: 'block', 
-                marginTop: '0.25rem', 
-                color: '#6b7280',
-                fontSize: '0.85rem' 
-              }}>
+              <small className="admin-election-form-help">
                 Auto-filled (Start Year + 1)
               </small>
             </div>
           </div>
 
           <div style={{ marginBottom: '1.25rem' }}>
-            <label style={{
-              display: 'block',
-              fontWeight: 600,
-              marginBottom: '0.5rem',
-              color: '#374151'
-            }}>
+            <label className="admin-election-form-label">
               Description
             </label>
             <textarea
@@ -395,109 +350,54 @@ const ElectionFormPage = () => {
               value={formData.description}
               onChange={handleChange}
               rows="3"
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '1px solid #d1d5db',
-                borderRadius: '0.5rem',
-                fontSize: '0.95rem',
-                fontFamily: 'inherit',
-                resize: 'vertical'
-              }}
+              className="admin-election-form-textarea"
               placeholder="Brief description of the election..."
             />
           </div>
 
           {/* Election Type Selection */}
           <div style={{ marginBottom: '1.25rem' }}>
-            <label style={{
-              display: 'block',
-              fontWeight: 600,
-              marginBottom: '0.75rem',
-              color: '#374151'
-            }}>
+            <label className="admin-election-form-label-spaced">
               Election Type / Council Type *
             </label>
-            <div style={{
-              display: 'flex',
-              gap: '1.5rem',
-              flexWrap: 'wrap'
-            }}>
-              <label style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                cursor: 'pointer',
-                padding: '0.75rem',
-                border: `2px solid ${formData.election_type === 'university' ? '#2563eb' : '#d1d5db'}`,
-                borderRadius: '0.5rem',
-                background: formData.election_type === 'university' ? '#eff6ff' : 'white',
-                flex: 1,
-                minWidth: '200px'
-              }}>
+            <div className="admin-election-type-group">
+              <label className={`admin-election-type-label ${formData.election_type === 'university' ? 'admin-election-type-label-active' : ''}`}>
                 <input
                   type="radio"
                   name="election_type"
                   value="university"
                   checked={formData.election_type === 'university'}
                   onChange={handleChange}
-                  style={{ cursor: 'pointer' }}
+                  className="admin-election-type-radio"
                 />
-                <div>
-                  <div style={{ fontWeight: 600, color: '#1f2937' }}>University Student Council (USC)</div>
-                  <small style={{ color: '#6b7280', fontSize: '0.85rem' }}>All students can vote</small>
+                <div className="admin-election-type-content">
+                  <div className="admin-election-type-title">University Student Council (USC)</div>
+                  <small className="admin-election-type-subtitle">All students can vote</small>
                 </div>
               </label>
-              <label style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                cursor: 'pointer',
-                padding: '0.75rem',
-                border: `2px solid ${formData.election_type === 'department' ? '#2563eb' : '#d1d5db'}`,
-                borderRadius: '0.5rem',
-                background: formData.election_type === 'department' ? '#eff6ff' : 'white',
-                flex: 1,
-                minWidth: '200px'
-              }}>
+              <label className={`admin-election-type-label ${formData.election_type === 'department' ? 'admin-election-type-label-active' : ''}`}>
                 <input
                   type="radio"
                   name="election_type"
                   value="department"
                   checked={formData.election_type === 'department'}
                   onChange={handleChange}
-                  style={{ cursor: 'pointer' }}
+                  className="admin-election-type-radio"
                 />
-                <div>
-                  <div style={{ fontWeight: 600, color: '#1f2937' }}>Department Election</div>
-                  <small style={{ color: '#6b7280', fontSize: '0.85rem' }}>Specific department only</small>
+                <div className="admin-election-type-content">
+                  <div className="admin-election-type-title">Department Election</div>
+                  <small className="admin-election-type-subtitle">Specific department only</small>
                 </div>
               </label>
             </div>
           </div>
 
           {/* Title Preview */}
-          <div style={{
-            background: '#f0f9ff',
-            border: '1px solid #bfdbfe',
-            borderRadius: '0.5rem',
-            padding: '1rem',
-            marginBottom: '1.25rem'
-          }}>
-            <p style={{
-              margin: '0 0 0.5rem',
-              fontSize: '0.9rem',
-              fontWeight: 600,
-              color: '#1e40af'
-            }}>
+          <div className="admin-election-title-preview">
+            <p className="admin-election-title-preview-label">
               Election Title Preview (Auto-generated):
             </p>
-            <p style={{
-              margin: 0,
-              fontSize: '0.95rem',
-              color: '#1e3a8a',
-              fontWeight: 500
-            }}>
+            <p className="admin-election-title-preview-text">
               {getTitlePreview() || 'Enter start and end year to see title preview'}
             </p>
           </div>
@@ -505,12 +405,7 @@ const ElectionFormPage = () => {
           {/* Department Selection (only for Department Election) */}
           {formData.election_type === 'department' && (
             <div style={{ marginBottom: '1.25rem' }}>
-              <label style={{
-                display: 'block',
-                fontWeight: 600,
-                marginBottom: '0.5rem',
-                color: '#374151'
-              }}>
+              <label className="admin-election-form-label">
                 Department *
               </label>
               <select
@@ -518,14 +413,7 @@ const ElectionFormPage = () => {
                 value={formData.allowed_department_code || ''}
                 onChange={handleChange}
                 required={formData.election_type === 'department'}
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '0.5rem',
-                  fontSize: '0.95rem',
-                  fontFamily: 'inherit'
-                }}
+                className="admin-election-form-select"
               >
                 <option value="">Select Department</option>
                 {departments.map(dept => (
@@ -534,29 +422,15 @@ const ElectionFormPage = () => {
                   </option>
                 ))}
               </select>
-              <small style={{
-                display: 'block',
-                marginTop: '0.25rem',
-                color: '#6b7280',
-                fontSize: '0.85rem'
-              }}>
+              <small className="admin-election-form-help">
                 Only students from the selected department can vote and apply as candidates.
               </small>
             </div>
           )}
 
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-            gap: '1.25rem'
-          }}>
+          <div className="admin-election-form-grid-dates">
             <div>
-              <label style={{
-                display: 'block',
-                fontWeight: 600,
-                marginBottom: '0.5rem',
-                color: '#374151'
-              }}>
+              <label className="admin-election-form-label">
                 Start Date & Time *
               </label>
               <input
@@ -565,24 +439,12 @@ const ElectionFormPage = () => {
                 value={formData.start_date}
                 onChange={handleChange}
                 required
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '0.5rem',
-                  fontSize: '0.95rem',
-                  fontFamily: 'inherit'
-                }}
+                className="admin-election-form-input"
               />
             </div>
 
             <div>
-              <label style={{
-                display: 'block',
-                fontWeight: 600,
-                marginBottom: '0.5rem',
-                color: '#374151'
-              }}>
+              <label className="admin-election-form-label">
                 End Date & Time *
               </label>
               <input
@@ -591,78 +453,34 @@ const ElectionFormPage = () => {
                 value={formData.end_date}
                 onChange={handleChange}
                 required
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '0.5rem',
-                  fontSize: '0.95rem',
-                  fontFamily: 'inherit'
-                }}
+                className="admin-election-form-input"
               />
             </div>
           </div>
         </div>
 
         {/* Positions Selection */}
-        <div style={{
-          background: 'white',
-          border: '1px solid #e5e7eb',
-          borderRadius: '0.75rem',
-          padding: '1.5rem',
-          marginBottom: '1.5rem'
-        }}>
-          <h5 style={{
-            margin: '0 0 1rem',
-            color: '#1f2937',
-            fontWeight: 600
-          }}>
+        <div className="admin-election-form-section">
+          <h5 className="admin-election-positions-section-title">
             Select Positions *
           </h5>
           
-          <p style={{
-            margin: '0 0 1.25rem',
-            color: '#6b7280',
-            fontSize: '0.9rem'
-          }}>
+          <p className="admin-election-positions-description">
             Choose which positions will be contested in this election. You can select multiple positions.
           </p>
 
           {availablePositions.length === 0 ? (
-            <div style={{
-              textAlign: 'center',
-              padding: '2rem',
-              background: '#fef2f2',
-              border: '1px solid #fecaca',
-              borderRadius: '0.5rem'
-            }}>
-              <p style={{ margin: 0, color: '#991b1b' }}>
+            <div className="admin-election-no-positions">
+              <p className="admin-election-no-positions-text">
                 No positions available. Please create positions first in the Position Management section.
               </p>
             </div>
           ) : (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-              gap: '0.75rem'
-            }}>
+            <div className="admin-election-positions-grid">
               {availablePositions.map((position) => (
                 <label
                   key={position.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    padding: '1rem',
-                    border: selectedPositionIds.includes(position.id) 
-                      ? '2px solid #2563eb' 
-                      : '1px solid #d1d5db',
-                    borderRadius: '0.5rem',
-                    cursor: 'pointer',
-                    background: selectedPositionIds.includes(position.id) 
-                      ? '#eff6ff' 
-                      : 'white',
-                    transition: 'all 0.15s'
-                  }}
+                  className={`admin-election-position-label ${selectedPositionIds.includes(position.id) ? 'admin-election-position-label-selected' : ''}`}
                   onMouseEnter={(e) => {
                     if (!selectedPositionIds.includes(position.id)) {
                       e.currentTarget.style.borderColor = '#9ca3af';
@@ -680,29 +498,14 @@ const ElectionFormPage = () => {
                     type="checkbox"
                     checked={selectedPositionIds.includes(position.id)}
                     onChange={() => togglePositionSelection(position.id)}
-                    style={{
-                      marginRight: '0.75rem',
-                      marginTop: '0.25rem',
-                      width: '18px',
-                      height: '18px',
-                      cursor: 'pointer',
-                      accentColor: '#2563eb'
-                    }}
+                    className="admin-election-position-checkbox"
                   />
-                  <div style={{ flex: 1 }}>
-                    <div style={{
-                      fontWeight: 600,
-                      color: '#1f2937',
-                      marginBottom: '0.25rem'
-                    }}>
+                  <div className="admin-election-position-content">
+                    <div className="admin-election-position-name">
                       {position.name}
                     </div>
                     {position.description && (
-                      <div style={{
-                        fontSize: '0.85rem',
-                        color: '#6b7280',
-                        lineHeight: 1.4
-                      }}>
+                      <div className="admin-election-position-description">
                         {position.description}
                       </div>
                     )}
@@ -713,38 +516,39 @@ const ElectionFormPage = () => {
           )}
 
           {selectedPositionIds.length > 0 && (
-            <div style={{
-              marginTop: '1rem',
-              padding: '0.75rem 1rem',
-              background: '#ecfdf5',
-              border: '1px solid #a7f3d0',
-              borderRadius: '0.5rem',
-              color: '#047857',
-              fontSize: '0.9rem',
-              fontWeight: 500
-            }}>
+            <div className="admin-election-selected-count">
               ✓ {selectedPositionIds.length} position{selectedPositionIds.length > 1 ? 's' : ''} selected
             </div>
           )}
         </div>
 
         {/* Submit Buttons */}
-        <div style={{
-          display: 'flex',
-          gap: '1rem',
-          justifyContent: 'flex-end'
-        }}>
+        <div className="admin-election-submit-buttons">
           <Link to="/admin/elections" className="admin-btn secondary">
             Cancel
           </Link>
-          <button
-            type="submit"
-            disabled={submitting}
-            className="admin-btn primary"
-          >
-            <Icon name="save" size={16} />
-            {submitting ? 'Saving...' : isEdit ? 'Update Election' : 'Create Election'}
-          </button>
+          <div className="admin-election-submit-actions">
+            {isEdit && isAdmin && (
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={submitting || deleting}
+                className="admin-btn danger"
+                title="Delete this election (superuser only)"
+              >
+                <Icon name="trash" size={16} />
+                {deleting ? 'Deleting...' : 'Delete Election'}
+              </button>
+            )}
+            <button
+              type="submit"
+              disabled={submitting || deleting}
+              className="admin-btn primary"
+            >
+              <Icon name="save" size={16} />
+              {submitting ? 'Saving...' : isEdit ? 'Update Election' : 'Create Election'}
+            </button>
+          </div>
         </div>
       </form>
     </Container>

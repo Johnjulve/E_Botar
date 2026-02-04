@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ProfilePage
  * View user profile information
  */
@@ -10,7 +10,7 @@ import { LoadingSpinner } from '../../../components/common';
 import { authService } from '../../../services';
 import { useAuth } from '../../../hooks/useAuth';
 import { formatDate } from '../../../utils/formatters';
-import { getInitials } from '../../../utils/helpers';
+import { getFullName, getInitials } from '../../../utils/helpers';
 import '../profile.css';
 
 const ProfilePage = () => {
@@ -18,6 +18,7 @@ const ProfilePage = () => {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState('');
@@ -34,6 +35,10 @@ const ProfilePage = () => {
   useEffect(() => {
     fetchProfile();
   }, []);
+
+  useEffect(() => {
+    setAvatarLoadFailed(false);
+  }, [profile?.avatar_url, profile?.avatar]);
 
   const fetchProfile = async () => {
     try {
@@ -144,21 +149,22 @@ const ProfilePage = () => {
           {/* Profile Card */}
           <div className="profile-card">
             <div className="profile-avatar-section">
-              {(profile?.avatar_url || profile?.avatar) ? (
+              {(profile?.avatar_url || profile?.avatar) && !avatarLoadFailed ? (
                 <img
                   src={profile.avatar_url || profile.avatar}
-                  alt="Profile"
+                  alt=""
                   className="profile-avatar"
+                  onError={() => setAvatarLoadFailed(true)}
                 />
               ) : (
                 <div className="profile-avatar-placeholder">
-                  {getInitials(`${user?.first_name} ${user?.last_name}`)}
+                  {getInitials(getFullName(user, profile))}
                 </div>
               )}
               
               <div className="profile-name-section">
                 <h2 className="profile-name">
-                  {user?.first_name} {user?.last_name}
+                  {getFullName(user, profile)}
                 </h2>
                 {user?.username && (
                   <p className="profile-username">@{user.username}</p>
@@ -183,22 +189,22 @@ const ProfilePage = () => {
 
             <div className="profile-info-grid">
               {user?.username && (
-                <div className="info-item">
-                  <span className="info-label">Username</span>
-                  <span className="info-value">@{user.username}</span>
+                <div className="profile-info-item">
+                  <span className="profile-info-label">Username</span>
+                  <span className="profile-info-value">@{user.username}</span>
                 </div>
               )}
-              <div className="info-item">
-                <span className="info-label">Email</span>
-                <span className="info-value">{user?.email}</span>
+              <div className="profile-info-item">
+                <span className="profile-info-label">Email</span>
+                <span className="profile-info-value">{user?.email}</span>
               </div>
-              <div className="info-item">
-                <span className="info-label">Student ID</span>
-                <span className="info-value">{profile?.student_id || 'N/A'}</span>
+              <div className="profile-info-item">
+                <span className="profile-info-label">Student ID</span>
+                <span className="profile-info-value">{profile?.student_id || 'N/A'}</span>
               </div>
-              <div className="info-item">
-                <span className="info-label">Member Since</span>
-                <span className="info-value">{formatDate(user?.date_joined, 'date')}</span>
+              <div className="profile-info-item">
+                <span className="profile-info-label">Member Since</span>
+                <span className="profile-info-value">{formatDate(user?.date_joined, 'date')}</span>
               </div>
             </div>
           </div>
@@ -206,35 +212,35 @@ const ProfilePage = () => {
           {/* Academic Information - Only show if user has academic info or is not admin */}
           {(profile?.student_id || profile?.department || profile?.course || profile?.year_level || !isAdmin) && (
           <div className="profile-section">
-            <h3 className="section-title">Academic Information</h3>
+            <h3 className="profile-section-title">Academic Information</h3>
             <div className="profile-info-grid">
                 {profile?.student_id && (
-              <div className="info-item">
-                <span className="info-label">Student ID</span>
-                    <span className="info-value">{profile.student_id}</span>
+              <div className="profile-info-item">
+                <span className="profile-info-label">Student ID</span>
+                    <span className="profile-info-value">{profile.student_id}</span>
               </div>
                 )}
                 {profile?.year_level && (
-              <div className="info-item">
-                <span className="info-label">Year Level</span>
-                    <span className="info-value">{profile.year_level}</span>
+              <div className="profile-info-item">
+                <span className="profile-info-label">Year Level</span>
+                    <span className="profile-info-value">{profile.year_level}</span>
               </div>
                 )}
                 {profile?.department && (
-              <div className="info-item">
-                <span className="info-label">College</span>
-                    <span className="info-value">{profile.department.name}</span>
+              <div className="profile-info-item">
+                <span className="profile-info-label">College</span>
+                    <span className="profile-info-value">{profile.department.name}</span>
               </div>
                 )}
                 {profile?.course && (
-              <div className="info-item">
-                <span className="info-label">Course</span>
-                    <span className="info-value">{profile.course.name}</span>
+              <div className="profile-info-item">
+                <span className="profile-info-label">Course</span>
+                    <span className="profile-info-value">{profile.course.name}</span>
                   </div>
                 )}
                 {isAdmin && !profile?.student_id && !profile?.department && !profile?.course && !profile?.year_level && (
-                  <div className="info-item" style={{ gridColumn: '1 / -1' }}>
-                    <span className="info-value" style={{ color: '#6b7280', fontStyle: 'italic' }}>
+                  <div className="profile-info-item grid-full-width">
+                    <span className="profile-info-value muted-italic">
                       No academic information provided (optional for administrators)
                     </span>
                   </div>
@@ -245,30 +251,34 @@ const ProfilePage = () => {
 
           {/* Personal Information */}
           <div className="profile-section">
-            <h3 className="section-title">Personal Information</h3>
+            <h3 className="profile-section-title">Personal Information</h3>
             <div className="profile-info-grid">
-              <div className="info-item">
-                <span className="info-label">First Name</span>
-                <span className="info-value">{user?.first_name}</span>
+              <div className="profile-info-item">
+                <span className="profile-info-label">First Name</span>
+                <span className="profile-info-value">{user?.first_name || '—'}</span>
               </div>
-              <div className="info-item">
-                <span className="info-label">Last Name</span>
-                <span className="info-value">{user?.last_name}</span>
+              <div className="profile-info-item">
+                <span className="profile-info-label">Middle Name</span>
+                <span className="profile-info-value">{(profile?.middle_name && profile.middle_name.trim()) ? profile.middle_name : '—'}</span>
               </div>
-              <div className="info-item">
-                <span className="info-label">Email Address</span>
-                <span className="info-value">{user?.email}</span>
+              <div className="profile-info-item">
+                <span className="profile-info-label">Last Name</span>
+                <span className="profile-info-value">{user?.last_name || '—'}</span>
+              </div>
+              <div className="profile-info-item">
+                <span className="profile-info-label">Email Address</span>
+                <span className="profile-info-value">{user?.email}</span>
               </div>
             </div>
           </div>
 
           {/* Change Password Section */}
           <div className="profile-section">
-            <div className="password-header">
-              <div className="password-header-text">
-                <h3 className="section-title" style={{ marginBottom: '0.25rem' }}>Change Password</h3>
+            <div className="profile-password-header">
+              <div className="profile-password-header-text">
+                <h3 className="profile-section-title profile-mb-small">Change Password</h3>
                 {!showChangePassword && (
-                  <p className="password-subtitle">
+                  <p className="profile-password-subtitle">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
                     </svg>
@@ -288,7 +298,7 @@ const ProfilePage = () => {
                     confirm_password: ''
                   });
                 }}
-                className="btn-primary password-toggle"
+                className="profile-btn-primary profile-password-toggle"
               >
                 {showChangePassword ? (
                   <>
@@ -310,33 +320,33 @@ const ProfilePage = () => {
             </div>
 
             {showChangePassword && (
-              <form onSubmit={handleChangePassword} style={{ marginTop: '1rem' }}>
+              <form onSubmit={handleChangePassword} className="profile-password-form">
                 {passwordError && (
-                  <div className="alert alert-error" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1rem', borderRadius: '0.5rem', background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b' }}>
+                  <div className="profile-alert profile-alert-error">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <circle cx="12" cy="12" r="10"/>
                       <line x1="12" y1="8" x2="12" y2="12"/>
                       <line x1="12" y1="16" x2="12.01" y2="16"/>
                     </svg>
-                    <span style={{ flex: 1 }}>{passwordError}</span>
-                    <button onClick={() => setPasswordError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.25rem', color: '#991b1b' }}>×</button>
+                    <span className="profile-alert-content">{passwordError}</span>
+                    <button onClick={() => setPasswordError('')} className="profile-alert-close-btn">×</button>
                   </div>
                 )}
 
                 {passwordSuccess && (
-                  <div className="alert alert-success" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1rem', borderRadius: '0.5rem', background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534' }}>
+                  <div className="profile-alert profile-alert-success">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <polyline points="20 6 9 17 4 12"/>
                     </svg>
-                    <span style={{ flex: 1 }}>{passwordSuccess}</span>
-                    <button onClick={() => setPasswordSuccess('')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.25rem', color: '#166534' }}>×</button>
+                    <span className="profile-alert-content">{passwordSuccess}</span>
+                    <button onClick={() => setPasswordSuccess('')} className="profile-alert-close-btn">×</button>
                   </div>
                 )}
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+                <div className="profile-password-form-grid">
                   <div>
-                    <label htmlFor="old_password" style={{ display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#374151' }}>
-                      Current Password <span style={{ color: '#ef4444' }}>*</span>
+                    <label htmlFor="old_password" className="profile-password-form-label">
+                      Current Password <span className="profile-required">*</span>
                     </label>
                     <input
                       type="password"
@@ -347,20 +357,13 @@ const ProfilePage = () => {
                       required
                       placeholder="Enter current password"
                       disabled={changingPassword}
-                      style={{
-                        width: '100%',
-                        padding: '0.75rem',
-                        border: '1px solid #d1d5db',
-                        borderRadius: '0.5rem',
-                        fontSize: '0.95rem',
-                        fontFamily: 'inherit'
-                      }}
+                      className="profile-password-form-input"
                     />
                   </div>
 
                   <div>
-                    <label htmlFor="new_password" style={{ display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#374151' }}>
-                      New Password <span style={{ color: '#ef4444' }}>*</span>
+                    <label htmlFor="new_password" className="profile-password-form-label">
+                      New Password <span className="profile-required">*</span>
                     </label>
                     <input
                       type="password"
@@ -372,21 +375,14 @@ const ProfilePage = () => {
                       minLength={8}
                       placeholder="Enter new password (min 8 characters)"
                       disabled={changingPassword}
-                      style={{
-                        width: '100%',
-                        padding: '0.75rem',
-                        border: '1px solid #d1d5db',
-                        borderRadius: '0.5rem',
-                        fontSize: '0.95rem',
-                        fontFamily: 'inherit'
-                      }}
+                      className="profile-password-form-input"
                     />
-                    <small style={{ display: 'block', marginTop: '0.25rem', fontSize: '0.875rem', color: '#6b7280' }}>Must be at least 8 characters long</small>
+                    <small className="profile-password-form-help">Must be at least 8 characters long</small>
                   </div>
 
                   <div>
-                    <label htmlFor="confirm_password" style={{ display: 'block', fontWeight: 600, marginBottom: '0.5rem', color: '#374151' }}>
-                      Confirm New Password <span style={{ color: '#ef4444' }}>*</span>
+                    <label htmlFor="confirm_password" className="profile-password-form-label">
+                      Confirm New Password <span className="profile-required">*</span>
                     </label>
                     <input
                       type="password"
@@ -398,27 +394,20 @@ const ProfilePage = () => {
                       minLength={8}
                       placeholder="Confirm new password"
                       disabled={changingPassword}
-                      style={{
-                        width: '100%',
-                        padding: '0.75rem',
-                        border: '1px solid #d1d5db',
-                        borderRadius: '0.5rem',
-                        fontSize: '0.95rem',
-                        fontFamily: 'inherit'
-                      }}
+                      className="profile-password-form-input"
                     />
                   </div>
                 </div>
 
-                <div className="password-form-actions">
+                <div className="profile-password-form-actions">
                   <button
                     type="submit"
                     disabled={changingPassword}
-                    className="btn-primary password-submit-btn"
+                    className="profile-btn-primary profile-password-submit-btn"
                   >
                     {changingPassword ? (
                       <>
-                        <span className="spinner" style={{ display: 'inline-block', width: '16px', height: '16px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}></span>
+                        <span className="profile-spinner"></span>
                         Changing...
                       </>
                     ) : (
@@ -437,9 +426,9 @@ const ProfilePage = () => {
 
           {/* Quick Actions */}
           <div className="profile-section">
-            <h3 className="section-title">Quick Actions</h3>
-            <div className="quick-actions">
-              <Link to="/elections" className="action-link">
+            <h3 className="profile-section-title">Quick Actions</h3>
+            <div className="profile-quick-actions">
+              <Link to="/elections" className="profile-action-link">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
                   <line x1="16" y1="2" x2="16" y2="6"/>
@@ -448,14 +437,14 @@ const ProfilePage = () => {
                 </svg>
                 View Elections
               </Link>
-              <Link to="/my-votes" className="action-link">
+              <Link to="/my-votes" className="profile-action-link">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="12" cy="12" r="10"/>
                   <polyline points="12 6 12 12 16 14"/>
                 </svg>
                 My Votes
               </Link>
-              <Link to="/my-applications" className="action-link">
+              <Link to="/my-applications" className="profile-action-link">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                   <polyline points="14 2 14 8 20 8"/>
@@ -465,7 +454,7 @@ const ProfilePage = () => {
                 </svg>
                 My Applications
               </Link>
-              <Link to="/candidates" className="action-link">
+              <Link to="/candidates" className="profile-action-link">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
                   <circle cx="9" cy="7" r="4"/>

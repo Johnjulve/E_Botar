@@ -5,6 +5,7 @@ Provides caching and optimization for election-related database operations
 
 from django.core.cache import cache
 from django.db.models import Count, Q, Prefetch
+from django.utils import timezone
 from functools import wraps
 import hashlib
 
@@ -92,13 +93,14 @@ class ElectionDataService:
     @cache_result(120)  # Cache for 2 minutes
     def get_all_active_elections():
         """
-        Get all active elections with optimized queries
-        
-        Returns:
-            QuerySet of active SchoolElection instances
+        Get elections that are currently within the voting period (start_date <= now <= end_date).
+        Only these should be returned as "active" so users cannot access "Cast your vote" after the election ends.
         """
+        now = timezone.now()
         return SchoolElection.objects.filter(
-            is_active=True
+            is_active=True,
+            start_date__lte=now,
+            end_date__gte=now
         ).select_related(
             'created_by'
         ).prefetch_related(

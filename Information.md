@@ -1,6 +1,6 @@
 # E-Botar - System Information
 
-**Version 0.7.7** | Complete system documentation and technical details
+**Version 0.7.8** | Complete system documentation and technical details
 
 [![Django](https://img.shields.io/badge/Django-5.2.8-green.svg)](https://www.djangoproject.com/)
 [![DRF](https://img.shields.io/badge/DRF-3.16.1-red.svg)](https://www.django-rest-framework.org/)
@@ -11,7 +11,7 @@
 
 ## 📖 Table of Contents
 
-- [Release Highlights (0.7.7)](#-release-highlights-077)
+- [Release Highlights (0.7.8)](#-release-highlights-078)
 - [Overview](#overview)
 - [Research Foundation](#research-foundation)
 - [Algorithms & Data Structures](#-algorithms--data-structures)
@@ -28,7 +28,24 @@
 
 ---
 
-## 🚀 Release Highlights (0.7.7)
+## 🚀 Release Highlights (0.7.8)
+
+- **College Terminology Alignment**: UI consistently uses "College" for department-type programs and academic info, while underlying program_type values remain `department`/`course`.
+- **Program Type Badge**: Admin Programs list shows "College" badge for department-type rows; Courses remain unchanged.
+- **Profile Edit Terminology**: Academic info labels and placeholders use "College," and the course selector prompts "Select College First."
+- **Data Export Terminology**: Data export pages updated to use "College" terminology consistently throughout PDF exports, labels, and dropdowns.
+- **API Guide**: Frontend route `/guide` and backend-served `/guide/` provide full API documentation; usable when only the backend is accessible. Footer link to API Guide.
+- **Configurable Branding**: Public `GET /api/common/branding/` and frontend `BrandingContext`; institution name, logo, and app name configurable via System Settings for multi-school reuse (Navbar, Dashboard, Footer, Login, Register, Data Export). See backend `BRANDING.md`.
+- **Middle Name Support**: UserProfile and registration/profile edit support middle name; display uses "first middle last" formatting via `getFullName()` helper. Run `python manage.py migrate accounts` for migration `0003_add_middle_name`.
+- **Profile Image Fallback**: When profile or candidate photos fail to load, UI shows initials placeholders; backend cleans up old avatar files on save and provides `cleanup_unused_media` management command for orphaned images.
+- **CSS Architecture & Documentation**: Foundation/global/vendors structure in place; `global.css` removed. README and `frontend/CSS_STRUCTURE_REVIEW.md` updated; see `frontend/CSS_ARCHITECTURE_STRATEGY.md` for rules and structure.
+- **Election Creation & Management**: Robustness and safety improvements for election workflows.
+  - **Spam-Click Prevention**: Creating an election disables the submit button immediately (frontend ref guard) and the backend rejects duplicate create requests from the same user within 10 seconds (429 Too Many Requests).
+  - **Duplicate A.Y. Prevention**: You cannot create another election for the same academic year and category (USC or same department); validation runs on create and update with clear error messages.
+  - **Delete on Edit**: When editing an election, superusers see a "Delete Election" button with confirmation; staff users do not (backend allows delete only for superusers).
+- **Academic Year Selector (Home)**: Dashboard academic year dropdown options shortened to a manageable list: 2 years past and 5 years ahead (8 options total), so the list stays short while covering current and near-future academic years.
+
+### Previous Highlights (0.7.7)
 
 - **Profile Completeness Validation**: Enhanced data integrity with comprehensive profile completeness checks
   - **Candidate Application Validation**: Users must complete their profile (Student ID, Department, Course, Year Level) before applying as candidates
@@ -949,11 +966,11 @@ ActivityLog
 │ STEP 1: When Vote is Cast                               │
 ├─────────────────────────────────────────────────────────┤
 │ Receipt Code: "abc123xyz"                               │
-│           ↓                                              │
+│           ↓                                             │
 │ Hash Function (SHA-256)                                 │
-│           ↓                                              │
-│ Hash: "a665a45920422f9d417e4867efdc4fb8a04a1f3..."     │
-│           ↓                                              │
+│           ↓                                             │
+│ Hash: "a665a45920422f9d417e4867efdc4fb8a04a1f3..."      │
+│           ↓                                             │
 │ Store in Database: receipt_hash = "a665a459..."         │
 └─────────────────────────────────────────────────────────┘
 
@@ -961,13 +978,13 @@ ActivityLog
 │ STEP 2: When Verifying Receipt                          │
 ├─────────────────────────────────────────────────────────┤
 │ User Provides: "abc123xyz"                              │
-│           ↓                                              │
+│           ↓                                             │
 │ Hash Function (SHA-256) - SAME FUNCTION                 │
-│           ↓                                              │
+│           ↓                                             │
 │ New Hash: "a665a45920422f9d417e4867efdc4fb8a04a1f3..."  │
-│           ↓                                              │
+│           ↓                                             │
 │ Compare: new_hash == stored_hash?                       │
-│           ↓                                              │
+│           ↓                                             │
 │ ✅ MATCH → Valid Receipt                                │
 │ ❌ NO MATCH → Invalid Receipt                           │
 └─────────────────────────────────────────────────────────┘
@@ -1179,6 +1196,8 @@ npm run dev
 
 ## 📡 API Documentation
 
+**HTML API Guide:** When only the backend is accessible, a full API reference is served at **`/guide/`** (e.g. `https://your-api.com/guide/`). The frontend also provides an API guide at the `/guide` route with a link in the footer.
+
 ### Base URL
 ```
 Development: http://localhost:8000/api
@@ -1291,6 +1310,41 @@ Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGc...
 | `/results/my_vote_status/` | GET | Authenticated | Check vote status |
 | `/results/export_results/` | GET | Superuser | Export results (CSV/JSON) |
 | `/results/statistics/` | GET | Public* | Get election statistics |
+
+
+# Configurable Branding (Multi-School Template)
+
+The E-Botar system supports configurable institution branding so the same codebase can be used by different schools. Logo and institution name are read from **System Settings** and exposed via a public API.
+
+## API
+
+- **GET** `/api/common/branding/` (no auth)
+- Returns: `institution_name`, `institution_name_line2`, `institution_logo_url`, `app_name`, `institution_full_name`
+
+## Configuring branding (Django Admin)
+
+1. Go to **Django Admin** → **Common** → **System Settings**.
+2. Add or edit the following keys:
+
+| Key | Description | Example |
+|-----|-------------|---------|
+| `institution_name` | First line of institution name (e.g. school name) | `SURIGAO DEL NORTE` |
+| `institution_name_line2` | Second line (e.g. "STATE UNIVERSITY") | `STATE UNIVERSITY` |
+| `institution_logo` | Optional. Path to logo file under media (e.g. `institution/logo.png`). Leave empty to use the default bundled logo. | `institution/logo.png` |
+| `app_name` | Application name shown in UI | `E-Botar` |
+
+3. **Logo file**: To use a custom logo, upload the image to your media root under a path like `institution/logo.png`, then set `institution_logo` to `institution/logo.png`. Ensure `BACKEND_BASE_URL` (or your frontend API base) points to the backend so the logo URL is correct.
+
+## Defaults
+
+If a key is missing, the API returns these defaults (current SNSU branding):
+
+- `institution_name`: `SURIGAO DEL NORTE`
+- `institution_name_line2`: `STATE UNIVERSITY`
+- `institution_logo_url`: `null` (frontend uses bundled default logo)
+- `app_name`: `E-Botar`
+
+No database migration is required; defaults are applied in code.
 
 *Public after election ends, Admin anytime
 
@@ -2019,7 +2073,7 @@ python manage.py check
 
 ---
 
-**E-Botar v0.7.7** | Last Updated: December 2025 | Performance Tested & Optimized  
+**E-Botar v0.7.8** | Last Updated: December 2025 | Performance Tested & Optimized  
 **Status**: Production Ready | Full Stack Complete
 
 **Built with ❤️ for democratic student governance**

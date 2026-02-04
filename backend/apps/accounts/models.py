@@ -7,7 +7,6 @@ import random
 import string
 from datetime import datetime
 
-
 class Program(models.Model):
     """Unified model for departments and courses"""
     class ProgramType(models.TextChoices):
@@ -49,6 +48,7 @@ class Program(models.Model):
 class UserProfile(models.Model):
     """Extended user profile for additional information"""
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    middle_name = models.CharField(max_length=150, blank=True, help_text='Middle name')
     student_id = models.CharField(
         max_length=20, 
         unique=True, 
@@ -91,7 +91,18 @@ class UserProfile(models.Model):
         return f"{self.user.get_full_name()} ({self.student_id})"
     
     def save(self, *args, **kwargs):
-        """Auto-generate student ID if not provided (only for non-admin users)"""
+        """Auto-generate student ID if not provided; delete old avatar when replaced or removed."""
+        # Delete old avatar file when avatar is being changed or cleared (avoids orphaned files)
+        if self.pk:
+            try:
+                old = UserProfile.objects.get(pk=self.pk)
+                if old.avatar and (self.avatar is None or self.avatar is not old.avatar):
+                    try:
+                        old.avatar.delete(save=False)
+                    except (OSError, ValueError):
+                        pass  # File may already be deleted (e.g. by view)
+            except UserProfile.DoesNotExist:
+                pass
         # Only auto-generate student_id for non-staff users
         if not self.student_id and not (self.user.is_staff or self.user.is_superuser):
             year = timezone.now().year

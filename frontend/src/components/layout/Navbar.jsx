@@ -8,6 +8,7 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { Offcanvas } from 'react-bootstrap';
 import { electionService } from '../../services';
 import { useAuth } from '../../hooks/useAuth';
+import { useBranding } from '../../contexts/BrandingContext';
 import logoImg from '../../assets/images/logo.png';
 
 // SVG Icon Component
@@ -122,6 +123,8 @@ const Navbar = () => {
   const [expandedSections, setExpandedSections] = useState({});
   const [canApplyAsCandidate, setCanApplyAsCandidate] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
+  const branding = useBranding();
 
   // Initialize sidebar state on mount
   useEffect(() => {
@@ -422,6 +425,10 @@ const Navbar = () => {
 
   const userInitials = buildInitials();
 
+  useEffect(() => {
+    setAvatarLoadFailed(false);
+  }, [user?.profile?.avatar_url]);
+
   const userFullName = isAuthenticated
     ? `${user?.user?.first_name || ''} ${user?.user?.last_name || ''}`.trim() ||
       user?.user?.username ||
@@ -439,12 +446,17 @@ const Navbar = () => {
             style={{ color: 'inherit' }}
           >
             <div className="brand-logo d-flex align-items-center justify-content-center">
-              <img src={logoImg} alt="SNSU Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+              <img
+                src={branding.institution_logo_url || logoImg}
+                alt={`${branding.institution_full_name} Logo`}
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                onError={(e) => { e.target.onerror = null; e.target.src = logoImg; }}
+              />
             </div>
             <span className="brand-text">
-              SURIGAO DEL NORTE
+              {branding.institution_name}
               <br />
-              STATE UNIVERSITY
+              {branding.institution_name_line2}
             </span>
           </Link>
 
@@ -485,17 +497,23 @@ const Navbar = () => {
           )}
         </div>
 
+        {/* Sidebar version label above user pill */}
+        <div className="sidebar-version text-selectable">
+          {branding.app_name} v0.7.8
+        </div>
+
         {isAuthenticated && (
           <Link
             to="/profile"
             className={`user-pill text-decoration-none ${sidebarCollapsed ? 'avatar-only' : ''}`}
           >
             <div className="avatar">
-              {user?.profile?.avatar_url ? (
+              {user?.profile?.avatar_url && !avatarLoadFailed ? (
                 <img 
                   src={user.profile.avatar_url} 
                   alt={userFullName}
                   className="avatar-image"
+                  onError={() => setAvatarLoadFailed(true)}
                 />
               ) : (
                 userInitials
@@ -527,6 +545,11 @@ const Navbar = () => {
             )}
           </nav>
 
+          {/* Mobile sidebar version label above user pill */}
+          <div className="offcanvas-version text-selectable">
+            {branding.app_name} v0.7.8
+          </div>
+
           {isAuthenticated && (
             <Link
               to="/profile"
@@ -534,11 +557,12 @@ const Navbar = () => {
               onClick={() => setShowMenu(false)}
             >
               <div className="avatar">
-                {user?.profile?.avatar_url ? (
+                {user?.profile?.avatar_url && !avatarLoadFailed ? (
                   <img 
                     src={user.profile.avatar_url} 
                     alt={userFullName}
                     className="avatar-image"
+                    onError={() => setAvatarLoadFailed(true)}
                   />
                 ) : (
                   userInitials

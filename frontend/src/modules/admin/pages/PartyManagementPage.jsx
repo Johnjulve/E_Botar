@@ -205,25 +205,15 @@ const PartyManagementPage = () => {
     <Container>
       {/* Header */}
       <div className="admin-header">
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          gap: '2rem',
-          flexWrap: 'wrap'
-        }}>
+        <div className="admin-party-header-flex">
           <div>
             <h1>
-              <Icon name="users" size={28} style={{ color: '#2563eb' }} />
+              <Icon name="users" size={28} className="admin-icon-primary" />
               Party Management
             </h1>
             <p>Manage political parties</p>
           </div>
-          <div style={{
-            display: 'flex',
-            gap: '0.75rem',
-            flexWrap: 'wrap'
-          }}>
+          <div className="admin-party-header-actions">
             <button
               onClick={() => setShowForm(!showForm)}
               className="admin-btn primary"
@@ -237,35 +227,14 @@ const PartyManagementPage = () => {
 
       {/* Form */}
       {showForm && (
-        <div style={{
-          background: 'white',
-          border: '1px solid #e5e7eb',
-          borderRadius: '0.75rem',
-          padding: '1.5rem',
-          marginBottom: '2rem'
-        }}>
-          <h5 style={{
-            marginBottom: '1rem',
-            color: '#1f2937',
-            fontWeight: 600
-          }}>
+        <div className="admin-form-section">
+          <h5 className="admin-form-title">
             {editingParty ? 'Edit Party' : 'Add New Party'}
           </h5>
           <form onSubmit={handleSubmit}>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-              gap: '1rem',
-              marginBottom: '1rem'
-            }}>
+            <div className="admin-form-grid">
               <div>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '0.5rem',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  color: '#374151'
-                }}>
+                <label className="admin-form-label">
                   Name *
                 </label>
                 <input
@@ -274,66 +243,38 @@ const PartyManagementPage = () => {
                   value={formData.name}
                   onChange={handleInputChange}
                   required
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    border: `1px solid ${errors.name ? '#dc2626' : '#d1d5db'}`,
-                    borderRadius: '0.5rem',
-                    fontSize: '0.875rem'
-                  }}
+                  className={`admin-form-input ${errors.name ? 'admin-form-input-error' : ''}`}
                 />
                 {errors.name && (
-                  <div style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                  <div className="admin-form-error">
                     {errors.name}
                   </div>
                 )}
               </div>
 
               <div>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '0.5rem',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  color: '#374151'
-                }}>
+                <label className="admin-form-label">
                   Color
                 </label>
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <div className="admin-party-color-group">
                   <input
                     type="color"
                     name="color"
                     value={formData.color}
                     onChange={handleInputChange}
-                    style={{
-                      width: '60px',
-                      height: '40px',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '0.5rem',
-                      cursor: 'pointer'
-                    }}
+                    className="admin-party-color-picker"
                   />
                   <input
                     type="text"
                     value={formData.color}
                     onChange={(e) => setFormData(prev => ({ ...prev, color: e.target.value }))}
-                    style={{
-                      flex: 1,
-                      padding: '0.5rem',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '0.5rem',
-                      fontSize: '0.875rem'
-                    }}
+                    className="admin-party-color-input"
                     placeholder="#2563eb"
                   />
                 </div>
               </div>
 
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem'
-              }}>
+              <div className="admin-form-checkbox-group">
                 <input
                   type="checkbox"
                   name="is_active"
@@ -341,22 +282,13 @@ const PartyManagementPage = () => {
                   onChange={handleInputChange}
                   id="is_active"
                 />
-                <label htmlFor="is_active" style={{
-                  fontSize: '0.875rem',
-                  color: '#374151'
-                }}>
+                <label htmlFor="is_active" className="admin-form-checkbox-label">
                   Active
                 </label>
               </div>
 
-              <div style={{ gridColumn: '1 / -1' }}>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '0.5rem',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  color: '#374151'
-                }}>
+              <div className="admin-grid-full-width">
+                <label className="admin-form-label">
                   Description
                 </label>
                 <textarea
@@ -364,37 +296,18 @@ const PartyManagementPage = () => {
                   value={formData.description}
                   onChange={handleInputChange}
                   rows="3"
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '0.5rem',
-                    fontSize: '0.875rem',
-                    resize: 'vertical'
-                  }}
+                  className="admin-form-textarea"
                 />
               </div>
             </div>
 
             {errors.general && (
-              <div style={{
-                padding: '0.75rem',
-                background: '#fef2f2',
-                border: '1px solid #fecaca',
-                borderRadius: '0.5rem',
-                color: '#dc2626',
-                fontSize: '0.875rem',
-                marginBottom: '1rem'
-              }}>
+              <div className="admin-form-error-box">
                 {errors.general}
               </div>
             )}
 
-            <div style={{
-              display: 'flex',
-              gap: '0.75rem',
-              justifyContent: 'flex-end'
-            }}>
+            <div className="admin-form-buttons">
               <button
                 type="button"
                 onClick={resetForm}
@@ -421,12 +334,7 @@ const PartyManagementPage = () => {
           <button
             key={btn.key}
             onClick={() => setFilter(btn.key)}
-            className={`admin-filter-btn ${filter === btn.key ? 'active' : ''}`}
-            style={{
-              background: filter === btn.key ? '#2563eb' : 'white',
-              color: filter === btn.key ? 'white' : '#374151',
-              borderColor: filter === btn.key ? '#2563eb' : '#d1d5db'
-            }}
+            className={`admin-filter-btn ${filter === btn.key ? 'admin-filter-btn-active' : 'admin-filter-btn-inactive-default'}`}
           >
             {btn.label}
           </button>
@@ -435,145 +343,55 @@ const PartyManagementPage = () => {
 
       {/* Parties Table */}
       {parties.length > 0 ? (
-        <div style={{
-          background: 'white',
-          border: '1px solid #e5e7eb',
-          borderRadius: '0.75rem',
-          overflow: 'hidden'
-        }}>
-          <table style={{
-            width: '100%',
-            borderCollapse: 'collapse'
-          }}>
-            <thead style={{
-              background: '#f9fafb',
-              borderBottom: '2px solid #e5e7eb'
-            }}>
+        <div className="admin-table-container">
+          <table className="admin-table">
+            <thead>
               <tr>
-                <th style={{
-                  padding: '1rem',
-                  textAlign: 'left',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  color: '#374151'
-                }}>Name</th>
-                <th style={{
-                  padding: '1rem',
-                  textAlign: 'left',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  color: '#374151'
-                }}>Color</th>
-                <th style={{
-                  padding: '1rem',
-                  textAlign: 'left',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  color: '#374151'
-                }}>Description</th>
-                <th style={{
-                  padding: '1rem',
-                  textAlign: 'left',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  color: '#374151'
-                }}>Status</th>
-                <th style={{
-                  padding: '1rem',
-                  textAlign: 'right',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  color: '#374151'
-                }}>Actions</th>
+                <th>Name</th>
+                <th>Color</th>
+                <th>Description</th>
+                <th>Status</th>
+                <th className="text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               {parties.map(party => (
-                <tr key={party.id} style={{
-                  borderBottom: '1px solid #e5e7eb'
-                }}>
-                  <td style={{
-                    padding: '1rem',
-                    fontSize: '0.875rem',
-                    color: '#1f2937',
-                    fontWeight: 500
-                  }}>
+                <tr key={party.id}>
+                  <td className="admin-table-cell-name">
                     {party.name}
                   </td>
-                  <td style={{
-                    padding: '1rem',
-                    fontSize: '0.875rem'
-                  }}>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem'
-                    }}>
-                      <div style={{
-                        width: '24px',
-                        height: '24px',
-                        borderRadius: '4px',
-                        background: party.color || '#2563eb',
-                        border: '1px solid #d1d5db'
-                      }} />
-                      <span style={{ color: '#6b7280', fontSize: '0.75rem' }}>
+                  <td>
+                    <div className="admin-party-color-display">
+                      <div 
+                        className="admin-party-color-swatch"
+                        style={{ background: party.color || '#2563eb' }}
+                      />
+                      <span className="admin-party-color-text">
                         {party.color || '#2563eb'}
                       </span>
                     </div>
                   </td>
-                  <td style={{
-                    padding: '1rem',
-                    fontSize: '0.875rem',
-                    color: '#6b7280',
-                    maxWidth: '300px',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap'
-                  }}>
+                  <td className="admin-party-description-cell">
                     {party.description || '-'}
                   </td>
-                  <td style={{
-                    padding: '1rem',
-                    fontSize: '0.875rem'
-                  }}>
-                    <span style={{
-                      padding: '0.25rem 0.5rem',
-                      borderRadius: '0.25rem',
-                      background: party.is_active ? 'rgba(34, 197, 94, 0.15)' : 'rgba(107, 114, 128, 0.15)',
-                      color: party.is_active ? '#166534' : '#374151',
-                      fontSize: '0.75rem',
-                      fontWeight: 500
-                    }}>
+                  <td className="admin-table-cell-status">
+                    <span className={`admin-status-badge-table ${
+                      party.is_active ? 'admin-status-badge-active-table' : 'admin-status-badge-inactive-table'
+                    }`}>
                       {party.is_active ? 'Active' : 'Inactive'}
                     </span>
                   </td>
-                  <td style={{
-                    padding: '1rem',
-                    textAlign: 'right'
-                  }}>
-                    <div style={{
-                      display: 'flex',
-                      gap: '0.5rem',
-                      justifyContent: 'flex-end'
-                    }}>
+                  <td className="admin-table-actions">
+                    <div className="admin-table-action-buttons">
                       <button
                         onClick={() => handleEdit(party)}
-                        className="admin-btn secondary"
-                        style={{
-                          padding: '0.375rem 0.75rem',
-                          fontSize: '0.75rem'
-                        }}
+                        className="admin-btn secondary admin-btn-small"
                       >
                         <Icon name="edit" size={14} />
                       </button>
                       <button
                         onClick={() => handleDelete(party.id)}
-                        className="admin-btn secondary"
-                        style={{
-                          padding: '0.375rem 0.75rem',
-                          fontSize: '0.75rem',
-                          color: '#dc2626'
-                        }}
+                        className="admin-btn secondary admin-btn-danger-small"
                       >
                         <Icon name="trash" size={14} />
                       </button>
@@ -585,36 +403,18 @@ const PartyManagementPage = () => {
           </table>
         </div>
       ) : (
-        <div style={{
-          background: 'white',
-          border: '1px solid #e5e7eb',
-          borderRadius: '0.75rem',
-          textAlign: 'center',
-          padding: '3rem 2rem'
-        }}>
-          <Icon name="users" size={48} style={{
-            color: '#d1d5db',
-            marginBottom: '1rem',
-            display: 'block'
-          }} />
-          <h5 style={{
-            color: '#1f2937',
-            marginBottom: '0.5rem',
-            fontWeight: 600
-          }}>
+        <div className="admin-card-container admin-empty-state">
+          <Icon name="users" size={48} className="admin-empty-state-icon" />
+          <h5 className="admin-empty-state-title">
             No Parties Found
           </h5>
-          <p style={{
-            color: '#6b7280',
-            marginBottom: '1.5rem'
-          }}>
+          <p className="admin-empty-state-message" style={{ marginBottom: '1.5rem' }}>
             {filter !== 'all' ? `No ${filter} parties found.` : 'Get started by adding your first party.'}
           </p>
           <button
             onClick={() => setShowForm(true)}
             className="admin-btn primary"
           >
-            <Icon name="plus" size={16} />
             Add Party
           </button>
         </div>

@@ -7,17 +7,20 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Container, Row, Col, Form } from 'react-bootstrap';
 import { useAuth } from '../../../hooks/useAuth';
+import { useBranding } from '../../../contexts/BrandingContext';
 import { validatePassword, isValidEmail, isValidEmailDomain } from '../../../utils/validators';
 import './auth.css';
 
 const RegisterPage = () => {
   const navigate = useNavigate();
   const { register, isAuthenticated } = useAuth();
-  
+  const branding = useBranding();
+
   const [formData, setFormData] = useState({
     username: '',
     email: '',
     first_name: '',
+    middle_name: '',
     last_name: '',
     password: '',
     password_confirm: '',
@@ -28,6 +31,8 @@ const RegisterPage = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [passwordStrength, setPasswordStrength] = useState(0); // 0: none, 1: weak, 2: medium, 3: strong
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -131,6 +136,7 @@ const RegisterPage = () => {
         password: formData.password,
         password_confirm: formData.password_confirm,
         first_name: formData.first_name.trim() || '',
+        middle_name: formData.middle_name.trim() || '',
         last_name: formData.last_name.trim() || ''
       };
 
@@ -169,10 +175,10 @@ const RegisterPage = () => {
     <div className="auth-page d-flex align-items-center">
       <Container className="auth-container">
         <Row className="justify-content-center">
-          <Col md={8} lg={7} xl={6}>
+          <Col md={10} lg={9} xl={8}>
             <div className="auth-header">
               <h1>Create Your Account</h1>
-              <p>Join E-Botar and participate in student elections</p>
+              <p>Join {branding.app_name} and participate in student elections</p>
             </div>
 
             <div className="auth-card">
@@ -270,6 +276,27 @@ const RegisterPage = () => {
                   <Form.Group className="form-group">
                     <Form.Label>
                       <i className="fas fa-id-card"></i>
+                      Middle Name
+                    </Form.Label>
+                    <Form.Control
+                      type="text"
+                      name="middle_name"
+                      value={formData.middle_name}
+                      onChange={handleChange}
+                      isInvalid={!!errors.middle_name}
+                      placeholder="Your middle name (optional)"
+                      disabled={loading}
+                    />
+                    {errors.middle_name && (
+                      <div className="invalid-feedback d-block">
+                        {errors.middle_name}
+                      </div>
+                    )}
+                  </Form.Group>
+
+                  <Form.Group className="form-group">
+                    <Form.Label>
+                      <i className="fas fa-id-card"></i>
                       Last Name
                     </Form.Label>
                     <Form.Control
@@ -295,15 +322,26 @@ const RegisterPage = () => {
                       <i className="fas fa-key"></i>
                       Password <span className="text-danger">*</span>
                     </Form.Label>
-                    <Form.Control
-                      type="password"
-                      name="password"
-                      value={formData.password}
-                      onChange={handleChange}
-                      isInvalid={!!errors.password}
-                      placeholder="Create a strong password"
-                      disabled={loading}
-                    />
+                    <div className="auth-password-wrap">
+                      <Form.Control
+                        type={showPassword ? 'text' : 'password'}
+                        name="password"
+                        value={formData.password}
+                        onChange={handleChange}
+                        isInvalid={!!errors.password}
+                        placeholder="Create a strong password"
+                        disabled={loading}
+                      />
+                      <button
+                        type="button"
+                        className="auth-password-toggle"
+                        onClick={() => setShowPassword((p) => !p)}
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                        tabIndex={-1}
+                      >
+                        <i className={showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'}></i>
+                      </button>
+                    </div>
                     {errors.password && (
                       <div className="invalid-feedback d-block">
                         {errors.password}
@@ -327,15 +365,26 @@ const RegisterPage = () => {
                       <i className="fas fa-shield-alt"></i>
                       Confirm Password <span className="text-danger">*</span>
                     </Form.Label>
-                    <Form.Control
-                      type="password"
-                      name="password_confirm"
-                      value={formData.password_confirm}
-                      onChange={handleChange}
-                      isInvalid={!!errors.password_confirm}
-                      placeholder="Re-enter your password"
-                      disabled={loading}
-                    />
+                    <div className="auth-password-wrap">
+                      <Form.Control
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        name="password_confirm"
+                        value={formData.password_confirm}
+                        onChange={handleChange}
+                        isInvalid={!!errors.password_confirm}
+                        placeholder="Re-enter your password"
+                        disabled={loading}
+                      />
+                      <button
+                        type="button"
+                        className="auth-password-toggle"
+                        onClick={() => setShowConfirmPassword((p) => !p)}
+                        aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                        tabIndex={-1}
+                      >
+                        <i className={showConfirmPassword ? 'fas fa-eye-slash' : 'fas fa-eye'}></i>
+                      </button>
+                    </div>
                     {errors.password_confirm && (
                       <div className="invalid-feedback d-block">
                         {errors.password_confirm}
@@ -353,7 +402,7 @@ const RegisterPage = () => {
 
                 <button
                   type="submit"
-                  className={`auth-submit-btn ${loading ? 'loading' : ''}`}
+                  className={`auth-submit-btn ${loading ? 'auth-loading' : ''}`}
                   disabled={loading}
                 >
                   {loading && <span className="auth-spinner"></span>}

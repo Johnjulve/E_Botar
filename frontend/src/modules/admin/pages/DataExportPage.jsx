@@ -8,12 +8,14 @@ import { Container } from '../../../components/layout';
 import { Card, Button, LoadingSpinner } from '../../../components/common';
 import { authService, programService, electionService, votingService } from '../../../services';
 import { useAuth } from '../../../hooks/useAuth';
+import { useBranding } from '../../../contexts/BrandingContext';
 import { formatNumber } from '../../../utils/formatters';
 import jsPDF from 'jspdf';
 import './studentExport.css';
 
 const DataExportPage = () => {
   const { isStaffOrAdmin } = useAuth();
+  const branding = useBranding();
   const [loading, setLoading] = useState(true);
   const [loadingResults, setLoadingResults] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -179,7 +181,7 @@ const DataExportPage = () => {
         const profile = profileMap[userId];
         if (!profile) return;
         
-        const deptName = profile.department?.name || 'Unassigned Department';
+        const deptName = profile.department?.name || 'Unassigned College';
         const deptCode = profile.department?.code || 'N/A';
         const courseName = profile.course?.name || 'Unassigned Course';
         const courseCode = profile.course?.code || 'N/A';
@@ -337,7 +339,7 @@ const DataExportPage = () => {
         // Organize students by department, course, and year level
         const deptMap = {};
         studentList.forEach(profile => {
-          const deptName = profile.department?.name || 'Unassigned Department';
+          const deptName = profile.department?.name || 'Unassigned College';
           const deptCode = profile.department?.code || 'N/A';
           const courseName = profile.course?.name || 'Unassigned Course';
           const courseCode = profile.course?.code || 'N/A';
@@ -536,7 +538,7 @@ const DataExportPage = () => {
     // Organize by department, course, and year level (same structure as election results)
     const organized = {};
     filtered.forEach(student => {
-      const deptName = student.department?.name || 'Unassigned Department';
+      const deptName = student.department?.name || 'Unassigned College';
       const deptCode = student.department?.code || 'N/A';
       const courseName = student.course?.name || 'Unassigned Course';
       const courseCode = student.course?.code || 'N/A';
@@ -802,7 +804,7 @@ const DataExportPage = () => {
     // Organize by department, course, and year level (same structure as election results)
     const organized = {};
     mockStudents.forEach(student => {
-      const deptName = student.department?.name || 'Unassigned Department';
+      const deptName = student.department?.name || 'Unassigned College';
       const deptCode = student.department?.code || 'N/A';
       const courseName = student.course?.name || 'Unassigned Course';
       const courseCode = student.course?.code || 'N/A';
@@ -867,7 +869,7 @@ const DataExportPage = () => {
     // Organize by department, course, and year level for election results
     const deptMap = {};
     mockStudents.forEach(student => {
-      const deptName = student.department?.name || 'Unassigned Department';
+      const deptName = student.department?.name || 'Unassigned College';
       const deptCode = student.department?.code || 'N/A';
       const courseName = student.course?.name || 'Unassigned Course';
       const courseCode = student.course?.code || 'N/A';
@@ -917,7 +919,7 @@ const DataExportPage = () => {
     const mockVotesMap = {};
     
     voters.forEach(student => {
-      const deptName = student.department?.name || 'Unassigned Department';
+      const deptName = student.department?.name || 'Unassigned College';
       const courseName = student.course?.name || 'Unassigned Course';
       const courseCode = student.course?.code || 'N/A';
       const yearLevel = student.year_level || 'N/A';
@@ -1233,7 +1235,7 @@ const DataExportPage = () => {
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(11, 110, 59);
         doc.text(
-          'Vote Counts by Candidate, Department, Course, and Year Level',
+          'Vote Counts by Candidate, College, Course, and Year Level',
           pageWidth / 2,
           yPosition,
           { align: 'center' }
@@ -1383,7 +1385,7 @@ const DataExportPage = () => {
         });
       }
 
-      // Add Student Statistics by Department/Course on new page
+      // Add Student Statistics by College/Course on new page
       // Show blank template if no data available
       doc.addPage();
       yPosition = margin;
@@ -1393,7 +1395,7 @@ const DataExportPage = () => {
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.text('Student Statistics by Department', pageWidth / 2, 25, { align: 'center' });
+      doc.text('Student Statistics by College', pageWidth / 2, 25, { align: 'center' });
       
       yPosition = 50;
       doc.setTextColor(0, 0, 0);
@@ -1506,7 +1508,7 @@ const DataExportPage = () => {
           { align: 'center' }
         );
         doc.text(
-          'SURIGAO DEL NORTE STATE UNIVERSITY - E-Botar System',
+          `${branding.institution_full_name} - ${branding.app_name} System`,
           pageWidth / 2,
           pageHeight - 5,
           { align: 'center' }
@@ -1590,9 +1592,9 @@ const DataExportPage = () => {
         if (electionForStudents.election_type === 'department' && electionForStudents.allowed_department) {
           const deptName = typeof electionForStudents.allowed_department === 'object' 
             ? electionForStudents.allowed_department.name 
-            : 'Department Election';
+            : 'College Election';
           doc.setFontSize(10);
-          doc.text(`Department: ${deptName}`, pageWidth / 2, 45, { align: 'center' });
+          doc.text(`College: ${deptName}`, pageWidth / 2, 45, { align: 'center' });
         }
       }
       
@@ -1831,7 +1833,7 @@ const DataExportPage = () => {
         doc.setFontSize(16);
         doc.setFont('helvetica', 'bold');
         doc.text(
-          'Vote Counts by Candidate, Department, Course, and Year Level',
+          'Vote Counts by Candidate, College, Course, and Year Level',
           pageWidth / 2,
           25,
           { align: 'center' }
@@ -1992,7 +1994,7 @@ const DataExportPage = () => {
           { align: 'center' }
         );
         doc.text(
-          'SURIGAO DEL NORTE STATE UNIVERSITY - E-Botar System',
+          `${branding.institution_full_name} - ${branding.app_name} System`,
           pageWidth / 2,
           pageHeight - 5,
           { align: 'center' }
@@ -2028,7 +2030,7 @@ const DataExportPage = () => {
   if (!isStaffOrAdmin) {
     return (
       <Container>
-        <div style={{ padding: '2rem', textAlign: 'center' }}>
+        <div className="admin-export-access-denied">
           <h2>Access Denied</h2>
           <p>You must be staff or an administrator to access this page.</p>
         </div>
@@ -2055,53 +2057,26 @@ const DataExportPage = () => {
   return (
     <div className="student-export-page">
       <Container>
-        <div style={{ marginBottom: '2rem' }}>
-          <h1 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+        <div className="admin-export-header">
+          <h1 className="admin-export-title">
             Data Export
           </h1>
-          <p style={{ color: '#6b7280' }}>
+          <p className="admin-export-subtitle">
             Export election results and student data in PDF format
           </p>
         </div>
 
         {/* Tabs */}
-        <div style={{ 
-          display: 'flex', 
-          gap: '0.5rem', 
-          marginBottom: '1.5rem',
-          borderBottom: '2px solid #e5e7eb'
-        }}>
+        <div className="admin-export-tabs">
           <button
             onClick={() => setActiveTab('results')}
-            style={{
-              padding: '0.75rem 1.5rem',
-              background: activeTab === 'results' ? '#0b6e3b' : 'transparent',
-              color: activeTab === 'results' ? 'white' : '#6b7280',
-              border: 'none',
-              borderBottom: activeTab === 'results' ? '3px solid #0b6e3b' : '3px solid transparent',
-              borderRadius: '0.5rem 0.5rem 0 0',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}
+            className={`admin-export-tab ${activeTab === 'results' ? 'admin-export-tab-active' : 'admin-export-tab-inactive'}`}
           >
             Election Results
           </button>
           <button
             onClick={() => setActiveTab('students')}
-            style={{
-              padding: '0.75rem 1.5rem',
-              background: activeTab === 'students' ? '#0b6e3b' : 'transparent',
-              color: activeTab === 'students' ? 'white' : '#6b7280',
-              border: 'none',
-              borderBottom: activeTab === 'students' ? '3px solid #0b6e3b' : '3px solid transparent',
-              borderRadius: '0.5rem 0.5rem 0 0',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}
+            className={`admin-export-tab ${activeTab === 'students' ? 'admin-export-tab-active' : 'admin-export-tab-inactive'}`}
           >
             Student Data
           </button>
@@ -2110,13 +2085,13 @@ const DataExportPage = () => {
         {/* Election Results Tab */}
         {activeTab === 'results' && (
           <Card>
-            <div style={{ padding: '1.5rem' }}>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1.5rem' }}>
+            <div className="admin-export-card-content">
+              <h2 className="admin-export-section-title">
                 Export Election Results
               </h2>
               
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
+              <div className="admin-export-form-group">
+                <label className="admin-export-label">
                   Select Election
                 </label>
                 <select
@@ -2132,15 +2107,7 @@ const DataExportPage = () => {
                     }
                   }}
                   disabled={loadingResults}
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '0.5rem',
-                    fontSize: '0.875rem',
-                    opacity: loadingResults ? 0.6 : 1,
-                    cursor: loadingResults ? 'not-allowed' : 'pointer'
-                  }}
+                  className="admin-export-select"
                 >
                   <option value="">Select an election...</option>
                   {elections.map(elec => (
@@ -2150,7 +2117,7 @@ const DataExportPage = () => {
                   ))}
                 </select>
                 {loadingResults && (
-                  <div style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#6b7280', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div className="admin-export-loading">
                     <svg className="spinning" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="23 4 23 10 17 10"/>
                       <polyline points="1 20 1 14 7 14"/>
@@ -2160,46 +2127,31 @@ const DataExportPage = () => {
                   </div>
                 )}
                 {electionResults && (
-                  <div style={{ marginTop: '1rem', padding: '1rem', background: '#f9fafb', borderRadius: '0.5rem', border: '1px solid #e5e7eb' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.875rem' }}>
+                  <div className="admin-export-info-box">
+                    <label className="admin-export-checkbox-label">
                       <input
                         type="checkbox"
                         checked={categorizeVotes}
                         onChange={(e) => setCategorizeVotes(e.target.checked)}
-                        style={{ width: '1rem', height: '1rem', cursor: 'pointer' }}
+                        className="admin-export-checkbox"
                       />
-                      <span style={{ fontWeight: 500 }}>
+                      <span className="admin-export-checkbox-text">
                         Categorize vote counts by {election?.election_type === 'department' ? 'course and year level' : 'department, course, and year level'}
                       </span>
                     </label>
                     {election?.election_type === 'department' && (
-                      <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#6b7280', marginLeft: '1.5rem' }}>
-                        Note: For department elections, votes will be categorized by course and year level only.
+                      <div className="admin-export-checkbox-note">
+                        Note: For college elections, votes will be categorized by course and year level only.
                       </div>
                     )}
                   </div>
                 )}
                 {error && (
-                  <div style={{ 
-                    marginTop: '0.5rem', 
-                    padding: '0.75rem', 
-                    background: '#fee2e2', 
-                    border: '1px solid #fca5a5',
-                    borderRadius: '0.5rem',
-                    color: '#991b1b',
-                    fontSize: '0.875rem'
-                  }}>
+                  <div className="admin-export-error">
                     {error}
                     <button
                       onClick={() => setError(null)}
-                      style={{
-                        marginLeft: '0.5rem',
-                        background: 'transparent',
-                        border: 'none',
-                        color: '#991b1b',
-                        cursor: 'pointer',
-                        textDecoration: 'underline'
-                      }}
+                      className="admin-export-error-dismiss"
                     >
                       Dismiss
                     </button>
@@ -2208,24 +2160,16 @@ const DataExportPage = () => {
               </div>
 
               {electionResults && (
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center',
-                  padding: '1rem',
-                  background: '#f9fafb',
-                  borderRadius: '0.5rem',
-                  marginBottom: '1rem'
-                }}>
+                <div className="admin-export-stats-box">
                   <div>
-                    <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.25rem' }}>
+                    <div className="admin-export-stats-label">
                       Election Statistics
                     </div>
-                    <div style={{ fontSize: '1rem', fontWeight: 600, color: '#111827' }}>
+                    <div className="admin-export-stats-value">
                       {formatNumber(statistics?.total_voters || 0)} votes • {electionResults.length} positions
                     </div>
                     {Object.keys(studentsByDept).length > 0 && (
-                      <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                      <div className="admin-export-stats-note">
                         {Object.values(studentsByDept).reduce((total, courses) => {
                           return total + Object.values(courses).reduce((sum, course) => {
                             // Handle both new structure (yearLevels) and old structure (students)
@@ -2240,30 +2184,18 @@ const DataExportPage = () => {
                       </div>
                     )}
                   </div>
-                  <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  <div className="admin-export-actions">
                     <Button
                       onClick={loadMockStudentsForElection}
                       disabled={exporting}
-                      style={{
-                        background: '#8b5cf6',
-                        color: 'white',
-                        padding: '0.75rem 1.5rem',
-                        fontSize: '0.875rem',
-                        fontWeight: 500
-                      }}
+                      className="admin-btn-mock"
                     >
                       Load Mock Students (150)
                     </Button>
                     <Button
                       onClick={exportElectionResultsToPDF}
                       disabled={exporting || !electionResults}
-                      style={{
-                        background: '#dc2626',
-                        color: 'white',
-                        padding: '0.75rem 1.5rem',
-                        fontSize: '0.875rem',
-                        fontWeight: 500
-                      }}
+                      className="admin-btn-export"
                     >
                       {exporting ? 'Generating PDF...' : 'Export Results PDF'}
                     </Button>
@@ -2277,13 +2209,13 @@ const DataExportPage = () => {
         {/* Student Data Tab */}
         {activeTab === 'students' && (
           <Card>
-            <div style={{ padding: '1.5rem' }}>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1.5rem' }}>
+            <div className="admin-export-card-content">
+              <h2 className="admin-export-section-title">
                 Export Student Data
               </h2>
               
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
+              <div className="admin-export-form-group">
+                <label className="admin-export-label">
                   Select Election (Required)
                 </label>
                 <select
@@ -2295,13 +2227,7 @@ const DataExportPage = () => {
                       setElectionForStudents(null);
                     }
                   }}
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '0.5rem',
-                    fontSize: '0.875rem'
-                  }}
+                  className="admin-export-select"
                 >
                   <option value="">Select an election...</option>
                   {elections.map(elec => (
@@ -2311,20 +2237,20 @@ const DataExportPage = () => {
                   ))}
                 </select>
                 {electionForStudents && (
-                  <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#6b7280' }}>
+                  <div className="admin-export-checkbox-note" style={{ marginTop: '0.5rem', marginLeft: 0 }}>
                     {electionForStudents.election_type === 'department' 
-                      ? `Department Election: ${typeof electionForStudents.allowed_department === 'object' ? electionForStudents.allowed_department.name : 'Selected Department'}`
+                      ? `College Election: ${typeof electionForStudents.allowed_department === 'object' ? electionForStudents.allowed_department.name : 'Selected College'}`
                       : 'University Election: All Students'}
                   </div>
                 )}
               </div>
               
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+              <div className="admin-export-grid">
                 <div>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
-                    Department
+                  <label className="admin-export-label">
+                    Colleges
                     {electionForStudents?.election_type === 'department' && (
-                      <span style={{ fontSize: '0.75rem', color: '#6b7280', marginLeft: '0.5rem' }}>
+                      <span className="admin-export-label-note">
                         (Locked by Election)
                       </span>
                     )}
@@ -2333,18 +2259,9 @@ const DataExportPage = () => {
                     value={selectedDept}
                     onChange={(e) => setSelectedDept(e.target.value)}
                     disabled={electionForStudents?.election_type === 'department'}
-                    style={{
-                      width: '100%',
-                      padding: '0.5rem',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '0.5rem',
-                      fontSize: '0.875rem',
-                      opacity: electionForStudents?.election_type === 'department' ? 0.6 : 1,
-                      cursor: electionForStudents?.election_type === 'department' ? 'not-allowed' : 'pointer',
-                      background: electionForStudents?.election_type === 'department' ? '#f3f4f6' : 'white'
-                    }}
+                    className={`admin-export-select ${electionForStudents?.election_type === 'department' ? 'admin-export-select-locked' : ''}`}
                   >
-                    <option value="">All Departments</option>
+                    <option value="">All Colleges</option>
                     {departments.map(dept => (
                       <option key={dept.id} value={dept.code || String(dept.id)}>
                         {dept.name} {dept.code ? `(${dept.code})` : ''}
@@ -2354,21 +2271,14 @@ const DataExportPage = () => {
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
+                  <label className="admin-export-label">
                     Course
                   </label>
                   <select
                     value={selectedCourse}
                     onChange={(e) => setSelectedCourse(e.target.value)}
                     disabled={!selectedDept}
-                    style={{
-                      width: '100%',
-                      padding: '0.5rem',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '0.5rem',
-                      fontSize: '0.875rem',
-                      opacity: !selectedDept ? 0.6 : 1
-                    }}
+                    className="admin-export-select"
                   >
                     <option value="">All Courses</option>
                     {courses.map(course => (
@@ -2382,8 +2292,8 @@ const DataExportPage = () => {
 
               {/* Show Student Names Option */}
               {selectedElectionForStudents && (
-                <div style={{ marginBottom: '1.5rem', padding: '1rem', background: '#f9fafb', borderRadius: '0.5rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                <div className="admin-export-option-box">
+                  <label className="admin-export-checkbox-label">
                     <input
                       type="checkbox"
                       checked={showStudentNames}
@@ -2398,19 +2308,19 @@ const DataExportPage = () => {
                           }, 100);
                         }
                       }}
-                      style={{ width: '1rem', height: '1rem', cursor: 'pointer' }}
+                      className="admin-export-checkbox"
                     />
-                    <span style={{ fontWeight: 500 }}>
+                    <span className="admin-export-checkbox-text">
                       Show Student Names in Export
                     </span>
                   </label>
                   {showStudentNames && (
-                    <div style={{ marginTop: '0.75rem', fontSize: '0.875rem', color: '#6b7280' }}>
-                      <div style={{ marginBottom: '0.5rem' }}>
+                    <div className="admin-export-option-note">
+                      <div className="admin-export-option-warning">
                         ⚠️ <strong>Note:</strong> When showing names, you must select a specific course. Names cannot be displayed for all courses at once.
                       </div>
                       {!selectedCourse && (
-                        <div style={{ color: '#dc2626', fontWeight: 500 }}>
+                        <div className="admin-export-option-error">
                           Please select a course above to show student names.
                         </div>
                       )}
@@ -2419,34 +2329,20 @@ const DataExportPage = () => {
                 </div>
               )}
 
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center',
-                padding: '1rem',
-                background: '#f9fafb',
-                borderRadius: '0.5rem',
-                marginBottom: '1.5rem'
-              }}>
+              <div className="admin-export-stats-box">
                 <div>
-                  <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.25rem' }}>
+                  <div className="admin-export-stats-label">
                     Total Students
                   </div>
-                  <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#111827' }}>
+                  <div className="admin-export-stats-value-large">
                     {totalStudentsCount}
                   </div>
                 </div>
-              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <div className="admin-export-actions">
                  <Button
                    onClick={loadMockStudents}
                    disabled={exporting}
-                   style={{
-                     background: '#8b5cf6',
-                     color: 'white',
-                     padding: '0.75rem 1.5rem',
-                     fontSize: '0.875rem',
-                     fontWeight: 500
-                   }}
+                   className="admin-btn-mock"
                  >
                    Load Mock Students (150)
                  </Button>
@@ -2469,15 +2365,7 @@ const DataExportPage = () => {
                      exportStudentDataToPDF();
                    }}
                    disabled={exporting || !selectedElectionForStudents || (showStudentNames && !selectedCourse)}
-                   style={{
-                     background: '#dc2626',
-                     color: 'white',
-                     padding: '0.75rem 1.5rem',
-                     fontSize: '0.875rem',
-                     fontWeight: 500,
-                     opacity: !selectedElectionForStudents ? 0.6 : 1,
-                     cursor: !selectedElectionForStudents ? 'not-allowed' : 'pointer'
-                   }}
+                   className="admin-btn-export"
                  >
                    {exporting ? 'Generating PDF...' : 'Export to PDF'}
                  </Button>
@@ -2487,19 +2375,13 @@ const DataExportPage = () => {
               {/* Preview */}
               {Object.keys(filteredStudents).length > 0 && (
                 <div>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem' }}>
+                  <h3 className="admin-export-preview-title">
                     Preview
                   </h3>
-                  <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                  <div className="admin-export-preview-container">
                     {Object.keys(filteredStudents).sort().map(deptName => (
-                      <div key={deptName} style={{ marginBottom: '1.5rem' }}>
-                        <div style={{
-                          background: '#0b6e3b',
-                          color: 'white',
-                          padding: '0.75rem',
-                          borderRadius: '0.5rem 0.5rem 0 0',
-                          fontWeight: 600
-                        }}>
+                      <div key={deptName} className="admin-export-preview-dept">
+                        <div className="admin-export-preview-dept-header">
                           {deptName}
                         </div>
                         {Object.keys(filteredStudents[deptName]).sort().map(courseName => {
@@ -2514,28 +2396,24 @@ const DataExportPage = () => {
                           }
                           
                           return (
-                            <div key={courseName} style={{
-                              border: '1px solid #e5e7eb',
-                              borderTop: 'none',
-                              padding: '1rem'
-                            }}>
-                              <div style={{ fontWeight: 600, marginBottom: '0.5rem' }}>
+                            <div key={courseName} className="admin-export-preview-course">
+                              <div className="admin-export-preview-course-title">
                                 {courseName} ({courseData.code || 'N/A'}) - {totalStudents} student{totalStudents !== 1 ? 's' : ''}
                               </div>
                               {courseData.yearLevels && typeof courseData.yearLevels === 'object' ? (
-                                <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                                <div className="admin-export-preview-course-info">
                                   {Object.keys(courseData.yearLevels).sort().map(yearLevel => {
                                     const yearLevelData = courseData.yearLevels[yearLevel];
                                     const count = yearLevelData.count || yearLevelData.students?.length || 0;
                                     return (
-                                      <div key={yearLevel} style={{ marginTop: '0.25rem' }}>
+                                      <div key={yearLevel} className="admin-export-preview-year-level">
                                         {yearLevel}: {count} student{count !== 1 ? 's' : ''}
                                       </div>
                                     );
                                   })}
                                 </div>
                               ) : (
-                                <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                                <div className="admin-export-preview-course-info">
                                   {totalStudents} student{totalStudents !== 1 ? 's' : ''} enrolled
                                 </div>
                               )}

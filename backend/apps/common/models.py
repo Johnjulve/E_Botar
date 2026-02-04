@@ -87,3 +87,45 @@ class ActivityLog(models.Model):
         return f"{user_str} - {self.action} {self.resource_type} ({self.created_at})"
 
 
+class SystemSettings(models.Model):
+    """Model for system-wide settings"""
+    key = models.CharField(max_length=100, unique=True, db_index=True)
+    value = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='updated_settings')
+    
+    class Meta:
+        db_table = 'common_systemsettings'
+        verbose_name = 'System Setting'
+        verbose_name_plural = 'System Settings'
+        ordering = ['key']
+    
+    def __str__(self):
+        return f"{self.key}: {self.value}"
+    
+    @classmethod
+    def get_value(cls, key, default=None):
+        """Get a setting value by key"""
+        try:
+            return cls.objects.get(key=key).value
+        except cls.DoesNotExist:
+            return default
+    
+    @classmethod
+    def set_value(cls, key, value, description='', user=None):
+        """Set a setting value by key"""
+        setting, created = cls.objects.get_or_create(
+            key=key,
+            defaults={'value': value, 'description': description, 'updated_by': user}
+        )
+        if not created:
+            setting.value = value
+            if description:
+                setting.description = description
+            if user:
+                setting.updated_by = user
+            setting.save()
+        return setting
+
+

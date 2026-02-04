@@ -1,4 +1,4 @@
-﻿/**
+/**
  * CandidateProfilePage
  * View candidate profile and manifesto - Modern Design
  */
@@ -15,10 +15,15 @@ const CandidateProfilePage = () => {
   const { id } = useParams();
   const [candidate, setCandidate] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [photoLoadFailed, setPhotoLoadFailed] = useState(false);
 
   useEffect(() => {
     fetchCandidate();
   }, [id]);
+
+  useEffect(() => {
+    setPhotoLoadFailed(false);
+  }, [candidate?.photo_url]);
 
   const fetchCandidate = async () => {
     try {
@@ -43,7 +48,7 @@ const CandidateProfilePage = () => {
           <i className="fas fa-user-slash"></i>
           <h3>Candidate Not Found</h3>
           <p>The candidate profile you're looking for doesn't exist.</p>
-          <Link to="/candidates" className="action-btn action-btn-primary mt-4" style={{ display: 'inline-flex' }}>
+          <Link to="/candidates" className="action-btn action-btn-primary action-btn-inline-flex mt-4">
             <i className="fas fa-arrow-left"></i>
             Back to Candidates
           </Link>
@@ -79,16 +84,23 @@ const CandidateProfilePage = () => {
         <div className="col-lg-4">
           <div className="profile-sidebar-card">
             <div 
-              className="profile-avatar-large"
+              className={`profile-avatar-large ${(candidate.photo_url && !photoLoadFailed) ? 'has-photo' : ''}`}
               style={{
-                background: candidate.photo_url 
+                background: (candidate.photo_url && !photoLoadFailed)
                   ? `url(${candidate.photo_url}) center/cover no-repeat`
-                  : 'linear-gradient(135deg, #9ca3af 0%, #6b7280 100%)',
-                filter: candidate.photo_url ? 'grayscale(0.2) brightness(0.95)' : 'none',
-                backgroundSize: candidate.photo_url ? 'cover' : 'auto'
+                  : 'linear-gradient(135deg, #9ca3af 0%, #6b7280 100%)'
               }}
             >
-              {!candidate.photo_url && getInitials(`${candidate.user?.first_name} ${candidate.user?.last_name}`)}
+              {candidate.photo_url && !photoLoadFailed && (
+                <img
+                  src={candidate.photo_url}
+                  alt=""
+                  aria-hidden="true"
+                  style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }}
+                  onError={() => setPhotoLoadFailed(true)}
+                />
+              )}
+              {(!candidate.photo_url || photoLoadFailed) && getInitials(`${candidate.user?.first_name} ${candidate.user?.last_name}`)}
             </div>
             
             <h3 className="profile-name">
@@ -176,12 +188,7 @@ const CandidateProfilePage = () => {
               <div className="action-buttons">
                 <Link 
                   to={`/elections/${candidate.election.id}`}
-                  className="action-btn"
-                  style={{
-                    background: '#0b6e3b',
-                    color: 'white',
-                    border: 'none'
-                  }}
+                  className="action-btn action-btn-view-election"
                 >
                   <i className="fas fa-info-circle"></i>
                   View Election

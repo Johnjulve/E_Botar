@@ -1,4 +1,5 @@
 import logging
+from datetime import timedelta
 from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
@@ -87,7 +88,17 @@ class SchoolElectionViewSet(viewsets.ModelViewSet):
         elif self.action in ['create', 'update', 'partial_update']:
             return SchoolElectionCreateUpdateSerializer
         return SchoolElectionListSerializer
-    
+
+    def create(self, request, *args, **kwargs):
+        # Prevent duplicate elections from spam-click: reject if same user created one recently
+        cutoff = timezone.now() - timedelta(seconds=10)
+        if SchoolElection.objects.filter(created_by=request.user, created_at__gte=cutoff).exists():
+            return Response(
+                {'detail': 'Please wait a moment before creating another election. Your previous request may still be processing.'},
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
+        return super().create(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         election = serializer.save(created_by=self.request.user)
         

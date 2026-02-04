@@ -5,9 +5,11 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useBranding } from '../../contexts/BrandingContext';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
+  const branding = useBranding();
 
   return (
     <footer className="footer mt-5">
@@ -15,7 +17,7 @@ const Footer = () => {
         <div className="footer-content">
           <div className="row">
             <div className="col-md-4 mb-4 mb-md-0">
-              <h5>E-Botar</h5>
+              <h5>{branding.app_name}</h5>
               <p>
                 Empowering democratic decision-making through secure and transparent voting systems.
               </p>
@@ -41,7 +43,7 @@ const Footer = () => {
           </div>
           <div className="footer-bottom">
             <p className="mb-0">
-              &copy; {currentYear} E-Botar Voting System. All rights reserved.
+              &copy; {currentYear} {branding.app_name} Voting System. All rights reserved.
             </p>
           </div>
         </div>

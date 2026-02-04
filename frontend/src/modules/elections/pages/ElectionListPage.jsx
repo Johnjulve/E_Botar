@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ElectionListPage
  * Display all elections with filtering
  */
@@ -61,8 +61,8 @@ const ElectionListPage = () => {
     <Container>
       {/* Page Header */}
       <div className="elections-page-header">
-        <div className="page-title">
-          <div className="page-title-icon">
+        <div className="elections-page-title">
+          <div className="elections-page-title-icon">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
               <line x1="16" y1="2" x2="16" y2="6"/>
@@ -72,7 +72,7 @@ const ElectionListPage = () => {
           </div>
           <span>Elections</span>
         </div>
-        <p className="page-subtitle">Browse and participate in school administration elections</p>
+        <p className="elections-page-subtitle">Browse and participate in school administration elections</p>
       </div>
 
       {/* Filter Tabs */}
@@ -130,20 +130,10 @@ const ElectionListPage = () => {
             <div key={election.id} className="election-card">
               <div className="election-header">
                 <h3 className="election-title">{election.title}</h3>
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                {getStatusBadge(election)}
+                <div className="election-header-badges">
+                  {getStatusBadge(election)}
                   {election.election_type === 'university' ? (
-                    <div style={{
-                      padding: '0.25rem 0.75rem',
-                      borderRadius: '0.375rem',
-                      background: 'rgba(37, 99, 235, 0.15)',
-                      color: '#1e40af',
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.25rem'
-                    }}>
+                    <div className="election-type-badge university">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
                         <circle cx="9" cy="7" r="4"/>
@@ -153,17 +143,7 @@ const ElectionListPage = () => {
                       USC
                     </div>
                   ) : (
-                    <div style={{
-                      padding: '0.25rem 0.75rem',
-                      borderRadius: '0.375rem',
-                      background: 'rgba(34, 197, 94, 0.15)',
-                      color: '#166534',
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.25rem'
-                    }}>
+                    <div className="election-type-badge department">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M3 21h18"/>
                         <path d="M5 21V7l8-4v18"/>

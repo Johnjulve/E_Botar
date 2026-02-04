@@ -293,7 +293,7 @@ const UserManagementPage = () => {
       {/* Header */}
       <div className="admin-header">
         <h1>
-          <Icon name="users" size={28} style={{ color: '#2563eb' }} />
+          <Icon name="users" size={28} className="admin-icon-primary" />
           User Management
         </h1>
         <p>View and manage all registered users</p>
@@ -318,7 +318,7 @@ const UserManagementPage = () => {
         </div>
 
         <div className="admin-stat-card">
-          <div className="admin-stat-icon info" style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#2563eb' }}>
+          <div className="admin-stat-icon info">
             <Icon name="users" size={24} />
           </div>
           <div className="admin-stat-value">{staffCount}</div>
@@ -346,60 +346,35 @@ const UserManagementPage = () => {
       <div className="admin-filter-tabs">
         <button
           onClick={() => setFilter('all')}
-          className={`admin-filter-btn ${filter === 'all' ? 'active' : ''}`}
-          style={{
-            background: filter === 'all' ? '#2563eb' : 'white',
-            color: filter === 'all' ? 'white' : '#374151',
-            borderColor: filter === 'all' ? '#2563eb' : '#d1d5db'
-          }}
+          className={`admin-filter-btn ${filter === 'all' ? 'admin-filter-btn-active' : 'admin-filter-btn-inactive-default'}`}
         >
           <Icon name="users" size={16} />
           All Users ({users.length})
         </button>
         <button
           onClick={() => setFilter('admin')}
-          className={`admin-filter-btn ${filter === 'admin' ? 'active' : ''}`}
-          style={{
-            background: filter === 'admin' ? '#eab308' : 'white',
-            color: filter === 'admin' ? '#1f2937' : '#374151',
-            borderColor: filter === 'admin' ? '#eab308' : '#d1d5db'
-          }}
+          className={`admin-filter-btn ${filter === 'admin' ? 'admin-filter-btn-admin' : 'admin-filter-btn-inactive-default'}`}
         >
           <Icon name="shield" size={16} />
           Admins ({adminCount})
         </button>
         <button
           onClick={() => setFilter('staff')}
-          className={`admin-filter-btn ${filter === 'staff' ? 'active' : ''}`}
-          style={{
-            background: filter === 'staff' ? '#3b82f6' : 'white',
-            color: filter === 'staff' ? 'white' : '#374151',
-            borderColor: filter === 'staff' ? '#3b82f6' : '#d1d5db'
-          }}
+          className={`admin-filter-btn ${filter === 'staff' ? 'admin-filter-btn-staff' : 'admin-filter-btn-inactive-default'}`}
         >
           <Icon name="users" size={16} />
           Staff ({staffCount})
         </button>
         <button
           onClick={() => setFilter('student')}
-          className={`admin-filter-btn ${filter === 'student' ? 'active' : ''}`}
-          style={{
-            background: filter === 'student' ? '#2563eb' : 'white',
-            color: filter === 'student' ? 'white' : '#374151',
-            borderColor: filter === 'student' ? '#2563eb' : '#d1d5db'
-          }}
+          className={`admin-filter-btn ${filter === 'student' ? 'admin-filter-btn-student' : 'admin-filter-btn-inactive-default'}`}
         >
           <Icon name="users" size={16} />
           Students ({studentCount})
         </button>
         <button
           onClick={() => setFilter('verified')}
-          className={`admin-filter-btn ${filter === 'verified' ? 'active' : ''}`}
-          style={{
-            background: filter === 'verified' ? '#22c55e' : 'white',
-            color: filter === 'verified' ? 'white' : '#374151',
-            borderColor: filter === 'verified' ? '#22c55e' : '#d1d5db'
-          }}
+          className={`admin-filter-btn ${filter === 'verified' ? 'admin-filter-btn-verified' : 'admin-filter-btn-inactive-default'}`}
         >
           <Icon name="checkCircle" size={16} />
           Verified ({verifiedCount})
@@ -407,85 +382,46 @@ const UserManagementPage = () => {
       </div>
 
       {/* Search Bar */}
-      <div style={{
-        background: 'white',
-        border: '1px solid #e5e7eb',
-        borderRadius: '0.75rem',
-        padding: '1rem',
-        marginBottom: '1.5rem'
-      }}>
+      <div className="admin-search-container">
         <input
           type="text"
           placeholder="Search by name, email, or student ID..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          style={{
-            width: '100%',
-            padding: '0.75rem',
-            border: '1px solid #d1d5db',
-            borderRadius: '0.5rem',
-            fontSize: '0.95rem',
-            fontFamily: 'inherit'
-          }}
+          className="admin-search-input"
         />
       </div>
 
       {/* Users Table */}
       {filteredUsers.length > 0 ? (
-        <div style={{
-          background: 'white',
-          border: '1px solid #e5e7eb',
-          borderRadius: '0.75rem',
-          overflow: 'hidden'
-        }}>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{
-              width: '100%',
-              borderCollapse: 'collapse',
-              fontSize: '0.9rem'
-            }}>
+        <div className="admin-table-container">
+          <div className="admin-table-wrapper">
+            <table className="admin-table">
               <thead>
-                <tr style={{ background: '#f9fafb', borderBottom: '2px solid #e5e7eb' }}>
-                  <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, color: '#374151' }}>User</th>
-                  <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, color: '#374151' }}>Contact</th>
-                  <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, color: '#374151' }}>Academic Info</th>
-                  <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 600, color: '#374151' }}>Role</th>
-                  <th style={{ padding: '1rem', textAlign: 'center', fontWeight: 600, color: '#374151' }}>Status</th>
-                  <th style={{ padding: '1rem', textAlign: 'center', fontWeight: 600, color: '#374151' }}>Joined</th>
-                  <th style={{ padding: '1rem', textAlign: 'right', fontWeight: 600, color: '#374151' }}>Actions</th>
+                <tr>
+                  <th>User</th>
+                  <th>Contact</th>
+                  <th>Academic Info</th>
+                  <th>Role</th>
+                  <th className="text-center">Status</th>
+                  <th className="text-center">Joined</th>
+                  <th className="text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredUsers.map((user, index) => (
-                  <tr key={user.id} style={{
-                    borderBottom: index < filteredUsers.length - 1 ? '1px solid #e5e7eb' : 'none',
-                    transition: 'background 0.15s'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#f9fafb'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'white'}>
+                {filteredUsers.map((user) => (
+                  <tr key={user.id}>
                     {/* User */}
-                    <td style={{ padding: '1rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <div style={{
-                          width: '40px',
-                          height: '40px',
-                          borderRadius: '50%',
-                          background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                          color: 'white',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontWeight: 600,
-                          fontSize: '0.9rem',
-                          flexShrink: 0
-                        }}>
+                    <td>
+                      <div className="admin-user-cell">
+                        <div className="admin-user-avatar-table">
                           {getInitials(`${user.user?.first_name || ''} ${user.user?.last_name || ''}`)}
                         </div>
                         <div>
-                          <div style={{ fontWeight: 600, color: '#1f2937' }}>
+                          <div className="admin-user-name">
                             {user.user?.first_name} {user.user?.last_name}
                           </div>
-                          <div style={{ fontSize: '0.85rem', color: '#6b7280' }}>
+                          <div className="admin-user-id">
                             {user.student_id || user.user?.username}
                           </div>
                         </div>
@@ -493,75 +429,45 @@ const UserManagementPage = () => {
                     </td>
                     
                     {/* Contact */}
-                    <td style={{ padding: '1rem' }}>
-                      <div style={{ color: '#374151' }}>{user.user?.email || 'No email'}</div>
+                    <td>
+                      <div className="admin-user-contact">{user.user?.email || 'No email'}</div>
                       {user.phone_number && (
-                        <div style={{ fontSize: '0.85rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                        <div className="admin-user-contact-secondary">
                           {user.phone_number}
                         </div>
                       )}
                     </td>
                     
                     {/* Academic Info */}
-                    <td style={{ padding: '1rem' }}>
+                    <td>
                       {user.course?.name ? (
                         <>
-                          <div style={{ color: '#374151' }}>{user.course.name}</div>
+                          <div className="admin-user-academic">{user.course.name}</div>
                           {user.year_level && (
-                            <div style={{ fontSize: '0.85rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                            <div className="admin-user-academic-secondary">
                               {user.year_level}
                             </div>
                           )}
                         </>
                       ) : (
-                        <span style={{ color: '#9ca3af', fontSize: '0.85rem' }}>Not specified</span>
+                        <span className="admin-user-not-specified">Not specified</span>
                       )}
                     </td>
                     
                     {/* Role */}
-                    <td style={{ padding: '1rem' }}>
+                    <td>
                       {user.user?.is_superuser ? (
-                        <span style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.25rem',
-                          padding: '0.25rem 0.75rem',
-                          background: 'rgba(234, 179, 8, 0.15)',
-                          color: '#b45309',
-                          borderRadius: '9999px',
-                          fontSize: '0.85rem',
-                          fontWeight: 500
-                        }}>
+                        <span className="admin-role-badge admin-role-badge-admin">
                           <Icon name="shield" size={14} />
                           Admin
                         </span>
                       ) : user.user?.is_staff ? (
-                        <span style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.25rem',
-                          padding: '0.25rem 0.75rem',
-                          background: 'rgba(59, 130, 246, 0.15)',
-                          color: '#1e40af',
-                          borderRadius: '9999px',
-                          fontSize: '0.85rem',
-                          fontWeight: 500
-                        }}>
+                        <span className="admin-role-badge admin-role-badge-staff">
                           <Icon name="users" size={14} />
                           Staff
                         </span>
                       ) : (
-                        <span style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.25rem',
-                          padding: '0.25rem 0.75rem',
-                          background: 'rgba(37, 99, 235, 0.15)',
-                          color: '#1e40af',
-                          borderRadius: '9999px',
-                          fontSize: '0.85rem',
-                          fontWeight: 500
-                        }}>
+                        <span className="admin-role-badge admin-role-badge-student">
                           <Icon name="users" size={14} />
                           Student
                         </span>
@@ -569,34 +475,14 @@ const UserManagementPage = () => {
                     </td>
                     
                     {/* Status */}
-                    <td style={{ padding: '1rem', textAlign: 'center' }}>
+                    <td className="text-center">
                       {user.user?.is_active ? (
-                        <span style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.25rem',
-                          padding: '0.25rem 0.75rem',
-                          background: 'rgba(34, 197, 94, 0.15)',
-                          color: '#166534',
-                          borderRadius: '9999px',
-                          fontSize: '0.85rem',
-                          fontWeight: 500
-                        }}>
+                        <span className="admin-status-badge-table admin-status-badge-active-table">
                           <Icon name="checkCircle" size={14} />
                           Active
                         </span>
                       ) : (
-                        <span style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.25rem',
-                          padding: '0.25rem 0.75rem',
-                          background: 'rgba(107, 114, 128, 0.15)',
-                          color: '#374151',
-                          borderRadius: '9999px',
-                          fontSize: '0.85rem',
-                          fontWeight: 500
-                        }}>
+                        <span className="admin-status-badge-table admin-status-badge-inactive-table">
                           <Icon name="clock" size={14} />
                           Inactive
                         </span>
@@ -604,37 +490,18 @@ const UserManagementPage = () => {
                     </td>
                     
                     {/* Joined */}
-                    <td style={{ padding: '1rem', textAlign: 'center', color: '#6b7280', fontSize: '0.85rem' }}>
+                    <td className="text-center admin-user-joined">
                       {formatDate(user.user?.date_joined || user.created_at, 'date')}
                     </td>
                     
                     {/* Actions */}
-                    <td style={{ padding: '1rem' }}>
-                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                    <td>
+                      <div className="admin-user-actions">
                         <button
                           onClick={() => handleToggleActive(user)}
                           disabled={actionUserId === user.id}
-                          style={{
-                            padding: '0.5rem',
-                            background: 'transparent',
-                            border: '1px solid #d1d5db',
-                            borderRadius: '0.375rem',
-                            cursor: actionUserId === user.id ? 'not-allowed' : 'pointer',
-                            color: user.user?.is_active ? '#ef4444' : '#22c55e',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.15s'
-                          }}
+                          className={`admin-action-btn ${user.user?.is_active ? 'admin-action-btn-toggle-active' : 'admin-action-btn-toggle-inactive'}`}
                           title={user.user?.is_active ? 'Deactivate User' : 'Activate User'}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background = user.user?.is_active ? '#fef2f2' : '#f0fdf4';
-                            e.currentTarget.style.borderColor = user.user?.is_active ? '#ef4444' : '#22c55e';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'transparent';
-                            e.currentTarget.style.borderColor = '#d1d5db';
-                          }}
                         >
                           <Icon name={user.user?.is_active ? 'toggleRight' : 'toggleLeft'} size={18} />
                         </button>
@@ -646,27 +513,8 @@ const UserManagementPage = () => {
                             setShowRoleModal(true);
                           }}
                           disabled={actionUserId === user.id}
-                          style={{
-                            padding: '0.5rem',
-                            background: 'transparent',
-                            border: '1px solid #d1d5db',
-                            borderRadius: '0.375rem',
-                            cursor: actionUserId === user.id ? 'not-allowed' : 'pointer',
-                            color: '#8b5cf6',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.15s'
-                          }}
+                          className="admin-action-btn admin-action-btn-role"
                           title="Change Role"
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background = '#f5f3ff';
-                            e.currentTarget.style.borderColor = '#8b5cf6';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'transparent';
-                            e.currentTarget.style.borderColor = '#d1d5db';
-                          }}
                         >
                           <Icon name="shield" size={18} />
                         </button>
@@ -674,27 +522,8 @@ const UserManagementPage = () => {
                         <button
                           onClick={() => handleResetPassword(user)}
                           disabled={actionUserId === user.id}
-                          style={{
-                            padding: '0.5rem',
-                            background: 'transparent',
-                            border: '1px solid #d1d5db',
-                            borderRadius: '0.375rem',
-                            cursor: actionUserId === user.id ? 'not-allowed' : 'pointer',
-                            color: '#2563eb',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.15s'
-                          }}
+                          className="admin-action-btn admin-action-btn-password"
                           title="Reset Password"
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background = '#eff6ff';
-                            e.currentTarget.style.borderColor = '#2563eb';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'transparent';
-                            e.currentTarget.style.borderColor = '#d1d5db';
-                          }}
                         >
                           <Icon name="key" size={18} />
                         </button>
@@ -705,27 +534,8 @@ const UserManagementPage = () => {
                             setShowDeleteModal(true);
                           }}
                           disabled={actionUserId === user.id}
-                          style={{
-                            padding: '0.5rem',
-                            background: 'transparent',
-                            border: '1px solid #d1d5db',
-                            borderRadius: '0.375rem',
-                            cursor: actionUserId === user.id ? 'not-allowed' : 'pointer',
-                            color: '#ef4444',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.15s'
-                          }}
+                          className="admin-action-btn admin-action-btn-delete"
                           title="Delete User"
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background = '#fef2f2';
-                            e.currentTarget.style.borderColor = '#ef4444';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'transparent';
-                            e.currentTarget.style.borderColor = '#d1d5db';
-                          }}
                         >
                           <Icon name="trash" size={18} />
                         </button>
@@ -738,22 +548,12 @@ const UserManagementPage = () => {
           </div>
         </div>
       ) : (
-        <div style={{
-          background: 'white',
-          border: '1px solid #e5e7eb',
-          borderRadius: '0.75rem',
-          textAlign: 'center',
-          padding: '3rem 2rem'
-        }}>
-          <Icon name="users" size={48} style={{ color: '#d1d5db', marginBottom: '1rem' }} />
-          <h5 style={{
-            color: '#1f2937',
-            marginBottom: '0.5rem',
-            fontWeight: 600
-          }}>
+        <div className="admin-card-container admin-empty-state">
+          <Icon name="users" size={48} className="admin-empty-state-icon" />
+          <h5 className="admin-empty-state-title">
             No Users Found
           </h5>
-          <p style={{ color: '#6b7280' }}>
+          <p className="admin-empty-state-message">
             {filter !== 'all' ? `No ${filter} users found.` : 'No users registered yet.'}
           </p>
         </div>
@@ -776,55 +576,17 @@ const UserManagementPage = () => {
               Reset password for <strong>{selectedUser?.user?.first_name} {selectedUser?.user?.last_name}</strong>
             </p>
             
-            <div style={{
-              background: '#f0f9ff',
-              border: '1px solid #bfdbfe',
-              borderRadius: '0.5rem',
-              padding: '1rem',
-              marginBottom: '1rem'
-            }}>
-              <p style={{
-                margin: '0 0 0.5rem',
-                fontSize: '0.9rem',
-                fontWeight: 600,
-                color: '#1e40af'
-              }}>
+            <div className="admin-modal-info-box-blue">
+              <p className="admin-modal-info-text-blue" style={{ marginBottom: '0.5rem', fontWeight: 600 }}>
                 Generated Password:
               </p>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.75rem'
-              }}>
-                <code style={{
-                  flex: 1,
-                  padding: '0.75rem',
-                  background: 'white',
-                  border: '1px solid #93c5fd',
-                  borderRadius: '0.375rem',
-                  fontSize: '1.1rem',
-                  fontWeight: 600,
-                  letterSpacing: '0.05em',
-                  color: '#1e40af',
-                  fontFamily: 'monospace'
-                }}>
+              <div className="admin-password-container">
+                <code className="admin-password-code">
                   {generatedPassword}
                 </code>
                 <button
                   onClick={handleCopyPassword}
-                  style={{
-                    padding: '0.75rem',
-                    background: passwordCopied ? '#22c55e' : '#2563eb',
-                    border: 'none',
-                    borderRadius: '0.375rem',
-                    color: 'white',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    fontWeight: 500,
-                    transition: 'all 0.15s'
-                  }}
+                  className={`admin-password-copy-btn ${passwordCopied ? 'admin-password-copy-btn-success' : 'admin-password-copy-btn-primary'}`}
                   title="Copy to clipboard"
                 >
                   <Icon name={passwordCopied ? 'checkCircle' : 'copy'} size={18} />
@@ -833,26 +595,12 @@ const UserManagementPage = () => {
               </div>
             </div>
 
-            <div style={{
-              background: '#fef3c7',
-              border: '1px solid #fbbf24',
-              borderRadius: '0.5rem',
-              padding: '0.75rem',
-              marginBottom: '1rem'
-            }}>
-              <p style={{
-                margin: 0,
-                fontSize: '0.85rem',
-                color: '#92400e'
-              }}>
+            <div className="admin-modal-warning-box">
+              <p className="admin-modal-warning-text">
                 <strong>⚠️ Important:</strong> Make sure to copy this password and share it securely with the user. 
                 This password will only be shown once and follows the format:
               </p>
-              <ul style={{
-                margin: '0.5rem 0 0 1.25rem',
-                fontSize: '0.85rem',
-                color: '#92400e'
-              }}>
+              <ul className="admin-modal-warning-list">
                 <li>8 characters long</li>
                 <li>Contains lowercase letters (a-z)</li>
                 <li>Contains uppercase letters (A-Z)</li>
@@ -861,7 +609,7 @@ const UserManagementPage = () => {
             </div>
           </div>
           
-          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+          <div className="admin-modal-buttons">
             <Button 
               variant="secondary" 
               onClick={() => {
@@ -901,27 +649,13 @@ const UserManagementPage = () => {
             </p>
             
             <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{
-                display: 'block',
-                fontWeight: 600,
-                marginBottom: '0.5rem',
-                color: '#1f2937'
-              }}>
+              <label className="admin-modal-label">
                 Select Role
               </label>
               <select
                 value={selectedRole}
                 onChange={(e) => setSelectedRole(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '0.5rem',
-                  fontSize: '0.95rem',
-                  fontFamily: 'inherit',
-                  color: '#374151',
-                  background: 'white'
-                }}
+                className="admin-modal-select"
               >
                 <option value="student">Student</option>
                 <option value="staff">Staff</option>
@@ -929,19 +663,8 @@ const UserManagementPage = () => {
               </select>
             </div>
 
-            <div style={{
-              background: '#f0f9ff',
-              border: '1px solid #bfdbfe',
-              borderRadius: '0.5rem',
-              padding: '1rem',
-              marginBottom: '1rem'
-            }}>
-              <p style={{
-                margin: 0,
-                fontSize: '0.85rem',
-                color: '#1e40af',
-                lineHeight: 1.6
-              }}>
+            <div className="admin-modal-info-box-blue">
+              <p className="admin-modal-info-text-blue">
                 <strong>Role Permissions:</strong><br />
                 <strong>Student:</strong> Can vote and apply as candidate<br />
                 <strong>Staff:</strong> Can manage elections, applications, and view results<br />
@@ -950,7 +673,7 @@ const UserManagementPage = () => {
             </div>
           </div>
           
-          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+          <div className="admin-modal-buttons">
             <Button 
               variant="secondary" 
               onClick={() => {
@@ -999,9 +722,9 @@ const UserManagementPage = () => {
           title="Delete User"
         >
           <p>Are you sure you want to delete <strong>{selectedUser?.user?.first_name} {selectedUser?.user?.last_name}</strong>?</p>
-          <p style={{ color: '#ef4444', marginTop: '1rem' }}>This action cannot be undone.</p>
+          <p className="admin-modal-danger-text">This action cannot be undone.</p>
           
-          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+          <div className="admin-modal-buttons">
             <Button 
               variant="secondary" 
               onClick={() => {

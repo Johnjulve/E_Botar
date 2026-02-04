@@ -56,16 +56,16 @@ cover/
 *.pot
 
 # Django stuff:
-
-#*.log
-#local_settings.py
-#db.sqlite3
-#db.sqlite3-journal
+db.sqlite3
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
 db - Copy.sqlite3
 media/
 staticfiles/
 static/
-#*.sqlite3
+*.sqlite3
 
 # Django secrets & env
 .env*
@@ -239,3 +239,39 @@ marimo/_lsp/
 __marimo__/
 
 THESIS_DEFEND.md
+backend/apps/accounts/management/commands/reset_passwords.py
+Sample_userdata.csv
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+.env*
+.eslintcache
+.vite/
+coverage/
+.parcel-cache/
+storybook-static/
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+CSS_STRUCTURE_REVIEW.md
+CSS_ARCHITECTURE_STRATEGY.md

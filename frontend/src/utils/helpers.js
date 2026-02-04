@@ -99,6 +99,20 @@ export const searchFilter = (array, searchTerm, searchKeys) => {
 };
 
 /**
+ * Get full display name (first + middle + last)
+ * @param {object} user - User object with first_name, last_name
+ * @param {object} profile - Profile object with middle_name (optional)
+ * @returns {string} Full name
+ */
+export const getFullName = (user, profile = null) => {
+  if (!user) return '';
+  const first = (user.first_name || '').trim();
+  const middle = (profile?.middle_name || '').trim();
+  const last = (user.last_name || '').trim();
+  return [first, middle, last].filter(Boolean).join(' ') || '';
+};
+
+/**
  * Get initials from name
  * @param {string} name - Full name
  * @returns {string} Initials
@@ -252,6 +266,7 @@ export default {
   groupBy,
   sortBy,
   searchFilter,
+  getFullName,
   getInitials,
   isEmpty,
   downloadFile,

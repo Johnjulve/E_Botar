@@ -360,33 +360,28 @@ const ProgramManagementPage = () => {
     { key: 'course', label: 'Courses', icon: 'book' }
   ];
 
+// Friendly labels for program types
+const typeLabels = {
+  department: 'College',
+  course: 'Course'
+};
+
   return (
     <Container>
       {/* Header */}
       <div className="admin-header">
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          gap: '2rem',
-          flexWrap: 'wrap'
-        }}>
+        <div className="admin-program-header-flex">
           <div>
             <h1>
-              <Icon name="building" size={28} style={{ color: '#2563eb' }} />
+              <Icon name="building" size={28} className="admin-icon-primary" />
               Program Management
             </h1>
-            <p>Manage departments and courses</p>
+            <p>Manage colleges and courses</p>
           </div>
-          <div style={{
-            display: 'flex',
-            gap: '0.75rem',
-            flexWrap: 'wrap'
-          }}>
+          <div className="admin-program-header-actions">
             <button
               onClick={() => handleExport(filter !== 'all' ? filter : null)}
-              className="admin-btn"
-              style={{ background: '#10b981', color: 'white' }}
+              className="admin-btn admin-btn-success"
             >
               <Icon name="download" size={16} />
               Export CSV
@@ -403,81 +398,41 @@ const ProgramManagementPage = () => {
       </div>
 
       {/* Import Section */}
-      <div style={{
-        background: 'white',
-        border: '1px solid #e5e7eb',
-        borderRadius: '0.75rem',
-        padding: '1.5rem',
-        marginBottom: '2rem'
-      }}>
-        <h5 style={{
-          marginBottom: '1rem',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          color: '#1f2937',
-          fontWeight: 600
-        }}>
-          <Icon name="upload" size={20} style={{ color: '#2563eb' }} />
+      <div className="admin-import-section">
+        <h5 className="admin-import-header">
+          <Icon name="upload" size={20} className="admin-icon-primary" />
           Import from CSV
         </h5>
-        <div style={{
-          display: 'flex',
-          gap: '0.75rem',
-          alignItems: 'center',
-          flexWrap: 'wrap'
-        }}>
+        <div className="admin-import-controls">
           <input
             id="csv-file-input"
             type="file"
             accept=".csv"
             onChange={(e) => setImportFile(e.target.files[0])}
-            style={{
-              padding: '0.5rem',
-              border: '1px solid #d1d5db',
-              borderRadius: '0.5rem',
-              fontSize: '0.875rem'
-            }}
+            className="admin-file-input"
           />
           <button
             onClick={handleImport}
             disabled={!importFile || importLoading}
-            className="admin-btn"
-            style={{
-              background: '#2563eb',
-              color: 'white',
-              opacity: (!importFile || importLoading) ? 0.5 : 1,
-              cursor: (!importFile || importLoading) ? 'not-allowed' : 'pointer'
-            }}
+            className="admin-btn admin-btn-import"
           >
             {importLoading ? 'Importing...' : 'Import CSV'}
           </button>
           {importFile && (
-            <span style={{ color: '#6b7280', fontSize: '0.875rem' }}>
+            <span className="admin-file-selected">
               Selected: {importFile.name}
             </span>
           )}
         </div>
         {importResult && (
-          <div style={{
-            marginTop: '1rem',
-            padding: '1rem',
-            background: importResult.errors?.length > 0 ? '#fef2f2' : '#f0fdf4',
-            border: `1px solid ${importResult.errors?.length > 0 ? '#fecaca' : '#bbf7d0'}`,
-            borderRadius: '0.5rem',
-            fontSize: '0.875rem'
-          }}>
-            <div style={{
-              fontWeight: 600,
-              color: importResult.errors?.length > 0 ? '#dc2626' : '#16a34a',
-              marginBottom: '0.5rem'
-            }}>
+          <div className={`admin-import-result ${importResult.errors?.length > 0 ? 'admin-import-result-error' : 'admin-import-result-success'}`}>
+            <div className={`admin-import-result-title ${importResult.errors?.length > 0 ? 'admin-import-result-title-error' : 'admin-import-result-title-success'}`}>
               {importResult.message}
             </div>
             {importResult.created && importResult.created.length > 0 && (
-              <div style={{ marginTop: '0.5rem' }}>
+              <div className="admin-import-result-list">
                 <strong>Created ({importResult.created.length}):</strong>
-                <ul style={{ marginTop: '0.25rem', paddingLeft: '1.5rem' }}>
+                <ul>
                   {importResult.created.map((item, idx) => (
                     <li key={idx}>{item.name} ({item.code})</li>
                   ))}
@@ -485,9 +440,9 @@ const ProgramManagementPage = () => {
               </div>
             )}
             {importResult.updated && importResult.updated.length > 0 && (
-              <div style={{ marginTop: '0.5rem' }}>
+              <div className="admin-import-result-list">
                 <strong>Updated ({importResult.updated.length}):</strong>
-                <ul style={{ marginTop: '0.25rem', paddingLeft: '1.5rem' }}>
+                <ul>
                   {importResult.updated.map((item, idx) => (
                     <li key={idx}>{item.name} ({item.code})</li>
                   ))}
@@ -497,9 +452,9 @@ const ProgramManagementPage = () => {
             {/* Fallback for old format */}
             {importResult.imported && importResult.imported.length > 0 && 
              !importResult.created && !importResult.updated && (
-              <div style={{ marginTop: '0.5rem' }}>
+              <div className="admin-import-result-list">
                 <strong>Imported ({importResult.imported.length}):</strong>
-                <ul style={{ marginTop: '0.25rem', paddingLeft: '1.5rem' }}>
+                <ul>
                   {importResult.imported.map((item, idx) => (
                     <li key={idx}>{item.name} ({item.code})</li>
                   ))}
@@ -507,9 +462,9 @@ const ProgramManagementPage = () => {
               </div>
             )}
             {importResult.errors && importResult.errors.length > 0 && (
-              <div style={{ marginTop: '0.5rem' }}>
+              <div className="admin-import-result-list">
                 <strong>Errors ({importResult.errors.length}):</strong>
-                <ul style={{ marginTop: '0.25rem', paddingLeft: '1.5rem' }}>
+                <ul>
                   {importResult.errors.map((err, idx) => (
                     <li key={idx}>Row {err.row}: {err.error}</li>
                   ))}
@@ -518,14 +473,7 @@ const ProgramManagementPage = () => {
             )}
           </div>
         )}
-        <div style={{
-          marginTop: '1rem',
-          padding: '0.75rem',
-          background: '#f9fafb',
-          borderRadius: '0.5rem',
-          fontSize: '0.75rem',
-          color: '#6b7280'
-        }}>
+        <div className="admin-import-help">
           <strong>CSV Format:</strong> name, code, program_type, department_code<br/>
           <strong>Note:</strong> program_type must be "department" or "course".<br/>
           For <em>course</em> rows, provide a valid <code>department_code</code> that matches an existing department's code (e.g. <code>CCIS</code>).<br/>
@@ -536,35 +484,14 @@ const ProgramManagementPage = () => {
 
       {/* Form */}
       {showForm && (
-        <div style={{
-          background: 'white',
-          border: '1px solid #e5e7eb',
-          borderRadius: '0.75rem',
-          padding: '1.5rem',
-          marginBottom: '2rem'
-        }}>
-          <h5 style={{
-            marginBottom: '1rem',
-            color: '#1f2937',
-            fontWeight: 600
-          }}>
+        <div className="admin-form-section">
+          <h5 className="admin-form-title">
             {editingProgram ? 'Edit Program' : 'Add New Program'}
           </h5>
           <form onSubmit={handleSubmit}>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-              gap: '1rem',
-              marginBottom: '1rem'
-            }}>
+            <div className="admin-form-grid">
               <div>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '0.5rem',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  color: '#374151'
-                }}>
+                <label className="admin-form-label">
                   Name *
                 </label>
                 <input
@@ -573,29 +500,17 @@ const ProgramManagementPage = () => {
                   value={formData.name}
                   onChange={handleInputChange}
                   required
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    border: `1px solid ${errors.name ? '#dc2626' : '#d1d5db'}`,
-                    borderRadius: '0.5rem',
-                    fontSize: '0.875rem'
-                  }}
+                  className={`admin-form-input ${errors.name ? 'admin-form-input-error' : ''}`}
                 />
                 {errors.name && (
-                  <div style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                  <div className="admin-form-error">
                     {errors.name}
                   </div>
                 )}
               </div>
 
               <div>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '0.5rem',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  color: '#374151'
-                }}>
+                <label className="admin-form-label">
                   Code *
                 </label>
                 <input
@@ -604,29 +519,17 @@ const ProgramManagementPage = () => {
                   value={formData.code}
                   onChange={handleInputChange}
                   required
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    border: `1px solid ${errors.code ? '#dc2626' : '#d1d5db'}`,
-                    borderRadius: '0.5rem',
-                    fontSize: '0.875rem'
-                  }}
+                  className={`admin-form-input ${errors.code ? 'admin-form-input-error' : ''}`}
                 />
                 {errors.code && (
-                  <div style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                  <div className="admin-form-error">
                     {errors.code}
                   </div>
                 )}
               </div>
 
               <div>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '0.5rem',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  color: '#374151'
-                }}>
+                <label className="admin-form-label">
                   Program Type *
                 </label>
                 <select
@@ -634,28 +537,16 @@ const ProgramManagementPage = () => {
                   value={formData.program_type}
                   onChange={handleInputChange}
                   required
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '0.5rem',
-                    fontSize: '0.875rem'
-                  }}
+                  className="admin-form-input"
                 >
-                  <option value="department">Department</option>
+                  <option value="department">College</option>
                   <option value="course">Course</option>
                 </select>
               </div>
 
               {formData.program_type === 'course' && (
                 <div>
-                  <label style={{
-                    display: 'block',
-                    marginBottom: '0.5rem',
-                    fontSize: '0.875rem',
-                    fontWeight: 500,
-                    color: '#374151'
-                  }}>
+                  <label className="admin-form-label">
                     Department *
                   </label>
                   <select
@@ -663,13 +554,7 @@ const ProgramManagementPage = () => {
                     value={formData.department_code || ''}
                     onChange={handleInputChange}
                     required
-                    style={{
-                      width: '100%',
-                      padding: '0.5rem',
-                      border: `1px solid ${errors.department_code ? '#dc2626' : '#d1d5db'}`,
-                      borderRadius: '0.5rem',
-                      fontSize: '0.875rem'
-                    }}
+                    className={`admin-form-input ${errors.department_code ? 'admin-form-input-error' : ''}`}
                   >
                     <option value="">Select Department</option>
                     {departments.map(dept => (
@@ -679,7 +564,7 @@ const ProgramManagementPage = () => {
                     ))}
                   </select>
                   {errors.department_code && (
-                    <div style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                    <div className="admin-form-error">
                       {errors.department_code}
                     </div>
                   )}
@@ -687,13 +572,7 @@ const ProgramManagementPage = () => {
               )}
 
               <div>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '0.5rem',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  color: '#374151'
-                }}>
+                <label className="admin-form-label">
                   Description
                 </label>
                 <textarea
@@ -701,22 +580,11 @@ const ProgramManagementPage = () => {
                   value={formData.description}
                   onChange={handleInputChange}
                   rows="3"
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '0.5rem',
-                    fontSize: '0.875rem',
-                    resize: 'vertical'
-                  }}
+                  className="admin-form-textarea"
                 />
               </div>
 
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem'
-              }}>
+              <div className="admin-form-checkbox-group">
                 <input
                   type="checkbox"
                   name="is_active"
@@ -724,34 +592,19 @@ const ProgramManagementPage = () => {
                   onChange={handleInputChange}
                   id="is_active"
                 />
-                <label htmlFor="is_active" style={{
-                  fontSize: '0.875rem',
-                  color: '#374151'
-                }}>
+                <label htmlFor="is_active" className="admin-form-checkbox-label">
                   Active
                 </label>
               </div>
             </div>
 
             {errors.general && (
-              <div style={{
-                padding: '0.75rem',
-                background: '#fef2f2',
-                border: '1px solid #fecaca',
-                borderRadius: '0.5rem',
-                color: '#dc2626',
-                fontSize: '0.875rem',
-                marginBottom: '1rem'
-              }}>
+              <div className="admin-form-error-box">
                 {errors.general}
               </div>
             )}
 
-            <div style={{
-              display: 'flex',
-              gap: '0.75rem',
-              justifyContent: 'flex-end'
-            }}>
+            <div className="admin-form-buttons">
               <button
                 type="button"
                 onClick={resetForm}
@@ -778,12 +631,7 @@ const ProgramManagementPage = () => {
           <button
             key={btn.key}
             onClick={() => setFilter(btn.key)}
-            className={`admin-filter-btn ${filter === btn.key ? 'active' : ''}`}
-            style={{
-              background: filter === btn.key ? '#2563eb' : 'white',
-              color: filter === btn.key ? 'white' : '#374151',
-              borderColor: filter === btn.key ? '#2563eb' : '#d1d5db'
-            }}
+            className={`admin-filter-btn ${filter === btn.key ? 'admin-filter-btn-active' : 'admin-filter-btn-inactive-default'}`}
           >
             <Icon name={btn.icon} size={16} />
             {btn.label}
@@ -793,151 +641,55 @@ const ProgramManagementPage = () => {
 
       {/* Programs Table */}
       {programs.length > 0 ? (
-        <div style={{
-          background: 'white',
-          border: '1px solid #e5e7eb',
-          borderRadius: '0.75rem',
-          overflow: 'hidden'
-        }}>
-          <table style={{
-            width: '100%',
-            borderCollapse: 'collapse'
-          }}>
-            <thead style={{
-              background: '#f9fafb',
-              borderBottom: '2px solid #e5e7eb'
-            }}>
+        <div className="admin-table-container">
+          <table className="admin-table">
+            <thead>
               <tr>
-                <th style={{
-                  padding: '1rem',
-                  textAlign: 'left',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  color: '#374151'
-                }}>Name</th>
-                <th style={{
-                  padding: '1rem',
-                  textAlign: 'left',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  color: '#374151'
-                }}>Code</th>
-                <th style={{
-                  padding: '1rem',
-                  textAlign: 'left',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  color: '#374151'
-                }}>Type</th>
-                <th style={{
-                  padding: '1rem',
-                  textAlign: 'left',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  color: '#374151'
-                }}>Department</th>
-                <th style={{
-                  padding: '1rem',
-                  textAlign: 'left',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  color: '#374151'
-                }}>Status</th>
-                <th style={{
-                  padding: '1rem',
-                  textAlign: 'right',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  color: '#374151'
-                }}>Actions</th>
+                <th>Name</th>
+                <th>Code</th>
+                <th>Type</th>
+                <th>Colleges</th>
+                <th>Status</th>
+                <th className="text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               {programs.map(program => (
-                <tr key={program.id} style={{
-                  borderBottom: '1px solid #e5e7eb'
-                }}>
-                  <td style={{
-                    padding: '1rem',
-                    fontSize: '0.875rem',
-                    color: '#1f2937',
-                    fontWeight: 500
-                  }}>
+                <tr key={program.id}>
+                  <td className="admin-table-cell-name">
                     {program.name}
                   </td>
-                  <td style={{
-                    padding: '1rem',
-                    fontSize: '0.875rem',
-                    color: '#6b7280'
-                  }}>
+                  <td className="admin-table-cell-code">
                     {program.code}
                   </td>
-                  <td style={{
-                    padding: '1rem',
-                    fontSize: '0.875rem',
-                    color: '#6b7280'
-                  }}>
-                    <span style={{
-                      textTransform: 'capitalize',
-                      padding: '0.25rem 0.5rem',
-                      borderRadius: '0.25rem',
-                      background: program.program_type === 'department' ? '#dbeafe' : '#fef3c7',
-                      color: program.program_type === 'department' ? '#1e40af' : '#92400e',
-                      fontSize: '0.75rem',
-                      fontWeight: 500
-                    }}>
-                      {program.program_type}
+                  <td className="admin-table-cell-type">
+                    <span className={`admin-program-type-badge ${
+                      program.program_type === 'department' ? 'admin-program-type-department' : 'admin-program-type-course'
+                    }`}>
+                      {typeLabels[program.program_type] || program.program_type}
                     </span>
                   </td>
-                  <td style={{
-                    padding: '1rem',
-                    fontSize: '0.875rem',
-                    color: '#6b7280'
-                  }}>
+                  <td className="admin-table-cell-code">
                     {program.department_name || '-'}
                   </td>
-                  <td style={{
-                    padding: '1rem',
-                    fontSize: '0.875rem'
-                  }}>
-                    <span style={{
-                      padding: '0.25rem 0.5rem',
-                      borderRadius: '0.25rem',
-                      background: program.is_active ? 'rgba(34, 197, 94, 0.15)' : 'rgba(107, 114, 128, 0.15)',
-                      color: program.is_active ? '#166534' : '#374151',
-                      fontSize: '0.75rem',
-                      fontWeight: 500
-                    }}>
+                  <td className="admin-table-cell-status">
+                    <span className={`admin-status-badge-table ${
+                      program.is_active ? 'admin-status-badge-active-table' : 'admin-status-badge-inactive-table'
+                    }`}>
                       {program.is_active ? 'Active' : 'Inactive'}
                     </span>
                   </td>
-                  <td style={{
-                    padding: '1rem',
-                    textAlign: 'right'
-                  }}>
-                    <div style={{
-                      display: 'flex',
-                      gap: '0.5rem',
-                      justifyContent: 'flex-end'
-                    }}>
+                  <td className="admin-table-actions">
+                    <div className="admin-table-action-buttons">
                       <button
                         onClick={() => handleEdit(program)}
-                        className="admin-btn secondary"
-                        style={{
-                          padding: '0.375rem 0.75rem',
-                          fontSize: '0.75rem'
-                        }}
+                        className="admin-btn secondary admin-btn-small"
                       >
                         <Icon name="edit" size={14} />
                       </button>
                       <button
                         onClick={() => handleDelete(program.id)}
-                        className="admin-btn secondary"
-                        style={{
-                          padding: '0.375rem 0.75rem',
-                          fontSize: '0.75rem',
-                          color: '#dc2626'
-                        }}
+                        className="admin-btn secondary admin-btn-danger-small"
                       >
                         <Icon name="trash" size={14} />
                       </button>
@@ -949,29 +701,12 @@ const ProgramManagementPage = () => {
           </table>
         </div>
       ) : (
-        <div style={{
-          background: 'white',
-          border: '1px solid #e5e7eb',
-          borderRadius: '0.75rem',
-          textAlign: 'center',
-          padding: '3rem 2rem'
-        }}>
-          <Icon name="building" size={48} style={{
-            color: '#d1d5db',
-            marginBottom: '1rem',
-            display: 'block'
-          }} />
-          <h5 style={{
-            color: '#1f2937',
-            marginBottom: '0.5rem',
-            fontWeight: 600
-          }}>
+        <div className="admin-card-container admin-empty-state">
+          <Icon name="building" size={48} className="admin-empty-state-icon" />
+          <h5 className="admin-empty-state-title">
             No Programs Found
           </h5>
-          <p style={{
-            color: '#6b7280',
-            marginBottom: '1.5rem'
-          }}>
+          <p className="admin-empty-state-message" style={{ marginBottom: '1.5rem' }}>
             {filter !== 'all' ? `No ${filter}s found.` : 'Get started by adding your first program.'}
           </p>
           <button

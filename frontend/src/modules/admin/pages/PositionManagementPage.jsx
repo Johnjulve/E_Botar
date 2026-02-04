@@ -217,33 +217,27 @@ const PositionManagementPage = () => {
   };
 
   const canMoveUp = (position) => {
-    // Check if there's a position with a lower display_order (and current is > 1)
-    const currentOrder = position.display_order || 1;
-    return currentOrder > 1 && allPositions.some(
-      p => p.id !== position.id && (p.display_order || 1) < currentOrder
-    );
+    // Use the position's index in the globally sorted list to determine if it can move up
+    const index = allPositions.findIndex(p => p.id === position.id);
+    return index > 0;
   };
 
   const canMoveDown = (position) => {
-    // Check if there's a position with a higher display_order
-    return allPositions.some(
-      p => p.id !== position.id && (p.display_order || 1) > (position.display_order || 1)
-    );
+    // Use the position's index in the globally sorted list to determine if it can move down
+    const index = allPositions.findIndex(p => p.id === position.id);
+    return index !== -1 && index < allPositions.length - 1;
   };
 
   const handleMoveUp = async (position) => {
     if (!canMoveUp(position)) return;
     
     try {
-      // Find the position with the highest display_order that's still less than current
-      const currentOrder = position.display_order || 1;
-      const positionAbove = allPositions
-        .filter(p => p.id !== position.id && (p.display_order || 1) < currentOrder)
-        .sort((a, b) => (b.display_order || 1) - (a.display_order || 1))[0];
-      
-      if (!positionAbove) {
+      // Find current index and the position directly above in the sorted list
+      const currentIndex = allPositions.findIndex(p => p.id === position.id);
+      if (currentIndex <= 0) {
         return;
       }
+      const positionAbove = allPositions[currentIndex - 1];
       
       // Swap display_order values
       await Promise.all([
@@ -268,15 +262,12 @@ const PositionManagementPage = () => {
     if (!canMoveDown(position)) return;
     
     try {
-      // Find the position with the lowest display_order that's still greater than current
-      const currentOrder = position.display_order || 1;
-      const positionBelow = allPositions
-        .filter(p => p.id !== position.id && (p.display_order || 1) > currentOrder)
-        .sort((a, b) => (a.display_order || 1) - (b.display_order || 1))[0];
-      
-      if (!positionBelow) {
+      // Find current index and the position directly below in the sorted list
+      const currentIndex = allPositions.findIndex(p => p.id === position.id);
+      if (currentIndex === -1 || currentIndex >= allPositions.length - 1) {
         return;
       }
+      const positionBelow = allPositions[currentIndex + 1];
       
       // Swap display_order values
       await Promise.all([
@@ -323,25 +314,15 @@ const PositionManagementPage = () => {
     <Container>
       {/* Header */}
       <div className="admin-header">
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          gap: '2rem',
-          flexWrap: 'wrap'
-        }}>
+        <div className="admin-header-layout">
           <div>
             <h1>
-              <Icon name="briefcase" size={28} style={{ color: '#2563eb' }} />
+              <Icon name="briefcase" size={28} className="admin-header-icon" />
               Position Management
             </h1>
             <p>Manage election positions</p>
           </div>
-          <div style={{
-            display: 'flex',
-            gap: '0.75rem',
-            flexWrap: 'wrap'
-          }}>
+          <div className="admin-header-actions-right">
             <button
               onClick={() => setShowForm(!showForm)}
               className="admin-btn primary"
@@ -355,35 +336,14 @@ const PositionManagementPage = () => {
 
       {/* Form */}
       {showForm && (
-        <div style={{
-          background: 'white',
-          border: '1px solid #e5e7eb',
-          borderRadius: '0.75rem',
-          padding: '1.5rem',
-          marginBottom: '2rem'
-        }}>
-          <h5 style={{
-            marginBottom: '1rem',
-            color: '#1f2937',
-            fontWeight: 600
-          }}>
+        <div className="admin-form-card">
+          <h5 className="admin-form-title">
             {editingPosition ? 'Edit Position' : 'Add New Position'}
           </h5>
           <form onSubmit={handleSubmit}>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-              gap: '1rem',
-              marginBottom: '1rem'
-            }}>
+            <div className="admin-form-grid">
               <div>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '0.5rem',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  color: '#374151'
-                }}>
+                <label className="admin-form-label">
                   Name *
                 </label>
                 <input
@@ -392,29 +352,17 @@ const PositionManagementPage = () => {
                   value={formData.name}
                   onChange={handleInputChange}
                   required
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    border: `1px solid ${errors.name ? '#dc2626' : '#d1d5db'}`,
-                    borderRadius: '0.5rem',
-                    fontSize: '0.875rem'
-                  }}
+                  className={`admin-form-input ${errors.name ? 'error' : ''}`}
                 />
                 {errors.name && (
-                  <div style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                  <div className="admin-field-error">
                     {errors.name}
                   </div>
                 )}
               </div>
 
               <div>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '0.5rem',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  color: '#374151'
-                }}>
+                <label className="admin-form-label">
                   Max Candidates
                 </label>
                 <input
@@ -423,21 +371,11 @@ const PositionManagementPage = () => {
                   value={formData.max_candidates}
                   onChange={handleInputChange}
                   min="1"
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '0.5rem',
-                    fontSize: '0.875rem'
-                  }}
+                  className="admin-form-input"
                 />
               </div>
 
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem'
-              }}>
+              <div className="admin-checkbox-row">
                 <input
                   type="checkbox"
                   name="is_active"
@@ -445,22 +383,13 @@ const PositionManagementPage = () => {
                   onChange={handleInputChange}
                   id="is_active"
                 />
-                <label htmlFor="is_active" style={{
-                  fontSize: '0.875rem',
-                  color: '#374151'
-                }}>
+                <label htmlFor="is_active" className="admin-checkbox-label">
                   Active
                 </label>
               </div>
 
-              <div style={{ gridColumn: '1 / -1' }}>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '0.5rem',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  color: '#374151'
-                }}>
+              <div className="admin-grid-full-width">
+                <label className="admin-form-label">
                   Description
                 </label>
                 <textarea
@@ -468,37 +397,18 @@ const PositionManagementPage = () => {
                   value={formData.description}
                   onChange={handleInputChange}
                   rows="3"
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '0.5rem',
-                    fontSize: '0.875rem',
-                    resize: 'vertical'
-                  }}
+                  className="admin-textarea"
                 />
               </div>
             </div>
 
             {errors.general && (
-              <div style={{
-                padding: '0.75rem',
-                background: '#fef2f2',
-                border: '1px solid #fecaca',
-                borderRadius: '0.5rem',
-                color: '#dc2626',
-                fontSize: '0.875rem',
-                marginBottom: '1rem'
-              }}>
+              <div className="admin-form-error">
                 {errors.general}
               </div>
             )}
 
-            <div style={{
-              display: 'flex',
-              gap: '0.75rem',
-              justifyContent: 'flex-end'
-            }}>
+            <div className="admin-form-actions">
               <button
                 type="button"
                 onClick={resetForm}
@@ -526,11 +436,6 @@ const PositionManagementPage = () => {
             key={btn.key}
             onClick={() => setFilter(btn.key)}
             className={`admin-filter-btn ${filter === btn.key ? 'active' : ''}`}
-            style={{
-              background: filter === btn.key ? '#2563eb' : 'white',
-              color: filter === btn.key ? 'white' : '#374151',
-              borderColor: filter === btn.key ? '#2563eb' : '#d1d5db'
-            }}
           >
             {btn.label}
           </button>
@@ -539,175 +444,65 @@ const PositionManagementPage = () => {
 
       {/* Positions Table */}
       {positions.length > 0 ? (
-        <div style={{
-          background: 'white',
-          border: '1px solid #e5e7eb',
-          borderRadius: '0.75rem',
-          overflow: 'hidden'
-        }}>
-          <table style={{
-            width: '100%',
-            borderCollapse: 'collapse'
-          }}>
-            <thead style={{
-              background: '#f9fafb',
-              borderBottom: '2px solid #e5e7eb'
-            }}>
+        <div className="admin-table-wrapper">
+          <table className="admin-table">
+            <thead>
               <tr>
-                <th style={{
-                  padding: '1rem',
-                  textAlign: 'left',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  color: '#374151',
-                  width: '60px'
-                }}>Order</th>
-                <th style={{
-                  padding: '1rem',
-                  textAlign: 'left',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  color: '#374151'
-                }}>Name</th>
-                <th style={{
-                  padding: '1rem',
-                  textAlign: 'left',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  color: '#374151'
-                }}>Max Candidates</th>
-                <th style={{
-                  padding: '1rem',
-                  textAlign: 'left',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  color: '#374151'
-                }}>Description</th>
-                <th style={{
-                  padding: '1rem',
-                  textAlign: 'left',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  color: '#374151'
-                }}>Status</th>
-                <th style={{
-                  padding: '1rem',
-                  textAlign: 'right',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  color: '#374151'
-                }}>Actions</th>
+                <th className="order-column">Order</th>
+                <th>Name</th>
+                <th>Max Candidates</th>
+                <th>Description</th>
+                <th>Status</th>
+                <th className="admin-table-header-actions">Actions</th>
               </tr>
             </thead>
             <tbody>
               {positions.map((position, index) => (
-                <tr key={position.id} style={{
-                  borderBottom: '1px solid #e5e7eb'
-                }}>
-                  <td style={{
-                    padding: '1rem',
-                    fontSize: '0.875rem',
-                    color: '#6b7280',
-                    textAlign: 'center'
-                  }}>
-                    {position.display_order || index + 1}
+                <tr key={position.id} className="admin-table-row">
+                  <td className="admin-table-cell order">
+                    {index + 1}
                   </td>
-                  <td style={{
-                    padding: '1rem',
-                    fontSize: '0.875rem',
-                    color: '#1f2937',
-                    fontWeight: 500
-                  }}>
+                  <td className="admin-table-cell name">
                     {position.name}
                   </td>
-                  <td style={{
-                    padding: '1rem',
-                    fontSize: '0.875rem',
-                    color: '#6b7280'
-                  }}>
+                  <td className="admin-table-cell">
                     {position.max_candidates || 1}
                   </td>
-                  <td style={{
-                    padding: '1rem',
-                    fontSize: '0.875rem',
-                    color: '#6b7280',
-                    maxWidth: '300px',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap'
-                  }}>
+                  <td className="admin-table-cell description">
                     {position.description || '-'}
                   </td>
-                  <td style={{
-                    padding: '1rem',
-                    fontSize: '0.875rem'
-                  }}>
-                    <span style={{
-                      padding: '0.25rem 0.5rem',
-                      borderRadius: '0.25rem',
-                      background: position.is_active ? 'rgba(34, 197, 94, 0.15)' : 'rgba(107, 114, 128, 0.15)',
-                      color: position.is_active ? '#166534' : '#374151',
-                      fontSize: '0.75rem',
-                      fontWeight: 500
-                    }}>
+                  <td className="admin-status-cell">
+                    <span className={`admin-status-badge ${position.is_active ? 'active' : 'inactive'}`}>
                       {position.is_active ? 'Active' : 'Inactive'}
                     </span>
                   </td>
-                  <td style={{
-                    padding: '1rem',
-                    textAlign: 'right'
-                  }}>
-                    <div style={{
-                      display: 'flex',
-                      gap: '0.5rem',
-                      justifyContent: 'flex-end'
-                    }}>
+                  <td className="admin-table-actions-cell">
+                    <div className="admin-table-actions">
                       <button
                         onClick={() => handleMoveUp(position)}
-                        className="admin-btn secondary"
+                        className={`admin-btn secondary admin-table-action-btn ${!canMoveUp(position) ? 'disabled' : ''}`}
                         disabled={!canMoveUp(position)}
-                        style={{
-                          padding: '0.375rem 0.75rem',
-                          fontSize: '0.75rem',
-                          opacity: canMoveUp(position) ? 1 : 0.5,
-                          cursor: canMoveUp(position) ? 'pointer' : 'not-allowed'
-                        }}
                         title="Move Up"
                       >
                         <Icon name="arrowUp" size={14} />
                       </button>
                       <button
                         onClick={() => handleMoveDown(position)}
-                        className="admin-btn secondary"
+                        className={`admin-btn secondary admin-table-action-btn ${!canMoveDown(position) ? 'disabled' : ''}`}
                         disabled={!canMoveDown(position)}
-                        style={{
-                          padding: '0.375rem 0.75rem',
-                          fontSize: '0.75rem',
-                          opacity: canMoveDown(position) ? 1 : 0.5,
-                          cursor: canMoveDown(position) ? 'pointer' : 'not-allowed'
-                        }}
                         title="Move Down"
                       >
                         <Icon name="arrowDown" size={14} />
                       </button>
                       <button
                         onClick={() => handleEdit(position)}
-                        className="admin-btn secondary"
-                        style={{
-                          padding: '0.375rem 0.75rem',
-                          fontSize: '0.75rem'
-                        }}
+                        className="admin-btn secondary admin-table-action-btn"
                       >
                         <Icon name="edit" size={14} />
                       </button>
                       <button
                         onClick={() => handleDelete(position.id)}
-                        className="admin-btn secondary"
-                        style={{
-                          padding: '0.375rem 0.75rem',
-                          fontSize: '0.75rem',
-                          color: '#dc2626'
-                        }}
+                        className="admin-btn secondary admin-table-action-btn danger"
                       >
                         <Icon name="trash" size={14} />
                       </button>
@@ -719,29 +514,12 @@ const PositionManagementPage = () => {
           </table>
         </div>
       ) : (
-        <div style={{
-          background: 'white',
-          border: '1px solid #e5e7eb',
-          borderRadius: '0.75rem',
-          textAlign: 'center',
-          padding: '3rem 2rem'
-        }}>
-          <Icon name="briefcase" size={48} style={{
-            color: '#d1d5db',
-            marginBottom: '1rem',
-            display: 'block'
-          }} />
-          <h5 style={{
-            color: '#1f2937',
-            marginBottom: '0.5rem',
-            fontWeight: 600
-          }}>
+        <div className="admin-empty-card">
+          <Icon name="briefcase" size={48} className="admin-empty-icon" />
+          <h5 className="admin-empty-title">
             No Positions Found
           </h5>
-          <p style={{
-            color: '#6b7280',
-            marginBottom: '1.5rem'
-          }}>
+          <p className="admin-empty-text">
             {filter !== 'all' ? `No ${filter} positions found.` : 'Get started by adding your first position.'}
           </p>
           <button
