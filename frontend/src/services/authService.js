@@ -67,14 +67,35 @@ export const authService = {
     return api.get('/auth/student-count/');
   },
 
+  // Get total registered user count (staff/admin only)
+  getUserCount: () => {
+    return api.get('/auth/user-count/');
+  },
+
   // Get all user profiles (admin only)
   getAllProfiles: () => {
     return api.get('/auth/profiles/');
   },
 
+  // Unified directory: students or staff/admin (admin/staff only)
+  getDirectory: (params = {}) => {
+    return api.get('/auth/directory/', { params });
+  },
+
   // Get specific user profile
   getUserProfile: (profileId) => {
     return api.get(`/auth/profiles/${profileId}/`);
+  },
+
+  // Update another user's profile (staff/admin; staff scoped by year level on server)
+  updateUserProfile: (profileId, data) => {
+    const config = {};
+    if (data instanceof FormData) {
+      config.headers = {
+        'Content-Type': 'multipart/form-data',
+      };
+    }
+    return api.patch(`/auth/profiles/${profileId}/`, data, config);
   },
 
   // Toggle user active status (admin only)

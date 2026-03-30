@@ -49,6 +49,11 @@ export const votingService = {
     return api.get(`/voting/results/my_vote_status/?election_id=${electionId}`);
   },
 
+  // Get per-election voting status for all students (staff/admin only)
+  getVotingStatus: (params = {}) => {
+    return api.get('/voting/voting-status/', { params });
+  },
+
   // === Results ===
   
   // Get election results

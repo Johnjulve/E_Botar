@@ -3,6 +3,7 @@ from django.conf import settings
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import UserProfile, Program
+from .utils import parse_year_level_value, staff_can_manage_student_profile
 
 
 class DepartmentSerializer(serializers.ModelSerializer):
@@ -176,6 +177,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
     # Write-only fields for updates
     department_code = serializers.CharField(write_only=True, required=False, allow_null=True)
     course_code = serializers.CharField(write_only=True, required=False, allow_null=True)
+    first_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    last_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
     
     class Meta:
         model = UserProfile
@@ -183,9 +186,10 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'id', 'user', 'middle_name', 'student_id',
             'department', 'department_code',
             'course', 'course_code',
-            'year_level', 'avatar', 'avatar_url',
+            'year_level', 'section', 'avatar', 'avatar_url',
             'is_verified', 'is_profile_complete', 'missing_fields',
-            'created_at', 'updated_at'
+            'created_at', 'updated_at',
+            'first_name', 'last_name',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'avatar_url', 'department', 'course', 'is_profile_complete', 'missing_fields']
     
@@ -212,6 +216,27 @@ class UserProfileSerializer(serializers.ModelSerializer):
             if not self.instance:  # Creating new profile
                 # These validations are handled at the model level or frontend
                 pass
+
+        # Staff (non-superuser) editing another user: enforce year-level ceiling
+        if request and self.instance and user:
+            editing_other = self.instance.user_id != user.id
+            if editing_other and user.is_staff and not user.is_superuser:
+                if not staff_can_manage_student_profile(user, self.instance):
+                    raise serializers.ValidationError(
+                        'You cannot edit this profile. Staff may only manage students '
+                        'at or below their own year level.'
+                    )
+                try:
+                    staff_prof = user.profile
+                except UserProfile.DoesNotExist:
+                    staff_prof = None
+                sy = parse_year_level_value(getattr(staff_prof, 'year_level', None) if staff_prof else None)
+                if 'year_level' in data and data['year_level'] is not None and sy is not None:
+                    ny = parse_year_level_value(data['year_level'])
+                    if ny is not None and ny > sy:
+                        raise serializers.ValidationError({
+                            'year_level': 'Cannot set year level above your own.'
+                        })
         
         return data
     
@@ -260,6 +285,14 @@ class UserProfileSerializer(serializers.ModelSerializer):
     
     def update(self, instance, validated_data):
         """Override update to handle department_code and course_code"""
+        if 'first_name' in validated_data or 'last_name' in validated_data:
+            u = instance.user
+            if 'first_name' in validated_data:
+                u.first_name = validated_data.pop('first_name') or ''
+            if 'last_name' in validated_data:
+                u.last_name = validated_data.pop('last_name') or ''
+            u.save()
+
         # Handle department_code -> department
         department_code = validated_data.pop('department_code', None)
         if department_code is not None:

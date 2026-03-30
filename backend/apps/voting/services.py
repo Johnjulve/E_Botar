@@ -8,7 +8,7 @@ from django.db.models import Count, F, Q, Prefetch
 from functools import wraps
 import hashlib
 
-from .models import AnonVote, Ballot, VoteReceipt
+from .models import Ballot, VoteChoice, VoteReceipt
 from apps.elections.models import SchoolElection, SchoolPosition
 from apps.candidates.models import Candidate
 from apps.common.algorithms import CryptographicAlgorithm, MemoizationAlgorithm, AggregationAlgorithm
@@ -38,9 +38,9 @@ def cache_result(timeout):
             # Add keyword arguments
             key_parts.extend([f"{k}:{v}" for k, v in sorted(kwargs.items())])
             
-            # Generate hash for cache key using MD5 algorithm
+            # Generate hash for cache key using SHA-256
             key_string = '|'.join(key_parts)
-            cache_key = f"voting_service_{CryptographicAlgorithm.md5_hash(key_string)}"
+            cache_key = f"voting_service_{CryptographicAlgorithm.sha256_hash(key_string)}"
             
             # Try to get from cache
             result = cache.get(cache_key)
@@ -57,6 +57,14 @@ def cache_result(timeout):
 
 class VotingDataService:
     """Service class for voting data operations with caching"""
+
+    # Official tallies use VoteChoice (linked to voter); inactive users' choices do not count.
+    @staticmethod
+    def _counted_choices_qs(election_id):
+        return VoteChoice.objects.filter(
+            ballot__election_id=election_id,
+            ballot__user__is_active=True,
+        )
     
     @staticmethod
     @cache_result(30)  # Cache for 30 seconds (live results update frequently)
@@ -70,9 +78,7 @@ class VotingDataService:
         Returns:
             QuerySet with vote counts per candidate
         """
-        return AnonVote.objects.filter(
-            election_id=election_id
-        ).values(
+        return VotingDataService._counted_choices_qs(election_id).values(
             'candidate_id',
             'candidate__user__first_name',
             'candidate__user__last_name',
@@ -96,8 +102,7 @@ class VotingDataService:
         Returns:
             QuerySet with vote counts per candidate for the position
         """
-        return AnonVote.objects.filter(
-            election_id=election_id,
+        return VotingDataService._counted_choices_qs(election_id).filter(
             position_id=position_id
         ).values(
             'candidate_id',
@@ -143,20 +148,19 @@ class VotingDataService:
             is_active=True
         ).count()
         
-        # Total votes cast
-        total_votes = AnonVote.objects.filter(
-            election_id=election_id
-        ).count()
+        # Total votes cast (only ballots from active accounts)
+        total_votes = VotingDataService._counted_choices_qs(election_id).count()
         
-        # Unique voters (users who submitted ballots)
+        # Unique voters (users who submitted ballots, active accounts only)
         total_voters = Ballot.objects.filter(
-            election_id=election_id
+            election_id=election_id,
+            user__is_active=True,
         ).count()
         
         # Votes by position - use aggregation algorithm
-        votes_list = list(AnonVote.objects.filter(
-            election_id=election_id
-        ).select_related('position').values('position_id', 'position__name'))
+        votes_list = list(
+            VotingDataService._counted_choices_qs(election_id).values('position_id', 'position__name')
+        )
         
         # Aggregate votes by position using aggregation algorithm
         votes_by_position_data = AggregationAlgorithm.aggregate(
@@ -272,10 +276,11 @@ class VotingDataService:
             ).values('id'))
             
             # Get votes list for aggregation
-            votes_list = list(AnonVote.objects.filter(
-                election_id=election_id,
-                position=position
-            ).values('id'))
+            votes_list = list(
+                VotingDataService._counted_choices_qs(election_id).filter(
+                    position=position
+                ).values('id')
+            )
             
             # Use aggregation algorithm to count
             candidates_count = AggregationAlgorithm.aggregate(
@@ -312,8 +317,7 @@ class VotingDataService:
         Returns:
             Dictionary with winner information or None
         """
-        winner = AnonVote.objects.filter(
-            election_id=election_id,
+        winner = VotingDataService._counted_choices_qs(election_id).filter(
             position_id=position_id
         ).values(
             'candidate_id',
@@ -342,9 +346,10 @@ class VotingDataService:
         """
         from django.db.models import Max
         
-        # Get positions with candidates in this election
+        # Positions that have at least one counted vote in this election
         positions = SchoolPosition.objects.filter(
-            anon_votes__election_id=election_id
+            votechoice__ballot__election_id=election_id,
+            votechoice__ballot__user__is_active=True,
         ).distinct()
         
         winners = []
@@ -378,7 +383,7 @@ class VotingDataService:
         # Clear specific user voting status cache
         key_parts = ['get_user_voting_status', str(user_id), str(election_id)]
         key_string = '|'.join(key_parts)
-        cache_key = f"voting_service_{CryptographicAlgorithm.md5_hash(key_string)}"
+        cache_key = f"voting_service_{CryptographicAlgorithm.sha256_hash(key_string)}"
         cache.delete(cache_key)
     
     # Memoized computation functions for expensive calculations

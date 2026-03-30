@@ -29,7 +29,7 @@ from django.core.management.base import BaseCommand
 from rest_framework.test import APIClient
 from apps.elections.models import SchoolElection, SchoolPosition
 from apps.candidates.models import Candidate
-from apps.voting.models import AnonVote, Ballot, VoteReceipt
+from apps.voting.models import Ballot, VoteChoice, VoteReceipt
 from apps.accounts.models import UserProfile
 from apps.common.algorithms import (
     SortingAlgorithm, AggregationAlgorithm, 
@@ -492,9 +492,10 @@ class DatabaseQueryAnalyzer:
             positions = election.election_positions.all().order_by('order')
             for ep in positions:
                 if ep.position:
-                    votes = AnonVote.objects.filter(
-                        election=election,
-                        position=ep.position
+                    votes = VoteChoice.objects.filter(
+                        ballot__election=election,
+                        position=ep.position,
+                        ballot__user__is_active=True,
                     ).values('candidate_id')
                     list(votes)  # Force evaluation
         

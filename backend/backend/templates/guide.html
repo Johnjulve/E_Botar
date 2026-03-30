@@ -72,6 +72,7 @@ Content-Type: application/json
           <tr><td><code>/api/auth/token/</code></td><td><span class="method method-post">POST</span></td><td>Public</td><td>Obtain JWT token</td></tr>
           <tr><td><code>/api/auth/token/refresh/</code></td><td><span class="method method-post">POST</span></td><td>Public</td><td>Refresh JWT token</td></tr>
           <tr><td><code>/api/auth/me/</code></td><td><span class="method method-get">GET</span></td><td>Authenticated</td><td>Current user profile</td></tr>
+          <tr><td><code>/api/auth/user-count/</code></td><td><span class="method method-get">GET</span></td><td>Staff/Admin</td><td>Total registered users (active/inactive counts)</td></tr>
           <tr><td><code>/api/auth/departments/</code></td><td><span class="method method-get">GET</span></td><td>Public</td><td>List departments</td></tr>
           <tr><td><code>/api/auth/departments/</code></td><td><span class="method method-post">POST</span></td><td>Superuser</td><td>Create department</td></tr>
           <tr><td><code>/api/auth/courses/</code></td><td><span class="method method-get">GET</span></td><td>Public</td><td>List courses</td></tr>
@@ -83,6 +84,7 @@ Content-Type: application/json
           <tr><td><code>/api/auth/profiles/{id}/reset_password/</code></td><td><span class="method method-post">POST</span></td><td>Superuser</td><td>Reset user password</td></tr>
           <tr><td><code>/api/auth/profiles/{id}/update_role/</code></td><td><span class="method method-post">POST</span></td><td>Superuser</td><td>Update user role</td></tr>
           <tr><td><code>/api/auth/student-count/</code></td><td><span class="method method-get">GET</span></td><td>Authenticated</td><td>Total student count</td></tr>
+          <tr><td><code>/api/auth/directory/</code></td><td><span class="method method-get">GET</span></td><td>Staff/Admin</td><td>Unified user directory (students or staff/admin)</td></tr>
         </tbody>
       </table>
     </section>
@@ -141,6 +143,7 @@ Content-Type: application/json
           <tr><td><code>/api/voting/receipts/</code></td><td><span class="method method-get">GET</span></td><td>Authenticated</td><td>List user's receipts</td></tr>
           <tr><td><code>/api/voting/receipts/my_receipts/</code></td><td><span class="method method-get">GET</span></td><td>Authenticated</td><td>User's receipts</td></tr>
           <tr><td><code>/api/voting/receipts/verify/</code></td><td><span class="method method-post">POST</span></td><td>Authenticated</td><td>Verify receipt code</td></tr>
+          <tr><td><code>/api/voting/voting-status/</code></td><td><span class="method method-get">GET</span></td><td>Staff/Admin</td><td>Per-election voting status (requires <code>election_id</code>)</td></tr>
           <tr><td><code>/api/voting/results/election_results/</code></td><td><span class="method method-get">GET</span></td><td>Public*</td><td>Election results</td></tr>
           <tr><td><code>/api/voting/results/my_vote_status/</code></td><td><span class="method method-get">GET</span></td><td>Authenticated</td><td>Vote status</td></tr>
           <tr><td><code>/api/voting/results/export_results/</code></td><td><span class="method method-get">GET</span></td><td>Superuser</td><td>Export results (CSV/JSON)</td></tr>

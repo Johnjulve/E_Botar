@@ -3,7 +3,7 @@
  * Create or edit election with positions
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Container } from '../../../components/layout';
 import { LoadingSpinner, Alert } from '../../../components/common';
@@ -53,6 +53,8 @@ const ElectionFormPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const isSubmittingRef = useRef(false);
+  /** Original DB end time (ISO) for extend-only validation on edit */
+  const originalEndDateRef = useRef('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [availablePositions, setAvailablePositions] = useState([]);
@@ -116,7 +118,8 @@ const ElectionFormPage = () => {
         election_type: election.election_type || 'university',
         allowed_department_code: election.allowed_department?.code || null
       });
-      
+      originalEndDateRef.current = election.end_date || '';
+
       setSelectedPositionIds(positionIds);
     } catch (error) {
       console.error('Error fetching election:', error);
@@ -177,48 +180,73 @@ const ElectionFormPage = () => {
     });
   };
 
+  const buildDatetimePayload = useCallback((localVal) => {
+    if (!localVal) return '';
+    if (localVal.length === 16) return `${localVal}:00`;
+    return localVal;
+  }, []);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (isSubmittingRef.current) return;
     setError('');
     setSuccess('');
 
-    // Validation
-    if (!formData.start_year || !formData.end_year) {
-      setError('School year is required');
-      return;
-    }
-    if (formData.end_year !== formData.start_year + 1) {
-      setError('End year must be exactly one year after start year');
-      return;
-    }
-    if (!formData.start_date || !formData.end_date) {
-      setError('Start and end dates are required');
-      return;
-    }
-    if (new Date(formData.start_date) >= new Date(formData.end_date)) {
-      setError('End date must be after start date');
-      return;
-    }
-    if (selectedPositionIds.length === 0) {
-      setError('At least one position is required');
-      return;
+    if (isEdit) {
+      if (!formData.end_date) {
+        setError('End date is required');
+        return;
+      }
+      const newEnd = new Date(buildDatetimePayload(formData.end_date)).getTime();
+      const origEnd = new Date(originalEndDateRef.current).getTime();
+      if (Number.isNaN(newEnd) || Number.isNaN(origEnd)) {
+        setError('Invalid end date');
+        return;
+      }
+      if (newEnd < origEnd) {
+        setError('End date can only be extended, not moved earlier.');
+        return;
+      }
+    } else {
+      if (!formData.start_year || !formData.end_year) {
+        setError('School year is required');
+        return;
+      }
+      if (formData.end_year !== formData.start_year + 1) {
+        setError('End year must be exactly one year after start year');
+        return;
+      }
+      if (!formData.start_date || !formData.end_date) {
+        setError('Start and end dates are required');
+        return;
+      }
+      if (new Date(formData.start_date) >= new Date(formData.end_date)) {
+        setError('End date must be after start date');
+        return;
+      }
+      if (selectedPositionIds.length === 0) {
+        setError('At least one position is required');
+        return;
+      }
     }
 
     isSubmittingRef.current = true;
     setSubmitting(true);
     try {
-      // Prepare data with position_ids
-      const dataToSubmit = {
-        ...formData,
-        position_ids: selectedPositionIds,
-        allowed_department_code: formData.election_type === 'department' ? formData.allowed_department_code : null
-      };
-
       if (isEdit) {
-        await electionService.update(id, dataToSubmit);
+        await electionService.partialUpdate(id, {
+          description: formData.description,
+          end_date: buildDatetimePayload(formData.end_date),
+        });
         setSuccess('Election updated successfully!');
       } else {
+        const dataToSubmit = {
+          ...formData,
+          start_date: buildDatetimePayload(formData.start_date),
+          end_date: buildDatetimePayload(formData.end_date),
+          position_ids: selectedPositionIds,
+          allowed_department_code: formData.election_type === 'department' ? formData.allowed_department_code : null
+        };
         await electionService.create(dataToSubmit);
         setSuccess('Election created successfully!');
       }
@@ -268,7 +296,11 @@ const ElectionFormPage = () => {
           Back to Elections
         </Link>
         <h1>{isEdit ? 'Edit Election' : 'Create New Election'}</h1>
-        <p>{isEdit ? 'Update election details and positions' : 'Set up a new election with positions'}</p>
+        <p>
+          {isEdit
+            ? 'You can update the description and extend the end date only. Schedule, type, and positions are fixed.'
+            : 'Set up a new election with positions'}
+        </p>
       </div>
 
       {error && (
@@ -294,7 +326,9 @@ const ElectionFormPage = () => {
                 Academic Year: AY {formData.start_year}-{formData.end_year}
               </p>
               <p className="admin-election-info-text">
-                The election title will be auto-generated based on the election type and academic year you select below.
+                {isEdit
+                  ? 'Title, academic year, type, positions, and start time are locked. Extend end time only if needed.'
+                  : 'The election title will be auto-generated based on the election type and academic year you select below.'}
               </p>
             </div>
 
@@ -310,10 +344,12 @@ const ElectionFormPage = () => {
                 onChange={handleChange}
                 min="2000"
                 max="2100"
-                required
+                required={!isEdit}
+                disabled={isEdit}
                 className="admin-election-form-input"
                 placeholder="e.g., 2025"
               />
+
               <small className="admin-election-form-help">
                 First year of the school year
               </small>
@@ -368,6 +404,7 @@ const ElectionFormPage = () => {
                   value="university"
                   checked={formData.election_type === 'university'}
                   onChange={handleChange}
+                  disabled={isEdit}
                   className="admin-election-type-radio"
                 />
                 <div className="admin-election-type-content">
@@ -382,6 +419,7 @@ const ElectionFormPage = () => {
                   value="department"
                   checked={formData.election_type === 'department'}
                   onChange={handleChange}
+                  disabled={isEdit}
                   className="admin-election-type-radio"
                 />
                 <div className="admin-election-type-content">
@@ -413,6 +451,7 @@ const ElectionFormPage = () => {
                 value={formData.allowed_department_code || ''}
                 onChange={handleChange}
                 required={formData.election_type === 'department'}
+                disabled={isEdit}
                 className="admin-election-form-select"
               >
                 <option value="">Select Department</option>
@@ -438,14 +477,15 @@ const ElectionFormPage = () => {
                 name="start_date"
                 value={formData.start_date}
                 onChange={handleChange}
-                required
+                required={!isEdit}
+                disabled={isEdit}
                 className="admin-election-form-input"
               />
             </div>
 
             <div>
               <label className="admin-election-form-label">
-                End Date & Time *
+                End Date & Time *{isEdit ? ' (extend only)' : ''}
               </label>
               <input
                 type="datetime-local"
@@ -453,6 +493,7 @@ const ElectionFormPage = () => {
                 value={formData.end_date}
                 onChange={handleChange}
                 required
+                min={isEdit && originalEndDateRef.current ? originalEndDateRef.current.slice(0, 16) : undefined}
                 className="admin-election-form-input"
               />
             </div>
@@ -466,7 +507,9 @@ const ElectionFormPage = () => {
           </h5>
           
           <p className="admin-election-positions-description">
-            Choose which positions will be contested in this election. You can select multiple positions.
+            {isEdit
+              ? 'Positions cannot be changed after the election is created.'
+              : 'Choose which positions will be contested in this election. You can select multiple positions.'}
           </p>
 
           {availablePositions.length === 0 ? (
@@ -498,6 +541,7 @@ const ElectionFormPage = () => {
                     type="checkbox"
                     checked={selectedPositionIds.includes(position.id)}
                     onChange={() => togglePositionSelection(position.id)}
+                    disabled={isEdit}
                     className="admin-election-position-checkbox"
                   />
                   <div className="admin-election-position-content">

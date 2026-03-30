@@ -1,6 +1,6 @@
 # E-Botar - Blockchain-Inspired Electronic Voting System
 
-**Version 0.7.8** | A secure, privacy-preserving electronic voting platform for student government elections
+**Version 1.0.0** | A secure, privacy-preserving electronic voting platform for student government elections
 
 [![Django](https://img.shields.io/badge/Django-5.2.8-green.svg)](https://www.djangoproject.com/)
 [![DRF](https://img.shields.io/badge/DRF-3.16.1-red.svg)](https://www.django-rest-framework.org/)
@@ -11,7 +11,7 @@
 
 ## 📖 Table of Contents
 
-- [Release Highlights (0.7.8)](#-release-highlights-078)
+- [Release Highlights (1.0.0)](#-release-highlights-100)
 - [Quick Start](#quick-start)
 - [Key Features](#key-features)
 - [Role-Based Access Control](#role-based-access-control)
@@ -22,7 +22,26 @@
 
 ---
 
-## 🚀 Release Highlights (0.7.8)
+## 🚀 Release Highlights (1.0.0)
+
+- **App Version Single Source of Truth**: UI version (e.g. "E-Botar v1.0.0") is driven from one constant in `frontend/src/constants.js` (`APP_VERSION`). Navbar (sidebar and mobile) imports it; bump the version in one place to update the label everywhere.
+- **Admin User Directory (Read-Only)**: Students/staff/admin directory with advanced multi-field filters, summary cards (colleges/courses), and client-side pagination.
+- **Voting Status (Per Election)**: Read-only per-election voting completion status page with client-side pagination.
+- **`GET /api/auth/user-count/` (Staff/Admin)**: Returns total registered users (active/inactive) for the Admin Dashboard.
+- **`GET /api/auth/directory/` (Staff/Admin)**: Unified admin directory endpoint for directory pages.
+- **`GET /api/voting/voting-status/` (Staff/Admin)**: Per-election voting status endpoint (requires `election_id`).
+- **Admin Tables Upgrade**: User Management columns updated (first/middle/last name, ID, course, year level as numbers, role, status, joined/created, and admin-only actions) plus pagination and advanced search behavior.
+- **Application Pages Upgrade**: Application list pagination and cleaner Application Review layout with consistent avatar + initials fallback.
+- **Data Export PDF Improvements**: Reorganized election results PDF hierarchy; removed export mock-student loading; fixed React event leakage in the export flow.
+- **Layout + Responsiveness Fixes**: Full-width layout behavior (no boxed centering), fixed admin sidebar submenu clipping, and improved results-details container responsiveness.
+
+### Documentation & environment (since 1.0.0)
+
+- **Unified `.env.example`**: Template at repository root [`.env.example`](.env.example) covers Django and documented Vite build variables. Copy to `.env` in the same folder (not committed).
+- **Load order**: Django loads the repo-root `.env`, then optional `backend/.env` (backend file overrides). See [`backend/backend/settings.py`](backend/backend/settings.py).
+- **Admin UI consistency**: Party, position, and election management use the same registry-style layout; add/edit party and position run in modals with scoped CSS so Bootstrap dialogs stay centered.
+
+### Previous Highlights (0.7.8)
 
 - **College Terminology Alignment**: UI now consistently uses "College" (instead of "Department") for program-type labels and profile academic info, while keeping existing data model values (`department`, `course`) unchanged.
 - **Program Type Badge**: Program list badges now show "College" for department-type entries and "Course" for courses.
@@ -421,8 +440,8 @@ E-Botar is configured to work seamlessly on Railway while maintaining full local
 
 2. **Or Manual Setup**:
    ```powershell
-   # Create backend/.env file (copy from backend/.env.example)
-   # Edit backend/.env and set SECRET_KEY
+   # Create .env from .env.example (repository root, next to this README)
+   # Optionally add backend/.env for overrides — set SECRET_KEY at minimum
    
    # Create and activate virtual environment
    python -m venv env
@@ -604,14 +623,15 @@ locust -f locustfile.py --host=http://localhost:8000
 ```
 
 ### Key Files
-- `backend/backend/settings.py` - Django configuration
+- `.env.example` (repository root) - Template for `.env` (Django + documented Vite vars); copy to `.env` beside it
+- `backend/backend/settings.py` - Django configuration (loads root `.env` then `backend/.env`)
 - `backend/requirements.txt` - Python dependencies
 - `frontend/package.json` - Node dependencies
-- `.env` - Environment variables (create from .env.example)
+- `frontend/.env` - Optional; set `VITE_API_BASE_URL` for production builds (Vite reads env from `frontend/` by default)
 
 ---
 
-**E-Botar v0.7.8** | Last Updated: December 2025 | Performance Tested & Optimized  
+**E-Botar v1.0.0** | Last Updated: March 2026 | Performance Tested & Optimized  
 **Status**: Production Ready | Full Stack Complete
 
 > 📖 **For complete documentation**, see [Information.md](Information.md)

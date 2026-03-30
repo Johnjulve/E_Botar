@@ -12,11 +12,27 @@ dist
 dist-ssr
 *.local
 .env*
+!.env.example
+!.env.template
 .eslintcache
 .vite/
 coverage/
 .parcel-cache/
 storybook-static/
+
+# Vercel CLI (project link / env); keep vercel.json in git
+.vercel
+
+# TypeScript incremental (if you add TS later)
+*.tsbuildinfo
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Optional: local bundle analyzer output
+# stats.html
 
 # Editor directories and files
 .vscode/*

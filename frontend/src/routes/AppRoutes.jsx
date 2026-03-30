@@ -46,6 +46,8 @@ import ProgramManagementPage from '../modules/admin/pages/ProgramManagementPage'
 import PartyManagementPage from '../modules/admin/pages/PartyManagementPage';
 import PositionManagementPage from '../modules/admin/pages/PositionManagementPage';
 import DataExportPage from '../modules/admin/pages/DataExportPage';
+import UserDirectoryPage from '../modules/admin/pages/UserDirectoryPage';
+import VotingStatusPage from '../modules/admin/pages/VotingStatusPage';
 
 const AppRoutes = () => {
   return (
@@ -179,11 +181,19 @@ const AppRoutes = () => {
           </ProtectedRoute>
         } 
       />
+      <Route 
+        path="/admin/voting-status" 
+        element={
+          <ProtectedRoute requireStaff>
+            <VotingStatusPage />
+          </ProtectedRoute>
+        } 
+      />
       {/* Admin-only Routes - Only superusers can access */}
       <Route 
         path="/admin/users" 
         element={
-          <ProtectedRoute requireAdmin>
+          <ProtectedRoute requireStaff>
             <UserManagementPage />
           </ProtectedRoute>
         } 

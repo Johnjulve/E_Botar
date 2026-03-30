@@ -37,9 +37,9 @@ def cache_result(timeout):
             # Add keyword arguments
             key_parts.extend([f"{k}:{v}" for k, v in sorted(kwargs.items())])
             
-            # Generate hash for cache key using MD5 algorithm
+            # Generate hash for cache key using SHA-256
             key_string = '|'.join(key_parts)
-            cache_key = f"election_service_{CryptographicAlgorithm.md5_hash(key_string)}"
+            cache_key = f"election_service_{CryptographicAlgorithm.sha256_hash(key_string)}"
             
             # Try to get from cache
             result = cache.get(cache_key)
@@ -99,6 +99,7 @@ class ElectionDataService:
         now = timezone.now()
         return SchoolElection.objects.filter(
             is_active=True,
+            is_paused=False,
             start_date__lte=now,
             end_date__gte=now
         ).select_related(
@@ -119,7 +120,7 @@ class ElectionDataService:
         Returns:
             Dictionary with election statistics
         """
-        from apps.voting.models import AnonVote, Ballot
+        from apps.voting.models import Ballot, VoteChoice
         
         try:
             election = SchoolElection.objects.get(id=election_id)
@@ -134,11 +135,14 @@ class ElectionDataService:
                 'turnout_percentage': 0
             }
         
-        # Count total votes
-        total_votes = AnonVote.objects.filter(election=election).count()
+        # Count total votes (only ballots cast by active users)
+        total_votes = VoteChoice.objects.filter(
+            ballot__election=election,
+            ballot__user__is_active=True,
+        ).count()
         
-        # Count unique voters
-        total_voters = Ballot.objects.filter(election=election).count()
+        # Count unique voters (active accounts only)
+        total_voters = Ballot.objects.filter(election=election, user__is_active=True).count()
         
         # Count candidates by position
         candidates_by_position = Candidate.objects.filter(
@@ -160,15 +164,15 @@ class ElectionDataService:
         # Count eligible students based on election type
         from apps.accounts.models import UserProfile
         if election.election_type == 'university':
-            # For university elections, all students are eligible
             total_eligible_students = UserProfile.objects.filter(
+                user__is_active=True,
                 user__is_staff=False,
                 user__is_superuser=False
             ).count()
         elif election.election_type == 'department' and election.allowed_department:
-            # For department elections, only students from that department are eligible
             total_eligible_students = UserProfile.objects.filter(
                 department=election.allowed_department,
+                user__is_active=True,
                 user__is_staff=False,
                 user__is_superuser=False
             ).count()
@@ -177,7 +181,7 @@ class ElectionDataService:
             total_eligible_students = total_voters
         
         # Calculate turnout safely using memoized function
-        ballots_count = election.ballots.count() if hasattr(election, 'ballots') else 0
+        ballots_count = Ballot.objects.filter(election=election, user__is_active=True).count()
         from apps.voting.services import VotingDataService
         turnout_percentage = VotingDataService.calculate_turnout_percentage(total_voters, total_eligible_students)
         

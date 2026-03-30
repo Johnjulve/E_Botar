@@ -17,10 +17,11 @@ from django.core.cache import cache
 from urllib.parse import urlparse
 import os
 
-load_dotenv() 
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+# Repo root .env (E_Botar/.env), then backend/.env — latter overrides when both exist
+load_dotenv(BASE_DIR.parent / '.env')
+load_dotenv(BASE_DIR / '.env', override=True)
 
 IS_PRODUCTION = os.getenv('IS_PRODUCTION', 'False').lower() == 'true'
 
@@ -40,7 +41,7 @@ if not SECRET_KEY:
     )
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
 ALLOWED_HOSTS = [
     'localhost', 
@@ -229,7 +230,7 @@ CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
 # Security settings for production
-"""
+
 SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', 'False').lower() == 'true'
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
@@ -241,4 +242,4 @@ X_FRAME_OPTIONS = 'DENY'
 SECURE_HSTS_SECONDS = 31536000  # 1 year
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
-"""
+

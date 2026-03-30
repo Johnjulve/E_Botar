@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ElectionManagementPage
  * Manage all elections (CRUD operations)
  */
@@ -8,6 +8,7 @@ import { Link } from 'react-router-dom';
 import { Container } from '../../../components/layout';
 import { LoadingSpinner } from '../../../components/common';
 import { electionService } from '../../../services';
+import { useAuth } from '../../../hooks/useAuth';
 import { formatDate, getElectionStatus } from '../../../utils/formatters';
 import '../admin.css';
 
@@ -64,14 +65,39 @@ const Icon = ({ name, size = 20, className = '' }) => {
         <polyline points="9 18 15 12 9 6"/>
       </svg>
     ),
+    edit: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+      </svg>
+    ),
+    trash: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <polyline points="3 6 5 6 21 6"/>
+        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+      </svg>
+    ),
+    pause: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <rect x="6" y="4" width="4" height="16"/>
+        <rect x="14" y="4" width="4" height="16"/>
+      </svg>
+    ),
+    play: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <polygon points="5 3 19 12 5 21 5 3"/>
+      </svg>
+    ),
   };
 
   return icons[name] || null;
 };
 
 const ElectionManagementPage = () => {
+  const { isAdmin, isStaffOrAdmin } = useAuth();
   const [elections, setElections] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [busyElectionId, setBusyElectionId] = useState(null);
   const [filter, setFilter] = useState('all'); // all, active, upcoming, finished
 
   useEffect(() => {
@@ -105,6 +131,55 @@ const ElectionManagementPage = () => {
     }
   };
 
+  const handleDeleteElection = async (election) => {
+    if (
+      !window.confirm(
+        `Delete “${election.title}”? This removes the election and related links. This cannot be undone.`
+      )
+    ) {
+      return;
+    }
+    setBusyElectionId(election.id);
+    try {
+      await electionService.delete(election.id);
+      await fetchElections();
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.detail || 'Only superusers can delete elections.');
+    } finally {
+      setBusyElectionId(null);
+    }
+  };
+
+  const handlePauseElection = async (election) => {
+    if (!window.confirm(`Pause voting for “${election.title}”? Students cannot vote until you resume.`)) {
+      return;
+    }
+    setBusyElectionId(election.id);
+    try {
+      await electionService.pause(election.id);
+      await fetchElections();
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.detail || 'Failed to pause election.');
+    } finally {
+      setBusyElectionId(null);
+    }
+  };
+
+  const handleResumeElection = async (election) => {
+    setBusyElectionId(election.id);
+    try {
+      await electionService.resume(election.id);
+      await fetchElections();
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.detail || 'Failed to resume election.');
+    } finally {
+      setBusyElectionId(null);
+    }
+  };
+
   if (loading) {
     return <LoadingSpinner fullScreen text="Loading elections..." />;
   }
@@ -118,34 +193,52 @@ const ElectionManagementPage = () => {
 
   return (
     <Container>
-      {/* Header */}
-      <div className="admin-header">
-        <div className="admin-election-header-flex">
-          <div>
-            <h1>
-              <Icon name="calendar" size={28} className="admin-icon-primary" />
-              Election Management
-            </h1>
-            <p>Create and manage all elections</p>
+      <div className="admin-registry-page">
+        <header className="admin-registry-header">
+          <div className="admin-registry-header-text">
+            <p className="admin-registry-eyebrow">Election setup</p>
+            <div className="admin-registry-title-row">
+              <div className="admin-registry-icon" aria-hidden>
+                <Icon name="calendar" size={22} />
+              </div>
+              <div>
+                <h1 className="admin-registry-title">Elections</h1>
+                <p className="admin-registry-lede">
+                  Schedule ballots, attach positions and parties, and monitor voting from one place.
+                </p>
+              </div>
+            </div>
+            <nav className="admin-registry-nav" aria-label="Election admin sections">
+              <Link to="/admin/elections" className="admin-btn primary admin-registry-nav-btn" aria-current="page">
+                Elections
+              </Link>
+              <Link to="/admin/parties" className="admin-btn secondary admin-registry-nav-btn">
+                Parties
+              </Link>
+              <Link to="/admin/positions" className="admin-btn secondary admin-registry-nav-btn">
+                Positions
+              </Link>
+            </nav>
           </div>
-          <div className="admin-header-actions">
+          <div className="admin-registry-header-actions admin-registry-header-actions--elections">
             <Link to="/admin" className="admin-btn secondary">
-              Back to Dashboard
+              Back to dashboard
             </Link>
             <Link to="/admin/elections/create" className="admin-btn primary">
-              Create Election
+              <Icon name="plus" size={16} />
+              Create election
             </Link>
           </div>
-        </div>
-      </div>
+        </header>
 
       {/* Filter Tabs */}
-      <div className="admin-filter-tabs">
+      <div className="admin-filter-tabs admin-registry-filters" role="group" aria-label="Filter elections">
         {filterButtons.map(btn => (
           <button
             key={btn.key}
+            type="button"
             onClick={() => setFilter(btn.key)}
-            className={`admin-filter-btn ${filter === btn.key ? 'admin-filter-btn-active' : 'admin-filter-btn-inactive-default'}`}
+            className={`admin-filter-btn ${filter === btn.key ? 'active' : ''}`}
           >
             <Icon name={btn.icon} size={16} />
             {btn.label}
@@ -236,24 +329,63 @@ const ElectionManagementPage = () => {
                     <Icon name="barChart" size={14} />
                     Results
                   </Link>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      className="admin-btn danger"
+                      disabled={busyElectionId === election.id}
+                      onClick={() => handleDeleteElection(election)}
+                    >
+                      <Icon name="trash" size={14} />
+                      Delete
+                    </button>
+                  )}
+                  {isStaffOrAdmin && !election.is_finished && !election.is_paused && (
+                    <button
+                      type="button"
+                      className="admin-btn secondary"
+                      disabled={busyElectionId === election.id}
+                      onClick={() => handlePauseElection(election)}
+                      title="Temporarily stop voting (e.g. technical issue)"
+                    >
+                      <Icon name="pause" size={14} />
+                      Pause
+                    </button>
+                  )}
+                  {isStaffOrAdmin && election.is_paused && !election.is_finished && (
+                    <button
+                      type="button"
+                      className="admin-btn primary"
+                      disabled={busyElectionId === election.id}
+                      onClick={() => handleResumeElection(election)}
+                    >
+                      <Icon name="play" size={14} />
+                      Resume
+                    </button>
+                  )}
                 </div>
               </div>
             );
           })}
         </div>
       ) : (
-        <div className="admin-card-container admin-empty-state">
-          <h5 className="admin-empty-state-title">
-            No {filter !== 'all' ? filter : ''} Elections
-          </h5>
-          <p className="admin-empty-state-message">
-            There are no elections matching your filter criteria.
+        <div className="admin-empty-card admin-registry-empty">
+          <Icon name="calendar" size={40} className="admin-empty-icon" />
+          <h2 className="admin-empty-title">
+            {filter === 'all' ? 'No elections yet' : `No ${filter} elections`}
+          </h2>
+          <p className="admin-empty-text">
+            {filter === 'all'
+              ? 'Create an election to open nominations, voting, and results.'
+              : 'Try another filter or create a new election.'}
           </p>
           <Link to="/admin/elections/create" className="admin-btn primary">
-            Create Election
+            <Icon name="plus" size={16} />
+            Create election
           </Link>
         </div>
       )}
+      </div>
     </Container>
   );
 };

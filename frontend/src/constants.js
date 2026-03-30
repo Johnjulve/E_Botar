@@ -2,6 +2,8 @@
  * Application Constants
  * Central location for all app constants
  */
+// App version (single source of truth for UI; bump on release)
+export const APP_VERSION = '1.0.0';
 
 // API Configuration
 // NOTE: For actual API calls, use the api service (src/services/api.js)
@@ -153,6 +155,7 @@ export const ERROR_MESSAGES = {
 };
 
 export default {
+  APP_VERSION,
   API_BASE_URL,
   STORAGE_KEYS,
   ELECTION_STATUS,

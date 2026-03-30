@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from .models import VoteReceipt, AnonVote, Ballot, VoteChoice
 from apps.candidates.serializers import CandidateListSerializer
 from apps.elections.serializers import SchoolPositionSerializer, SchoolElectionListSerializer
+from apps.accounts.serializers import UserProfileSerializer
 
 
 class VoteReceiptSerializer(serializers.ModelSerializer):
@@ -104,6 +105,11 @@ class BallotSubmissionSerializer(serializers.Serializer):
                     'non_field_errors': 'Profile not found. Please complete your profile before voting.'
                 })
         
+        if getattr(election, 'is_paused', False):
+            raise serializers.ValidationError({
+                'election_id': 'Voting is temporarily paused for this election. Please try again later.'
+            })
+
         if not election.is_active_now() and not user.is_staff:
             raise serializers.ValidationError({'election_id': 'This election is not currently active'})
         
@@ -170,4 +176,13 @@ class MyVoteStatusSerializer(serializers.Serializer):
     has_voted = serializers.BooleanField()
     voted_at = serializers.DateTimeField(allow_null=True)
     receipt_code = serializers.CharField(allow_null=True)
+
+
+class UserVotingStatusSerializer(UserProfileSerializer):
+    """Serializer for per-election voting status, extending the user profile serializer."""
+    has_voted = serializers.BooleanField()
+
+    class Meta(UserProfileSerializer.Meta):
+        fields = list(UserProfileSerializer.Meta.fields) + ['has_voted']
+        read_only_fields = list(UserProfileSerializer.Meta.read_only_fields) + ['has_voted']
 

@@ -9,7 +9,7 @@ import { Container } from '../../../components/layout';
 import { LoadingSpinner } from '../../../components/common';
 import { authService } from '../../../services';
 import { useAuth } from '../../../hooks/useAuth';
-import { getFullName, getInitials } from '../../../utils/helpers';
+import { getFullName, getInitials, coerceYearLevelToFormValue } from '../../../utils/helpers';
 import '../profile.css';
 
 const ProfileEditPage = () => {
@@ -38,6 +38,7 @@ const ProfileEditPage = () => {
     department: '',
     course: '',
     year_level: '',
+    section: '',
   });
 
   const [hasExistingEmail, setHasExistingEmail] = useState(false);
@@ -86,7 +87,8 @@ const ProfileEditPage = () => {
         student_id: profile?.student_id || '',
         department: profile?.department?.code || '',
         course: profile?.course?.code || '',
-        year_level: profile?.year_level || '',
+        year_level: coerceYearLevelToFormValue(profile?.year_level),
+        section: profile?.section != null ? String(profile.section) : '',
       });
 
       setDepartments(departmentsResponse.data || []);
@@ -184,6 +186,7 @@ const ProfileEditPage = () => {
       // Append profile fields
       if (formData.student_id) submitData.append('student_id', formData.student_id);
       if (formData.year_level) submitData.append('year_level', formData.year_level);
+      submitData.append('section', formData.section != null ? String(formData.section).trim() : '');
       
       // Append department and course as IDs (ensure they're numbers)
       if (formData.department) {
@@ -480,12 +483,32 @@ const ProfileEditPage = () => {
                   required={!isAdmin}
                 >
                   <option value="">Select Year Level</option>
-                  <option value="1st Year">1st Year</option>
-                  <option value="2nd Year">2nd Year</option>
-                  <option value="3rd Year">3rd Year</option>
-                  <option value="4th Year">4th Year</option>
-                  <option value="5th Year">5th Year</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                  <option value="5">5</option>
                 </select>
+              </div>
+
+              <div className="profile-form-group">
+                <label htmlFor="section" className="profile-form-label">
+                  Section {!isAdmin && <span className="profile-required">*</span>}
+                </label>
+                <input
+                  type="text"
+                  className="profile-form-input"
+                  id="section"
+                  name="section"
+                  value={formData.section}
+                  onChange={handleChange}
+                  required={!isAdmin}
+                  maxLength={50}
+                  placeholder="e.g. A, B, Block 1"
+                />
+                <small className="profile-form-help">
+                  Your class or block section (as used by your college).
+                </small>
               </div>
 
               <div className="profile-form-group">

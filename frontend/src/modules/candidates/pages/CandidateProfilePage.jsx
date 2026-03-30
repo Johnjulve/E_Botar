@@ -8,7 +8,7 @@ import { useParams, Link } from 'react-router-dom';
 import { Container } from '../../../components/layout';
 import { LoadingSpinner } from '../../../components/common';
 import { candidateService } from '../../../services';
-import { getInitials } from '../../../utils/helpers';
+import { getInitials, formatYearLevelNumeric, parseYearLevelNumber } from '../../../utils/helpers';
 import '../candidates.css';
 
 const CandidateProfilePage = () => {
@@ -140,13 +140,19 @@ const CandidateProfilePage = () => {
                 </div>
               </div>
 
-              {candidate.user?.course_code && candidate.user?.year_level && (
+              {(candidate.user?.course_code || parseYearLevelNumber(candidate.user?.year_level)) && (
                 <div className="profile-detail-item">
                   <i className="fas fa-graduation-cap"></i>
                   <div className="profile-detail-content">
                     <strong>Course/Year</strong>
                     <span>
-                      {candidate.user.course_code} - {candidate.user.year_level}
+                      {[
+                        candidate.user.course_code,
+                        formatYearLevelNumeric(candidate.user.year_level) ||
+                          candidate.user.year_level,
+                      ]
+                        .filter((x) => x != null && String(x).trim() !== '')
+                        .join(' - ') || '—'}
                     </span>
                   </div>
                 </div>

@@ -43,6 +43,19 @@ export const electionService = {
     return api.put(`/elections/elections/${id}/`, electionData);
   },
 
+  // Partial update (e.g. edit flow: description + extended end date only)
+  partialUpdate: (id, electionData) => {
+    return api.patch(`/elections/elections/${id}/`, electionData);
+  },
+
+  pause: (id) => {
+    return api.post(`/elections/elections/${id}/pause/`);
+  },
+
+  resume: (id) => {
+    return api.post(`/elections/elections/${id}/resume/`);
+  },
+
   // Delete election (admin only)
   delete: (id) => {
     return api.delete(`/elections/elections/${id}/`);

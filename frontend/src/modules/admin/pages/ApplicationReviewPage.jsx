@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ApplicationReviewPage
  * Review and manage candidate applications
  */
@@ -174,149 +174,156 @@ const ApplicationReviewPage = () => {
 
   return (
     <Container>
+      <div className="admin-review-page">
       {/* Header */}
-      <div className="admin-header">
-        <Link to="/admin/applications" className="admin-btn secondary" style={{ marginBottom: '1rem' }}>
-          <Icon name="arrow" size={16} />
-          Back to Applications
-        </Link>
+      <div className="admin-header admin-review-page-header">
         <div className="admin-review-header-flex">
           <div>
             <h1>Application Review</h1>
             <p>Review candidate application details</p>
           </div>
-          <div className={`admin-status-badge ${
-            status.variant === 'warning' ? 'admin-status-badge-warning' :
-            status.variant === 'success' ? 'admin-status-badge-success' :
-            'admin-status-badge-danger'
-          }`} style={{ padding: '0.5rem 1rem' }}>
-            {status.label}
+          <div className="admin-header-actions">
+            <Link to="/admin/applications" className="admin-btn secondary">
+              <Icon name="arrow" size={16} />
+              Back to Applications
+            </Link>
+            <div
+              className={`admin-status-badge admin-review-status-badge ${
+                status.variant === 'warning'
+                  ? 'admin-status-badge-warning'
+                  : status.variant === 'success'
+                    ? 'admin-status-badge-success'
+                    : 'admin-status-badge-danger'
+              }`}
+            >
+              {status.label}
+            </div>
           </div>
         </div>
       </div>
 
       {error && <Alert variant="danger" dismissible onClose={() => setError('')}>{error}</Alert>}
 
-      <div className="admin-review-grid">
-        {/* Applicant Info */}
-        <div className="admin-review-card">
-          <div className="admin-avatar primary admin-review-avatar-large">
-            {getInitials(`${application.user?.first_name} ${application.user?.last_name}`)}
-          </div>
-
-          <h4 className="admin-review-name">
-            {application.user?.first_name} {application.user?.last_name}
-          </h4>
-
-          <p className="admin-review-email">
-            {application.user?.email}
-          </p>
-
-          <div className="admin-review-divider">
-            <div className="admin-review-info-container">
-              <div>
-                <div className="admin-review-info-label">Position</div>
-                <div className="admin-review-info-value">{application.position?.name}</div>
-              </div>
-
-              <div>
-                <div className="admin-review-info-label">Election</div>
-                <div className="admin-review-info-value">{application.election?.title}</div>
-              </div>
-
-              {application.party && (
-                <div>
-                  <div className="admin-review-info-label">Party</div>
-                  <div className="admin-review-info-value">{application.party.name}</div>
-                </div>
-              )}
-
-              <div>
-                <div className="admin-review-info-label">Submitted</div>
-                <div className="admin-review-info-value-small">{formatDate(application.submitted_at, 'datetime')}</div>
-              </div>
-
-              {application.reviewed_at && (
-                <div>
-                  <div className="admin-review-info-label">Reviewed</div>
-                  <div className="admin-review-info-value-small">{formatDate(application.reviewed_at, 'datetime')}</div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {canReview && (
-            <div className="admin-review-actions">
-              <button
-                className="admin-btn success admin-review-button-full"
-                onClick={() => handleReview('approve')}
-              >
-                <Icon name="checkCircle" size={16} />
-                Approve Application
-              </button>
-              <button
-                className="admin-btn danger admin-review-button-full"
-                onClick={() => handleReview('reject')}
-              >
-                <Icon name="xCircle" size={16} />
-                Reject Application
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Main Content */}
-        <div>
-          {/* Campaign Manifesto */}
-          <div className="admin-review-section">
-            <h5 className="admin-review-section-header">
-              <Icon name="fileText" size={20} className="admin-icon-primary" />
-              Campaign Manifesto
-            </h5>
-            {application.manifesto ? (
-              <div className="admin-review-manifesto-box">
-                {application.manifesto}
-              </div>
-            ) : (
-              <p className="admin-empty-state-message" style={{ margin: 0 }}>
-                No manifesto provided
-              </p>
-            )}
-          </div>
-
-          {/* Candidate Photo */}
-          {application.photo && (
-            <div className="admin-review-section">
-              <h5 className="admin-review-section-header">
-                <Icon name="image" size={20} className="admin-icon-primary" />
-                Candidate Photo
-              </h5>
+      <div className="admin-review-layout">
+        <div className="admin-review-top-card">
+          <div className="admin-review-top-card-left">
+            {application.photo ? (
               <img
                 src={application.photo}
                 alt="Candidate"
-                className="admin-review-image"
+                className="admin-review-avatar-photo"
               />
-            </div>
-          )}
-
-          {/* Review Notes */}
-          {application.review_notes && (
-            <div className="admin-review-section">
-              <h5 className="admin-review-section-header">
-                <Icon name="messageSquare" size={20} className="admin-icon-warning" />
-                Review Notes
-              </h5>
-              <div className="admin-review-notes-box">
-                {application.review_notes}
+            ) : (
+              <div className="admin-avatar primary admin-review-avatar-large">
+                {getInitials(`${application.user?.first_name} ${application.user?.last_name}`)}
               </div>
-              {application.reviewed_by && (
-                <p className="admin-review-notes-text">
-                  Reviewed by: <strong>{application.reviewed_by.first_name} {application.reviewed_by.last_name}</strong>
-                </p>
-              )}
+            )}
+          </div>
+
+          <div className="admin-review-top-card-center">
+            <div className="admin-review-name-xl">
+              {application.user?.first_name} {application.user?.last_name}
             </div>
+            <div className="admin-review-email">
+              {application.user?.email}
+            </div>
+          </div>
+
+          <div className="admin-review-top-card-right">
+            <div className="admin-review-meta-grid">
+              <div className="admin-review-meta-item">
+                <div className="admin-review-info-label">Position</div>
+                <div className="admin-review-info-value">{application.position?.name}</div>
+              </div>
+              <div className="admin-review-meta-item">
+                <div className="admin-review-info-label">Submitted</div>
+                <div className="admin-review-info-value-small">
+                  {formatDate(application.submitted_at, 'datetime')}
+                </div>
+              </div>
+              <div className="admin-review-meta-item">
+                <div className="admin-review-info-label">Election</div>
+                <div className="admin-review-info-value">{application.election?.title}</div>
+              </div>
+              <div className="admin-review-meta-item">
+                <div className="admin-review-info-label">Reviewed</div>
+                <div className="admin-review-info-value-small">
+                  {application.reviewed_at ? formatDate(application.reviewed_at, 'datetime') : '—'}
+                </div>
+              </div>
+            </div>
+
+            {application.party && (
+              <div className="admin-review-party">
+                <div className="admin-review-info-label">Party</div>
+                <div className="admin-review-info-value">{application.party.name}</div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {canReview && (
+          <div className="admin-review-actions-row">
+            <button
+              className="admin-btn success"
+              onClick={() => handleReview('approve')}
+            >
+              <Icon name="checkCircle" size={16} />
+              Approve Application
+            </button>
+            <button
+              className="admin-btn danger"
+              onClick={() => handleReview('reject')}
+            >
+              <Icon name="xCircle" size={16} />
+              Reject Application
+            </button>
+          </div>
+        )}
+
+        <div className="admin-review-section admin-review-section-wide">
+          <h3 className="admin-review-section-title">
+            Manifesto
+          </h3>
+          {application.manifesto ? (
+            <div className="admin-review-content-box">
+              {application.manifesto}
+            </div>
+          ) : (
+            <p className="admin-empty-state-message admin-review-empty-message">
+              No manifesto provided
+            </p>
           )}
         </div>
+
+        {application.photo && (
+          <div className="admin-review-section admin-review-section-wide">
+            <h3 className="admin-review-section-title">
+              Candidate Photo
+            </h3>
+            <img
+              src={application.photo}
+              alt="Candidate"
+              className="admin-review-image"
+            />
+          </div>
+        )}
+
+        {application.review_notes && (
+          <div className="admin-review-section admin-review-section-wide">
+            <h3 className="admin-review-section-title">
+              Review Notes
+            </h3>
+            <div className="admin-review-notes-box">
+              {application.review_notes}
+            </div>
+            {application.reviewed_by && (
+              <p className="admin-review-notes-text">
+                Reviewed by: <strong>{application.reviewed_by.first_name} {application.reviewed_by.last_name}</strong>
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Review Modal */}
@@ -338,7 +345,7 @@ const ApplicationReviewPage = () => {
           </strong>
         </Alert>
 
-        <div style={{ marginBottom: '1.5rem' }}>
+        <div className="admin-review-modal-field">
           <label className="admin-modal-label">
             Review Notes
             {reviewAction === 'reject' && (
@@ -368,6 +375,7 @@ const ApplicationReviewPage = () => {
           <strong>Election:</strong> {application.election?.title}
         </div>
       </Modal>
+      </div>
     </Container>
   );
 };

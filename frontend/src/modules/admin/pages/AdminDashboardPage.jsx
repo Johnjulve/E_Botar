@@ -7,7 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Container } from '../../../components/layout';
 import { LoadingSpinner } from '../../../components/common';
-import { electionService, candidateService, votingService, authService } from '../../../services';
+import { electionService, candidateService, authService } from '../../../services';
 import { formatNumber } from '../../../utils/formatters';
 import '../admin.css';
 import '../admin-dashboard.css';
@@ -128,18 +128,21 @@ const AdminDashboardPage = () => {
         electionsRes,
         activeRes,
         candidatesRes,
-        applicationsRes
+        applicationsRes,
+        userCountRes
       ] = await Promise.all([
         electionService.getAll(),
         electionService.getActive(),
         candidateService.getAll(),
-        candidateService.getPendingApplications()
+        candidateService.getPendingApplications(),
+        authService.getUserCount()
       ]);
 
       const elections = electionsRes.data || [];
       const active = activeRes.data || [];
       const candidates = candidatesRes.data || [];
       const applications = applicationsRes.data || [];
+      const userCounts = userCountRes.data || {};
 
       // Calculate total votes from elections
       const totalVotes = elections.reduce((sum, e) => sum + (e.total_votes || 0), 0);
@@ -150,7 +153,7 @@ const AdminDashboardPage = () => {
         totalCandidates: candidates.length,
         pendingApplications: applications.length,
         totalVotes: totalVotes,
-        totalUsers: 0 // Would need a separate endpoint
+        totalUsers: userCounts.total_users || 0
       });
 
       setRecentElections(elections.slice(0, 5));

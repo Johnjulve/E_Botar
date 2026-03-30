@@ -1,6 +1,6 @@
 # E-Botar - System Information
 
-**Version 0.7.8** | Complete system documentation and technical details
+**Version 1.0.0** | Complete system documentation and technical details
 
 [![Django](https://img.shields.io/badge/Django-5.2.8-green.svg)](https://www.djangoproject.com/)
 [![DRF](https://img.shields.io/badge/DRF-3.16.1-red.svg)](https://www.django-rest-framework.org/)
@@ -11,7 +11,7 @@
 
 ## 📖 Table of Contents
 
-- [Release Highlights (0.7.8)](#-release-highlights-078)
+- [Release Highlights (1.0.0)](#-release-highlights-100)
 - [Overview](#overview)
 - [Research Foundation](#research-foundation)
 - [Algorithms & Data Structures](#-algorithms--data-structures)
@@ -28,7 +28,28 @@
 
 ---
 
-## 🚀 Release Highlights (0.7.8)
+## 🚀 Release Highlights (1.0.0)
+
+- **App Version Single Source of Truth**: UI version (e.g. "E-Botar v1.0.0") is driven from one constant in `frontend/src/constants.js` (`APP_VERSION`). Navbar (sidebar and mobile) imports it, so bumping the version in one place updates the label everywhere.
+- **Admin User Directory (Read-Only)**: Students/staff/admin directory with advanced multi-field filters, summary cards (colleges/courses), and client-side pagination.
+- **Voting Status (Per Election)**: Read-only per-election voting completion status page with client-side pagination.
+- **Admin Metrics + Backend Endpoints**:
+  - `GET /api/auth/user-count/` (Staff/Admin) registered users total (active/inactive)
+  - `GET /api/auth/directory/` (Staff/Admin) unified directory endpoint
+  - `GET /api/voting/voting-status/` (Staff/Admin) voting status endpoint (requires `election_id`)
+- **Admin Tables Upgrade**: Updated User Management columns plus advanced search and pagination controls.
+- **Application Pages Upgrade**: Application list pagination and cleaner Application Review layout (including consistent avatar + initials fallback).
+- **Data Export PDF Improvements**: Reorganized election results PDF hierarchy; removed export mock-student loading; fixed React event leakage.
+- **Layout + Responsiveness Fixes**: Full-width layout behavior (no boxed centering), fixed admin sidebar submenu clipping, and improved results-details container responsiveness.
+
+### Documentation & environment (since 1.0.0)
+
+- **Unified `.env.example`**: Single template at the repository root (same folder as `README.md`) lists Django and Vite-related variables; copy to `.env` locally. **Django load order** (`backend/backend/settings.py`): repo-root `.env` first, then `backend/.env` (override).
+- **Admin registry UI**: Election, party, and position management share a consistent registry layout (header, filters, tables); party/position add/edit use modals with scoped CSS so Bootstrap dialogs stay centered (fixes conflicts with legacy `applications.css` modal rules).
+- **Application Review & Verify Receipt**: Application review uses a centered column layout (`admin-review-page`); verify receipt flow uses a narrow, minimal voter page layout in `voting.css`.
+- **`.gitignore`**: Root and `frontend/.gitignore` support monorepo workflows (tracked `.env.example`, ignored secrets and local deploy dirs).
+
+### Previous Highlights (0.7.8)
 
 - **College Terminology Alignment**: UI consistently uses "College" for department-type programs and academic info, while underlying program_type values remain `department`/`course`.
 - **Program Type Badge**: Admin Programs list shows "College" badge for department-type rows; Courses remain unchanged.
@@ -39,11 +60,8 @@
 - **Middle Name Support**: UserProfile and registration/profile edit support middle name; display uses "first middle last" formatting via `getFullName()` helper. Run `python manage.py migrate accounts` for migration `0003_add_middle_name`.
 - **Profile Image Fallback**: When profile or candidate photos fail to load, UI shows initials placeholders; backend cleans up old avatar files on save and provides `cleanup_unused_media` management command for orphaned images.
 - **CSS Architecture & Documentation**: Foundation/global/vendors structure in place; `global.css` removed. README and `frontend/CSS_STRUCTURE_REVIEW.md` updated; see `frontend/CSS_ARCHITECTURE_STRATEGY.md` for rules and structure.
-- **Election Creation & Management**: Robustness and safety improvements for election workflows.
-  - **Spam-Click Prevention**: Creating an election disables the submit button immediately (frontend ref guard) and the backend rejects duplicate create requests from the same user within 10 seconds (429 Too Many Requests).
-  - **Duplicate A.Y. Prevention**: You cannot create another election for the same academic year and category (USC or same department); validation runs on create and update with clear error messages.
-  - **Delete on Edit**: When editing an election, superusers see a "Delete Election" button with confirmation; staff users do not (backend allows delete only for superusers).
-- **Academic Year Selector (Home)**: Dashboard academic year dropdown options shortened to a manageable list: 2 years past and 5 years ahead (8 options total), so the list stays short while covering current and near-future academic years.
+- **Election Creation & Management**: Spam-click prevention (frontend ref guard + backend 10s rate limit), duplicate A.Y. prevention (cannot create another election for same academic year and category—USC or department), Delete on edit for superusers (with confirmation).
+- **Academic Year Selector (Home)**: Dashboard academic year dropdown shortened to 2 years past and 5 years ahead (8 options total).
 
 ### Previous Highlights (0.7.7)
 
@@ -546,7 +564,7 @@ E-Botar follows a modern **split-stack architecture** separating frontend and ba
 ┌─────────────────────────────────────────────────────────────┐
 │                     Frontend Layer                          │
 │  ┌─────────────────────────────────────────────────────┐   │
-│  │  React 18 + Vite                                    │   │
+│  │  React 19 + Vite                                    │   │
 │  │  - User Interface Components                        │   │
 │  │  - Admin Dashboard (In Development)                 │   │
 │  │  - JWT Token Management                             │   │
@@ -814,19 +832,26 @@ E-Botar uses a **service layer pattern** to connect the React frontend with the 
 
 #### Environment Configuration
 
-**Frontend Environment Variables** (`.env`):
+**Repository layout**: A single **`.env.example`** at the repository root (next to `README.md`) documents Django and Vite-related variables. Copy it to **`.env`** in that same folder.
+
+**Django load order** (`backend/backend/settings.py`):
+1. `E_Botar/.env` (repo root — path relative to `backend/` is `../.env` from `manage.py` working directory)
+2. `E_Botar/backend/.env` — optional; if present, values **override** the root file
+
+**Frontend (Vite)**: In development, the app uses the Vite dev proxy (`/api` → backend). For **`npm run build`**, set `VITE_API_BASE_URL` in **`frontend/.env`** or in the CI/shell environment (Vite loads `.env*` from `frontend/` by default, not the repo root).
+
+**Frontend** (`frontend/.env` for production builds):
 ```bash
-# Production only - Backend API URL
-VITE_API_BASE_URL=http://localhost:8000
+VITE_API_BASE_URL=http://127.0.0.1:8000
 ```
 
-**Backend Environment Variables** (`.env`):
+**Backend** (root `.env` and/or `backend/.env`; see root `.env.example` for full list):
 ```bash
-# Frontend URL for CORS (production)
+SECRET_KEY=your-secret-key
+DEBUG=True
+# Frontend URL for CORS (examples)
 FRONTEND_URL=http://localhost:5173
-
-# Or multiple frontends (comma-separated)
-FRONTEND_URL=http://localhost:5173,https://staging.example.com
+# FRONTEND_URL=http://localhost:5173,https://staging.example.com
 ```
 
 #### Authentication Flow
@@ -1101,12 +1126,11 @@ python -m venv ../env
 # Install dependencies
 pip install -r requirements.txt
 
-# Create .env file
-# Copy .env.example to .env and configure:
-# - SECRET_KEY (Django secret)
-# - FERNET_KEY (for ballot encryption)
-# - DATABASE settings (if using PostgreSQL)
-# - CORS_ALLOWED_ORIGINS (frontend URL)
+# Environment variables (create before migrate)
+# Copy ../.env.example to ../.env (repository root), e.g. from backend folder:
+#   copy ..\.env.example ..\.env
+# Django loads: ../.env first, then backend/.env if present (backend overrides).
+# Configure at minimum: SECRET_KEY; optional: DATABASE_URL, FERNET_KEY, CORS/FRONTEND URLs per .env.example comments
 
 # Run migrations
 python manage.py migrate
@@ -1131,8 +1155,10 @@ cd frontend
 # Install dependencies
 npm install
 
-# Create .env file
-# Set VITE_API_BASE_URL=http://localhost:8000
+# Optional: frontend/.env for production builds (Vite reads env from frontend/ by default)
+# Dev uses Vite proxy to /api — see vite.config.js. For production:
+#   VITE_API_BASE_URL=http://127.0.0.1:8000
+# Root .env.example documents the same variable for reference.
 
 # Run development server
 npm run dev
@@ -2066,14 +2092,15 @@ python manage.py check
 ```
 
 ### Key Files
+- `.env.example` (repository root) - Template; copy to `.env` beside it (Django reads root `.env`, then optional `backend/.env`)
 - `backend/backend/settings.py` - Django configuration
 - `backend/requirements.txt` - Python dependencies
 - `frontend/package.json` - Node dependencies
-- `.env` - Environment variables (create from .env.example)
+- `frontend/.env` - Optional; `VITE_API_BASE_URL` for production builds
 
 ---
 
-**E-Botar v0.7.8** | Last Updated: December 2025 | Performance Tested & Optimized  
+**E-Botar v1.0.0** | Last Updated: March 2026 | Performance Tested & Optimized  
 **Status**: Production Ready | Full Stack Complete
 
 **Built with ❤️ for democratic student governance**

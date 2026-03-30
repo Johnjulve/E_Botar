@@ -516,11 +516,13 @@
   min-width: 0;
 }
 
-.candidate-name {
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
+/* Scoped under .position-card so this wins over global `.candidate-name` in candidates.css */
+.position-card .candidate-name {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
   color: var(--text-primary);
   margin-bottom: var(--spacing-xs);
+  line-height: var(--line-height-tight);
 }
 
 .candidate-party-badge {

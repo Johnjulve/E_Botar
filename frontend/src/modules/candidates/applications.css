@@ -536,7 +536,8 @@
   margin-bottom: var(--spacing-sm);
 }
 
-/* Modal */
+/* Modal — all selectors scoped under .modal-overlay so we do not override Bootstrap
+   .modal-content / .modal-header / .modal-body (e.g. admin party & position dialogs). */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -551,27 +552,27 @@
   padding: 1rem;
 }
 
-.modal-content {
+.modal-overlay .modal-content {
   background: var(--card-bg);
   border-radius: var(--radius-xl);
   padding: 2rem;
-  max-width: 500px;
   width: 100%;
+  max-width: 500px;
   box-shadow: var(--shadow-xl);
 }
 
-.modal-header {
+.modal-overlay .modal-header {
   font-size: var(--font-size-2xl);
   font-weight: 700;
   color: var(--text-primary);
   margin-bottom: var(--spacing-lg);
 }
 
-.modal-body {
+.modal-overlay .modal-body {
   margin-bottom: 1.5rem;
 }
 
-.modal-warning {
+.modal-overlay .modal-warning {
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
@@ -584,26 +585,26 @@
   font-weight: 500;
 }
 
-.modal-info-box {
+.modal-overlay .modal-info-box {
   background: var(--gray-50);
   padding: var(--spacing-md);
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-color);
 }
 
-.modal-info-box strong {
+.modal-overlay .modal-info-box strong {
   display: block;
   color: var(--text-primary);
   margin-bottom: var(--spacing-xs);
 }
 
-.modal-actions {
+.modal-overlay .modal-actions {
   display: flex;
   gap: 1rem;
   justify-content: flex-end;
 }
 
-.modal-btn {
+.modal-overlay .modal-btn {
   padding: 0.75rem 1.5rem;
   border-radius: 8px;
   font-weight: 600;
@@ -611,25 +612,25 @@
   border: none;
 }
 
-.modal-btn.cancel {
+.modal-overlay .modal-btn.cancel {
   background: var(--gray-100);
   color: var(--gray-700);
 }
 
-.modal-btn.cancel:hover {
+.modal-overlay .modal-btn.cancel:hover {
   background: var(--gray-200);
 }
 
-.modal-btn.confirm {
+.modal-overlay .modal-btn.confirm {
   background: var(--danger-color);
   color: var(--white);
 }
 
-.modal-btn.confirm:hover:not(:disabled) {
+.modal-overlay .modal-btn.confirm:hover:not(:disabled) {
   background: var(--danger-hover);
 }
 
-.modal-btn:disabled {
+.modal-overlay .modal-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -683,16 +684,16 @@
     width: 100%;
   }
 
-  .modal-content {
+  .modal-overlay .modal-content {
     padding: 1.5rem;
     margin: 1rem;
   }
 
-  .modal-actions {
+  .modal-overlay .modal-actions {
     flex-direction: column-reverse;
   }
 
-  .modal-btn {
+  .modal-overlay .modal-btn {
     width: 100%;
   }
 }

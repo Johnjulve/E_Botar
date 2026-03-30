@@ -9,6 +9,7 @@ import { Offcanvas } from 'react-bootstrap';
 import { electionService } from '../../services';
 import { useAuth } from '../../hooks/useAuth';
 import { useBranding } from '../../contexts/BrandingContext';
+import { APP_VERSION } from '../../constants';
 import logoImg from '../../assets/images/logo.png';
 
 // SVG Icon Component
@@ -172,16 +173,15 @@ const Navbar = () => {
         { key: 'admin-dashboard', label: 'Dashboard', to: '/admin', icon: 'home' },
         { key: 'admin-elections', label: 'Elections', to: '/admin/elections', icon: 'calendar' },
         { key: 'admin-applications', label: 'Applications', to: '/admin/applications', icon: 'users' },
+        { key: 'admin-voting-status', label: 'Voting Status', to: '/admin/voting-status', icon: 'vote' },
         { key: 'admin-data-export', label: 'Data Export', to: '/admin/data-export', icon: 'download' },
+        { key: 'admin-users', label: 'Users', to: '/admin/users', icon: 'users' },
       ];
 
-      // Admin-only items (superuser only)
+      // Admin-only extra items (superuser only)
       if (isAdmin) {
         adminMenuItems.push(
           { key: 'admin-programs', label: 'Programs', to: '/admin/programs', icon: 'building' },
-          { key: 'admin-parties', label: 'Parties', to: '/admin/parties', icon: 'users' },
-          { key: 'admin-positions', label: 'Positions', to: '/admin/positions', icon: 'briefcase' },
-          { key: 'admin-users', label: 'User Management', to: '/admin/users', icon: 'user' },
           { key: 'admin-logs', label: 'System Logs', to: '/admin/logs', icon: 'activity' }
         );
       }
@@ -215,6 +215,11 @@ const Navbar = () => {
                   key: 'my-votes',
                   label: 'My Voting History',
                   to: '/my-votes',
+                },
+                {
+                  key: 'verify-receipt',
+                  label: 'Verify Receipt',
+                  to: '/verify-receipt',
                 },
               ]
             : []),
@@ -499,7 +504,7 @@ const Navbar = () => {
 
         {/* Sidebar version label above user pill */}
         <div className="sidebar-version text-selectable">
-          {branding.app_name} v0.7.8
+          {branding.app_name} v{APP_VERSION}
         </div>
 
         {isAuthenticated && (
@@ -547,7 +552,7 @@ const Navbar = () => {
 
           {/* Mobile sidebar version label above user pill */}
           <div className="offcanvas-version text-selectable">
-            {branding.app_name} v0.7.8
+            {branding.app_name} v{APP_VERSION}
           </div>
 
           {isAuthenticated && (

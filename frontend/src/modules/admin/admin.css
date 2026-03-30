@@ -615,6 +615,17 @@ button:hover,
   border-color: var(--gray-400);
 }
 
+.admin-btn-inline-icon {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  margin-right: 0.35rem;
+}
+
+.admin-btn-inline-icon svg {
+  display: block;
+}
+
 /* Empty State */
 .admin-empty-state {
   text-align: center;
@@ -935,59 +946,144 @@ button:hover,
 }
 
 /* Application Review Page Styles */
+/* One centered column for header + body so layout does not “drift” vs sidebar width */
+.admin-review-page {
+  width: 100%;
+  max-width: 1100px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .admin-review-header-flex {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 2rem;
+  flex-wrap: wrap;
 }
 
-.admin-review-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+.admin-review-status-badge {
+  padding: 0.5rem 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 38px;
+}
+
+.admin-review-empty-message {
+  margin: 0;
+}
+
+.admin-review-modal-field {
+  margin-bottom: 1.5rem;
+}
+
+/* Reference-style review layout */
+.admin-review-layout {
+  display: flex;
+  flex-direction: column;
   gap: var(--spacing-lg);
 }
 
-.admin-review-card {
+.admin-review-top-card {
   background: var(--white);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-xl);
   padding: var(--spacing-lg);
-  text-align: center;
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(80px, 140px) minmax(0, 1fr) minmax(220px, 340px);
+  gap: var(--spacing-md);
+  align-items: center;
+}
+
+/* Tablet: stack details row under identity so width doesn’t jump awkwardly */
+@media (max-width: 1100px) {
+  .admin-review-top-card {
+    grid-template-columns: minmax(80px, 140px) minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    grid-template-areas:
+      "left center"
+      "right right";
+  }
+
+  .admin-review-top-card-left {
+    grid-area: left;
+  }
+
+  .admin-review-top-card-center {
+    grid-area: center;
+  }
+
+  .admin-review-top-card-right {
+    grid-area: right;
+    border-top: 1px solid var(--border-color);
+    padding-top: var(--spacing-md);
+  }
+}
+
+.admin-review-top-card-left {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.admin-review-avatar-block {
+  width: 200px;
+  height: 150px;
+  border-radius: 18px;
+  background: #f59e0b;
+}
+
+.admin-review-avatar-photo {
+  width: 120px;
+  height: 120px;
+  border-radius: 18px;
+  object-fit: cover;
+  display: block;
+  border: 1px solid var(--border-color);
 }
 
 .admin-review-avatar-large {
-  width: 100px;
-  height: 100px;
-  font-size: 2.5rem;
-  margin: 0 auto 1rem;
+  width: 120px;
+  height: 120px;
+  border-radius: 18px;
+  font-size: 2rem;
 }
 
-.admin-review-name {
-  margin: 0 0 0.5rem;
+.admin-review-top-card-center {
+  min-width: 0;
+}
+
+.admin-review-name-xl {
+  font-size: 2rem;
+  line-height: 1.1;
+  margin: 0;
   color: var(--text-primary);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-bold);
 }
 
 .admin-review-email {
-  margin: 0 0 1.5rem;
+  margin: 0;
   color: var(--text-muted);
   font-size: 0.9rem;
   word-break: break-word;
 }
 
-.admin-review-divider {
-  border-top: 1px solid var(--border-color);
-  border-bottom: 1px solid var(--border-color);
-  padding: 1.5rem 0;
-  margin-bottom: var(--spacing-lg);
-}
-
-.admin-review-info-container {
-  text-align: left;
+.admin-review-top-card-right {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-md);
+}
+
+.admin-review-meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-sm) var(--spacing-lg);
+}
+
+.admin-review-meta-item {
+  min-width: 0;
 }
 
 .admin-review-info-label {
@@ -1009,15 +1105,17 @@ button:hover,
   font-size: 0.9rem;
 }
 
-.admin-review-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+.admin-review-party {
+  border-top: 1px solid var(--border-color);
+  padding-top: var(--spacing-md);
 }
 
-.admin-review-button-full {
+.admin-review-actions-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
   width: 100%;
-  justify-content: center;
 }
 
 .admin-review-section {
@@ -1028,13 +1126,16 @@ button:hover,
   margin-bottom: var(--spacing-lg);
 }
 
-.admin-review-section-header {
+.admin-review-section-wide {
+  margin-bottom: 0;
+  width: 100%;
+}
+
+.admin-review-section-title {
   margin: 0 0 1rem;
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
+  font-size: 1.5rem;
+  font-weight: var(--font-weight-bold);
   color: var(--text-primary);
-  font-weight: var(--font-weight-semibold);
 }
 
 .admin-review-content-box {
@@ -1046,18 +1147,7 @@ button:hover,
   color: var(--gray-700);
   line-height: 1.6;
   font-size: 0.95rem;
-}
-
-.admin-review-manifesto-box {
-  background: var(--gray-50);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: var(--spacing-md);
-  white-space: pre-wrap;
-  color: var(--gray-700);
-  line-height: 1.6;
-  font-size: 0.95rem;
-  max-height: 300px;
+  max-height: 320px;
   overflow-y: auto;
 }
 
@@ -1084,6 +1174,50 @@ button:hover,
   white-space: pre-wrap;
   line-height: 1.6;
   margin-bottom: var(--spacing-md);
+}
+
+@media (max-width: 768px) {
+  .admin-review-top-card {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    grid-template-areas: none;
+    justify-items: stretch;
+  }
+
+  .admin-review-top-card-left,
+  .admin-review-top-card-center,
+  .admin-review-top-card-right {
+    grid-area: auto;
+  }
+
+  .admin-review-top-card-right {
+    border-top: 1px solid var(--border-color);
+    padding-top: var(--spacing-md);
+  }
+
+  .admin-review-avatar-photo,
+  .admin-review-avatar-large {
+    width: 120px;
+    height: 120px;
+    max-width: none;
+    margin: 0 auto;
+  }
+
+  .admin-review-top-card-left {
+    justify-content: center;
+  }
+
+  .admin-review-top-card-center {
+    text-align: center;
+  }
+
+  .admin-review-top-card-right {
+    width: 100%;
+  }
+
+  .admin-review-meta-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Modal Form Styles */
@@ -1250,6 +1384,174 @@ button:hover,
   font-family: inherit;
 }
 
+.admin-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--gray-300);
+  background: var(--white);
+  cursor: pointer;
+}
+
+.admin-filter-chip input {
+  margin: 0;
+}
+
+.admin-filter-chip-active {
+  border-color: var(--primary, #0d6efd);
+  background: color-mix(in srgb, var(--primary, #0d6efd) 12%, transparent);
+}
+
+.admin-advanced-search-panel {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  font-size: 0.85rem;
+}
+
+.admin-advanced-search-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.admin-advanced-search-label {
+  font-weight: 600;
+  color: var(--gray-700, #374151);
+}
+
+@media (min-width: 768px) {
+  .admin-advanced-search-row {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .admin-advanced-search-label {
+    flex: 0 0 150px;
+    padding-top: 0.25rem;
+  }
+}
+
+.admin-advanced-search-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-advanced-search-scroll {
+  max-height: 190px;
+  overflow-y: auto;
+  padding: 0.15rem 0;
+}
+
+.admin-advanced-search-actions {
+  margin-top: 0.15rem;
+}
+
+@media (min-width: 768px) {
+  .admin-advanced-search-row-stack .admin-advanced-search-label {
+    flex: 0 0 150px;
+  }
+
+  .admin-advanced-search-row-stack .admin-course-listbox {
+    flex: 1;
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
+.admin-course-listbox {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.admin-course-listbox-search {
+  width: 100%;
+  max-width: 420px;
+}
+
+.admin-course-listbox-meta {
+  font-size: 0.8rem;
+  color: var(--gray-600, #4b5563);
+}
+
+.admin-course-listbox-list {
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--gray-300, #d1d5db);
+  border-radius: var(--radius-md, 8px);
+  background: var(--white);
+}
+
+.admin-course-listbox-empty {
+  padding: 0.75rem 1rem;
+}
+
+.admin-course-listbox-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.45rem 0.65rem;
+  border-bottom: 1px solid var(--gray-100, #f3f4f6);
+  cursor: pointer;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.admin-course-listbox-option:last-child {
+  border-bottom: none;
+}
+
+.admin-course-listbox-option:hover {
+  background: var(--gray-50, #f9fafb);
+}
+
+.admin-course-listbox-option-selected {
+  background: color-mix(in srgb, var(--primary, #0d6efd) 8%, transparent);
+}
+
+.admin-course-listbox-option input {
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+}
+
+.admin-course-listbox-option-text {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.65rem;
+  align-items: baseline;
+}
+
+.admin-course-listbox-name {
+  font-weight: 500;
+  color: var(--gray-800, #1f2937);
+}
+
+.admin-course-listbox-code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.78rem;
+  color: var(--gray-600, #4b5563);
+}
+
+.admin-course-listbox-dept {
+  font-size: 0.78rem;
+  color: var(--gray-500, #6b7280);
+  width: 100%;
+  flex-basis: 100%;
+}
+
 .admin-table-container {
   background: var(--white);
   border: 1px solid var(--border-color);
@@ -1310,6 +1612,68 @@ button:hover,
 
 .admin-table td.text-right {
   text-align: right;
+}
+
+/* Pagination (table footer) */
+.admin-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.75rem var(--spacing-md);
+  border-top: 1px solid var(--border-color);
+  background: var(--white);
+}
+
+.admin-pagination-left {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.admin-pagination-title {
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+}
+
+.admin-pagination-range {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.admin-pagination-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.admin-pagination-view {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-pagination-view-label {
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+}
+
+.admin-pagination-view-select {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-md);
+  background: var(--white);
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
+.admin-pagination-view-select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(14, 159, 110, 0.15);
 }
 
 .admin-user-cell {
@@ -2671,5 +3035,220 @@ button:hover,
   color: var(--text-primary);
   margin-bottom: var(--spacing-sm);
   font-weight: var(--font-weight-semibold);
+}
+
+/* ==================== Party & Position registry (shared layout) ==================== */
+
+.admin-registry-page {
+  padding-bottom: var(--spacing-xl);
+}
+
+.admin-registry-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+  padding-bottom: var(--spacing-lg);
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.admin-registry-header-text {
+  flex: 1;
+  min-width: min(100%, 18rem);
+}
+
+.admin-registry-eyebrow {
+  margin: 0 0 var(--spacing-xs);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.admin-registry-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.admin-registry-icon {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: var(--radius-lg);
+  background: var(--primary-soft-bg);
+  color: var(--primary-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-xs);
+}
+
+.admin-registry-title {
+  margin: 0 0 var(--spacing-xs);
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--text-primary);
+}
+
+.admin-registry-lede {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  line-height: 1.55;
+  max-width: 40rem;
+}
+
+.admin-registry-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+  align-items: center;
+}
+
+.admin-registry-nav-btn.admin-btn {
+  padding: 0.4rem 1rem;
+  font-size: var(--font-size-sm);
+  border-radius: var(--radius-full);
+}
+
+.admin-registry-header-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.admin-registry-form {
+  box-shadow: var(--shadow-sm);
+  border-color: var(--gray-200);
+}
+
+.admin-registry-form-title {
+  margin: 0 0 var(--spacing-md);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+}
+
+.admin-registry-page .admin-filter-tabs.admin-registry-filters {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin-bottom: var(--spacing-lg);
+  gap: var(--spacing-xs);
+}
+
+.admin-registry-table-wrap {
+  border: 1px solid var(--gray-200);
+  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-xl);
+  overflow-x: auto;
+}
+
+.admin-registry-empty {
+  box-shadow: var(--shadow-xs);
+  border-color: var(--gray-200);
+}
+
+.admin-registry-empty .admin-empty-title {
+  font-size: var(--font-size-lg);
+}
+
+@media (max-width: 640px) {
+  .admin-registry-header-actions {
+    width: 100%;
+  }
+
+  .admin-registry-header-actions .admin-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+.admin-registry-header-actions--elections {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* Party / Position modals — full-screen overlay, grid-centered (stable with fixed dialog width) */
+.admin-registry-modal.modal.show {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-height: 100vh !important;
+  height: auto !important;
+  margin: 0 !important;
+  display: grid !important;
+  place-items: center;
+  align-content: center;
+  padding: var(--spacing-md) !important;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* Full modal-lg width; margin 0 so grid place-items handles centering (not flex + auto margins) */
+.admin-registry-modal .modal-dialog {
+  width: min(800px, calc(100vw - 2rem)) !important;
+  max-width: min(800px, calc(100vw - 2rem)) !important;
+  margin: 0 !important;
+  min-height: unset !important;
+  justify-self: center;
+}
+
+.admin-registry-modal .modal-dialog.modal-dialog-centered {
+  min-height: 500px !important;
+}
+
+.admin-registry-modal .modal-content {
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--gray-200);
+  box-shadow: var(--shadow-lg);
+  max-height: calc(100vh - 2.5rem);
+  overflow: hidden;
+}
+
+.admin-registry-modal .modal-header {
+  border-bottom-color: var(--gray-200);
+  padding: var(--spacing-md) var(--spacing-lg);
+  flex-shrink: 0;
+}
+
+.admin-registry-modal .modal-body {
+  padding: var(--spacing-lg);
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.admin-registry-modal .modal-footer {
+  border-top-color: var(--gray-200);
+  padding: var(--spacing-md) var(--spacing-lg);
+  flex-shrink: 0;
+}
+
+.admin-registry-modal-form {
+  margin: 0;
+}
+
+.admin-registry-modal-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
+  width: 100%;
+}
+
+.admin-registry-field-required {
+  color: var(--danger-color);
+  font-weight: var(--font-weight-bold);
 }
 
