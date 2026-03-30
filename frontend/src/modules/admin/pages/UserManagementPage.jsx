@@ -1,13 +1,14 @@
-﻿/**
+/**
  * UserManagementPage
  * View and manage all users in table format
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Container } from '../../../components/layout';
 import { LoadingSpinner, Modal, Button } from '../../../components/common';
 import { authService } from '../../../services';
-import { getInitials } from '../../../utils/helpers';
+import { useAuth } from '../../../hooks/useAuth';
+import { getInitials, parseYearLevelNumber, formatYearLevelNumeric, coerceYearLevelToFormValue } from '../../../utils/helpers';
 import { formatDate } from '../../../utils/formatters';
 import '../admin.css';
 
@@ -80,18 +81,71 @@ const Icon = ({ name, size = 20, className = '' }) => {
         <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
       </svg>
     ),
+    download: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+    ),
   };
 
   return icons[name] || null;
 };
 
+const csvEscape = (val) => {
+  const s = String(val ?? '');
+  if (/[",\n\r]/.test(s)) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+};
+
+/** Staff may edit only non–staff users at or below their own year level. */
+const canStaffManageStudent = (actorProfile, targetRow) => {
+  if (!actorProfile) return false;
+  const staffY = parseYearLevelNumber(actorProfile.year_level);
+  if (staffY == null) return false;
+  if (targetRow.user?.is_superuser || targetRow.user?.is_staff) return false;
+  const ty = parseYearLevelNumber(targetRow.year_level);
+  if (ty == null) return true;
+  return ty <= staffY;
+};
+
+const getUserRoleKey = (u) => {
+  if (u.user?.is_superuser) return 'admin';
+  if (u.user?.is_staff) return 'staff';
+  return 'student';
+};
+
+const getUserRoleLabel = (u) => {
+  if (u.user?.is_superuser) return 'Admin';
+  if (u.user?.is_staff) return 'Staff';
+  return 'Student';
+};
+
 const UserManagementPage = () => {
+  const { isAdmin, isStaffOrAdmin, user: authUser } = useAuth();
+  const isStaffOnly = isStaffOrAdmin && !isAdmin;
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all, admin, staff, student, verified
   const [selectedUser, setSelectedUser] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [editDepartments, setEditDepartments] = useState([]);
+  const [editCourses, setEditCourses] = useState([]);
+  const [editForm, setEditForm] = useState({
+    first_name: '',
+    last_name: '',
+    middle_name: '',
+    student_id: '',
+    department_code: '',
+    course_code: '',
+    year_level: '',
+    section: '',
+    is_verified: false,
+  });
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showRoleModal, setShowRoleModal] = useState(false);
@@ -101,14 +155,113 @@ const UserManagementPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [actionUserId, setActionUserId] = useState(null); // prevent rapid repeat actions per user
   const [modalSubmitting, setModalSubmitting] = useState(false); // prevent double-submit in modals
+  const [showSearchFilters, setShowSearchFilters] = useState(false);
+  const [searchFields, setSearchFields] = useState({
+    name: true,
+    email: true,
+    username: true,
+    studentId: true,
+  });
+  /** Multi-select filters (empty = no restriction on that axis). */
+  const [courseCatalog, setCourseCatalog] = useState([]);
+  const [courseListSearch, setCourseListSearch] = useState('');
+  const [advancedCourseCodes, setAdvancedCourseCodes] = useState([]);
+  const [advancedYearLevels, setAdvancedYearLevels] = useState([]);
+  const [advancedRoles, setAdvancedRoles] = useState([]);
+  const [pageSize, setPageSize] = useState(20); // 20 | 50 | Infinity (All)
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     fetchUsers();
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    authService
+      .getCourses()
+      .then((res) => {
+        if (!cancelled) setCourseCatalog(Array.isArray(res.data) ? res.data : []);
+      })
+      .catch(() => {
+        if (!cancelled) setCourseCatalog([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const uniqueYearLevels = useMemo(() => {
+    const s = new Set();
+    users.forEach((u) => {
+      const n = formatYearLevelNumeric(u.year_level);
+      if (n) s.add(n);
+    });
+    return Array.from(s).sort((a, b) => {
+      const na = parseYearLevelNumber(a) ?? 999;
+      const nb = parseYearLevelNumber(b) ?? 999;
+      if (na !== nb) return na - nb;
+      return a.localeCompare(b);
+    });
+  }, [users]);
+
+  const filteredCourseCatalog = useMemo(() => {
+    const q = courseListSearch.trim().toLowerCase();
+    const list = courseCatalog.filter((c) => c.code);
+    if (!q) return list;
+    return list.filter((c) => {
+      const name = (c.name || '').toLowerCase();
+      const code = (c.code || '').toLowerCase();
+      const dept = (c.department || '').toLowerCase();
+      const dname = (c.department_name || '').toLowerCase();
+      return (
+        name.includes(q) ||
+        code.includes(q) ||
+        dept.includes(q) ||
+        dname.includes(q)
+      );
+    });
+  }, [courseCatalog, courseListSearch]);
+
+  useEffect(() => {
+    if (!showEditModal || !selectedUser) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const [deptRes] = await Promise.all([authService.getDepartments()]);
+        if (cancelled) return;
+        setEditDepartments(deptRes.data || []);
+        const dept = selectedUser.department?.code || '';
+        if (dept) {
+          const cr = await authService.getCoursesByDepartment(dept);
+          if (!cancelled) setEditCourses(cr.data || []);
+        } else {
+          setEditCourses([]);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [showEditModal, selectedUser]);
+
+  useEffect(() => {
     filterUsers();
-  }, [filter, users, searchQuery]);
+  }, [filter, users, searchQuery, searchFields, advancedCourseCodes, advancedYearLevels, advancedRoles]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter, searchQuery, pageSize, advancedCourseCodes, advancedYearLevels, advancedRoles]);
+
+  useEffect(() => {
+    const totalPages = Math.max(
+      1,
+      Math.ceil(filteredUsers.length / (Number.isFinite(pageSize) ? pageSize : filteredUsers.length || 1))
+    );
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredUsers.length, pageSize]);
 
   const fetchUsers = async () => {
     try {
@@ -142,14 +295,151 @@ const UserManagementPage = () => {
     // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(u => 
-        `${u.user?.first_name || ''} ${u.user?.last_name || ''}`.toLowerCase().includes(query) ||
-        (u.user?.email || '').toLowerCase().includes(query) ||
-        (u.student_id && u.student_id.toLowerCase().includes(query))
+      const activeFields = searchFields;
+      filtered = filtered.filter((u) => {
+        const values = [];
+
+        if (activeFields.name) {
+          values.push(
+            `${u.user?.first_name || ''} ${u.user?.last_name || ''}`.toLowerCase()
+          );
+        }
+        if (activeFields.email) {
+          values.push((u.user?.email || '').toLowerCase());
+        }
+        if (activeFields.studentId) {
+          values.push((u.student_id || '').toLowerCase());
+        }
+        if (activeFields.username) {
+          values.push((u.user?.username || '').toLowerCase());
+        }
+
+        return values.some((val) => val && val.includes(query));
+      });
+    }
+
+    if (advancedCourseCodes.length > 0) {
+      filtered = filtered.filter(
+        (u) => u.course?.code && advancedCourseCodes.includes(u.course.code)
       );
     }
-    
+    if (advancedYearLevels.length > 0) {
+      filtered = filtered.filter((u) => {
+        const yn = formatYearLevelNumeric(u.year_level);
+        return yn && advancedYearLevels.includes(yn);
+      });
+    }
+    if (advancedRoles.length > 0) {
+      filtered = filtered.filter((u) => advancedRoles.includes(getUserRoleKey(u)));
+    }
+
     setFilteredUsers(filtered);
+  };
+
+  const toggleSearchField = (field) => {
+    setSearchFields((prev) => ({
+      ...prev,
+      [field]: !prev[field],
+    }));
+  };
+
+  const toggleAdvancedCourse = (code) => {
+    if (!code) return;
+    setAdvancedCourseCodes((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
+    );
+  };
+
+  const toggleAdvancedYear = (yearLabel) => {
+    setAdvancedYearLevels((prev) =>
+      prev.includes(yearLabel) ? prev.filter((y) => y !== yearLabel) : [...prev, yearLabel]
+    );
+  };
+
+  const toggleAdvancedRole = (role) => {
+    setAdvancedRoles((prev) =>
+      prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role]
+    );
+  };
+
+  const clearAdvancedAttributeFilters = () => {
+    setAdvancedCourseCodes([]);
+    setAdvancedYearLevels([]);
+    setAdvancedRoles([]);
+    setCourseListSearch('');
+  };
+
+  const totalRows = filteredUsers.length;
+  const effectivePageSize = Number.isFinite(pageSize) ? pageSize : totalRows || 1;
+  const totalPages = Math.max(1, Math.ceil(totalRows / effectivePageSize));
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+  const startIndex = (safeCurrentPage - 1) * effectivePageSize;
+  const endIndexExclusive = Math.min(startIndex + effectivePageSize, totalRows);
+  const paginatedUsers = filteredUsers.slice(startIndex, endIndexExclusive);
+
+  const handleExportCsv = () => {
+    const toExport = Number.isFinite(pageSize) ? paginatedUsers : filteredUsers;
+    if (!toExport.length) return;
+
+    const headers = [
+      'First Name',
+      'Middle Name',
+      'Last Name',
+      'Student ID',
+      'Username',
+      'Email',
+      'College',
+      'Course',
+      'Year Level',
+      'Section',
+      'Role',
+      'Active',
+      'Verified',
+      'Joined',
+    ];
+    const lines = [headers.join(',')];
+
+    toExport.forEach((u) => {
+      const course = u.course?.name || u.course?.code || '';
+      const college = u.department?.name || u.department?.code || '';
+      const yearDisplay =
+        formatYearLevelNumeric(u.year_level) ||
+        (String(u.year_level || '').trim() ? String(u.year_level) : '');
+      lines.push(
+        [
+          csvEscape(u.user?.first_name || ''),
+          csvEscape(u.middle_name || ''),
+          csvEscape(u.user?.last_name || ''),
+          csvEscape(u.student_id || ''),
+          csvEscape(u.user?.username || ''),
+          csvEscape(u.user?.email || ''),
+          csvEscape(college),
+          csvEscape(course),
+          csvEscape(yearDisplay),
+          csvEscape(u.section != null ? String(u.section) : ''),
+          csvEscape(getUserRoleLabel(u)),
+          csvEscape(u.user?.is_active ? 'Yes' : 'No'),
+          csvEscape(u.is_verified ? 'Yes' : 'No'),
+          csvEscape(formatDate(u.user?.date_joined || u.created_at, 'date')),
+        ].join(',')
+      );
+    });
+
+    const blob = new Blob([`\uFEFF${lines.join('\r\n')}`], {
+      type: 'text/csv;charset=utf-8;',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const scopeLabel = Number.isFinite(pageSize)
+      ? `page${safeCurrentPage}_of${totalPages}`
+      : 'all_filtered';
+    const filterSlug = String(filter || 'all').replace(/[^\w-]+/g, '_');
+    a.href = url;
+    a.download = `users_${filterSlug}_${scopeLabel}_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   // Generate random password: 8 characters with lower, upper, and numbers
@@ -259,6 +549,71 @@ const UserManagementPage = () => {
     }
   };
 
+  const openEditUser = (u) => {
+    setSelectedUser(u);
+    setEditForm({
+      first_name: u.user?.first_name || '',
+      last_name: u.user?.last_name || '',
+      middle_name: u.middle_name || '',
+      student_id: u.student_id || '',
+      department_code: u.department?.code || '',
+      course_code: u.course?.code || '',
+      year_level: coerceYearLevelToFormValue(u.year_level),
+      section: u.section != null ? String(u.section) : '',
+      is_verified: !!u.is_verified,
+    });
+    setShowEditModal(true);
+  };
+
+  const handleEditDepartmentChange = async (e) => {
+    const code = e.target.value;
+    setEditForm((prev) => ({ ...prev, department_code: code, course_code: '' }));
+    if (code) {
+      try {
+        const cr = await authService.getCoursesByDepartment(code);
+        setEditCourses(cr.data || []);
+      } catch (err) {
+        console.error(err);
+        setEditCourses([]);
+      }
+    } else {
+      setEditCourses([]);
+    }
+  };
+
+  const handleSaveEditProfile = async () => {
+    if (!selectedUser?.id || modalSubmitting) return;
+    try {
+      setModalSubmitting(true);
+      await authService.updateUserProfile(selectedUser.id, {
+        first_name: editForm.first_name,
+        last_name: editForm.last_name,
+        middle_name: editForm.middle_name,
+        student_id: editForm.student_id,
+        department_code: editForm.department_code || null,
+        course_code: editForm.course_code || null,
+        year_level: editForm.year_level,
+        section: editForm.section,
+        is_verified: editForm.is_verified,
+      });
+      alert('Profile updated successfully.');
+      setShowEditModal(false);
+      setSelectedUser(null);
+      await fetchUsers();
+    } catch (error) {
+      console.error(error);
+      const d = error.response?.data;
+      let msg = d?.detail;
+      if (!msg && typeof d === 'object') {
+        const first = Object.values(d)[0];
+        msg = Array.isArray(first) ? first[0] : first;
+      }
+      alert(msg || error.message || 'Failed to update profile.');
+    } finally {
+      setModalSubmitting(false);
+    }
+  };
+
   const handleDeleteUser = async () => {
     if (modalSubmitting) return;
     try {
@@ -297,6 +652,17 @@ const UserManagementPage = () => {
           User Management
         </h1>
         <p>View and manage all registered users</p>
+        {isStaffOnly && (
+          <p className="admin-header-note text-muted small mt-2 mb-0">
+            As staff, you can edit profile details and student verification/active status only for students whose
+            year level is at or below your own (
+              {formatYearLevelNumeric(authUser?.profile?.year_level) ||
+                authUser?.profile?.year_level ||
+                'set your year level in Profile'}
+            ).
+            Administrators and other staff accounts are not editable here.
+          </p>
+        )}
       </div>
 
       {/* Stats */}
@@ -383,13 +749,212 @@ const UserManagementPage = () => {
 
       {/* Search Bar */}
       <div className="admin-search-container">
-        <input
-          type="text"
-          placeholder="Search by name, email, or student ID..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="admin-search-input"
-        />
+        <div
+          style={{
+            display: 'flex',
+            gap: '0.75rem',
+            flexWrap: 'wrap',
+            alignItems: 'flex-end',
+          }}
+        >
+          <div style={{ flex: 1, minWidth: '220px' }}>
+            <input
+              type="text"
+              placeholder="Search by name, email, username, or student ID..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="admin-search-input"
+            />
+          </div>
+          <button
+            type="button"
+            className="admin-btn secondary"
+            onClick={() => setShowSearchFilters((prev) => !prev)}
+          >
+            Advanced Search
+          </button>
+          <button
+            type="button"
+            className="admin-btn secondary"
+            onClick={handleExportCsv}
+            disabled={!filteredUsers.length}
+            title={
+              Number.isFinite(pageSize)
+                ? `Export current page (${paginatedUsers.length} rows) as CSV`
+                : `Export all filtered rows (${filteredUsers.length}) as CSV`
+            }
+          >
+            <span className="admin-btn-inline-icon">
+              <Icon name="download" size={18} />
+            </span>
+            Export CSV
+          </button>
+        </div>
+
+        {showSearchFilters && (
+          <div className="admin-advanced-search-panel">
+            <div className="admin-advanced-search-row">
+              <span className="admin-advanced-search-label">Search in (text box):</span>
+              <div className="admin-advanced-search-chips">
+                <label className="admin-filter-chip">
+                  <input
+                    type="checkbox"
+                    checked={searchFields.name}
+                    onChange={() => toggleSearchField('name')}
+                  />
+                  <span>Name</span>
+                </label>
+                <label className="admin-filter-chip">
+                  <input
+                    type="checkbox"
+                    checked={searchFields.email}
+                    onChange={() => toggleSearchField('email')}
+                  />
+                  <span>Email</span>
+                </label>
+                <label className="admin-filter-chip">
+                  <input
+                    type="checkbox"
+                    checked={searchFields.username}
+                    onChange={() => toggleSearchField('username')}
+                  />
+                  <span>Username</span>
+                </label>
+                <label className="admin-filter-chip">
+                  <input
+                    type="checkbox"
+                    checked={searchFields.studentId}
+                    onChange={() => toggleSearchField('studentId')}
+                  />
+                  <span>ID</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="admin-advanced-search-row admin-advanced-search-row-stack">
+              <span className="admin-advanced-search-label">Courses:</span>
+              <div className="admin-course-listbox">
+                <input
+                  type="search"
+                  className="admin-course-listbox-search form-control form-control-sm"
+                  placeholder="Search courses by name, code, or department…"
+                  value={courseListSearch}
+                  onChange={(e) => setCourseListSearch(e.target.value)}
+                  aria-label="Filter course list"
+                  disabled={courseCatalog.length === 0}
+                />
+                {courseCatalog.length === 0 ? (
+                  <span className="text-muted small d-block mt-2">Loading courses…</span>
+                ) : (
+                  <>
+                    <div className="admin-course-listbox-meta">
+                      <span>
+                        {filteredCourseCatalog.length} of {courseCatalog.length} shown
+                        {advancedCourseCodes.length > 0 && (
+                          <> · {advancedCourseCodes.length} selected</>
+                        )}
+                      </span>
+                    </div>
+                    <div
+                      className="admin-course-listbox-list"
+                      role="listbox"
+                      aria-multiselectable="true"
+                      aria-label="Courses. Use checkboxes to select multiple."
+                    >
+                      {filteredCourseCatalog.length === 0 ? (
+                        <div className="admin-course-listbox-empty text-muted small">No courses match your search.</div>
+                      ) : (
+                        filteredCourseCatalog.map((c) => {
+                          const code = c.code;
+                          const checked = advancedCourseCodes.includes(code);
+                          return (
+                            <label
+                              key={code}
+                              className={`admin-course-listbox-option ${checked ? 'admin-course-listbox-option-selected' : ''}`}
+                              role="option"
+                              aria-selected={checked}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleAdvancedCourse(code)}
+                              />
+                              <span className="admin-course-listbox-option-text">
+                                <span className="admin-course-listbox-name">{c.name || code}</span>
+                                <span className="admin-course-listbox-code">{code}</span>
+                                {(c.department_name || c.department) && (
+                                  <span className="admin-course-listbox-dept">
+                                    {c.department_name || c.department}
+                                  </span>
+                                )}
+                              </span>
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="admin-advanced-search-row">
+              <span className="admin-advanced-search-label">Year level:</span>
+              <div className="admin-advanced-search-chips">
+                {uniqueYearLevels.length === 0 ? (
+                  <span className="text-muted small">No year levels in current user list</span>
+                ) : (
+                  uniqueYearLevels.map((yl) => {
+                    const checked = advancedYearLevels.includes(yl);
+                    return (
+                      <label key={yl} className={`admin-filter-chip ${checked ? 'admin-filter-chip-active' : ''}`}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleAdvancedYear(yl)}
+                        />
+                        <span>{yl}</span>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            <div className="admin-advanced-search-row">
+              <span className="admin-advanced-search-label">Role:</span>
+              <div className="admin-advanced-search-chips">
+                {[
+                  { key: 'student', label: 'Student' },
+                  { key: 'staff', label: 'Staff' },
+                  { key: 'admin', label: 'Admin' },
+                ].map(({ key, label }) => {
+                  const checked = advancedRoles.includes(key);
+                  return (
+                    <label key={key} className={`admin-filter-chip ${checked ? 'admin-filter-chip-active' : ''}`}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleAdvancedRole(key)}
+                      />
+                      <span>{label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            {(advancedCourseCodes.length > 0 ||
+              advancedYearLevels.length > 0 ||
+              advancedRoles.length > 0) && (
+              <div className="admin-advanced-search-actions">
+                <button type="button" className="admin-btn secondary admin-btn-small" onClick={clearAdvancedAttributeFilters}>
+                  Clear course / year / role filters
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Users Table */}
@@ -399,19 +964,22 @@ const UserManagementPage = () => {
             <table className="admin-table">
               <thead>
                 <tr>
-                  <th>User</th>
-                  <th>Contact</th>
-                  <th>Academic Info</th>
+                  <th>First Name</th>
+                  <th>Middle Name</th>
+                  <th>Last Name</th>
+                  <th>ID</th>
+                  <th>Course</th>
+                  <th>Year Level</th>
+                  <th>Section</th>
                   <th>Role</th>
                   <th className="text-center">Status</th>
-                  <th className="text-center">Joined</th>
-                  <th className="text-right">Actions</th>
+                  <th className="text-center">Joined/Created</th>
+                  {(isAdmin || isStaffOnly) && <th className="text-right">Actions</th>}
                 </tr>
               </thead>
               <tbody>
-                {filteredUsers.map((user) => (
+                {paginatedUsers.map((user) => (
                   <tr key={user.id}>
-                    {/* User */}
                     <td>
                       <div className="admin-user-cell">
                         <div className="admin-user-avatar-table">
@@ -419,39 +987,35 @@ const UserManagementPage = () => {
                         </div>
                         <div>
                           <div className="admin-user-name">
-                            {user.user?.first_name} {user.user?.last_name}
-                          </div>
-                          <div className="admin-user-id">
-                            {user.student_id || user.user?.username}
+                            {user.user?.first_name || '-'}
                           </div>
                         </div>
                       </div>
                     </td>
-                    
-                    {/* Contact */}
                     <td>
-                      <div className="admin-user-contact">{user.user?.email || 'No email'}</div>
-                      {user.phone_number && (
-                        <div className="admin-user-contact-secondary">
-                          {user.phone_number}
-                        </div>
-                      )}
+                      {user.middle_name || '-'}
                     </td>
-                    
-                    {/* Academic Info */}
                     <td>
-                      {user.course?.name ? (
-                        <>
-                          <div className="admin-user-academic">{user.course.name}</div>
-                          {user.year_level && (
-                            <div className="admin-user-academic-secondary">
-                              {user.year_level}
-                            </div>
-                          )}
-                        </>
-                      ) : (
+                      {user.user?.last_name || '-'}
+                    </td>
+                    <td>
+                      <div className="admin-user-id">
+                        {user.student_id || user.user?.username || '-'}
+                      </div>
+                    </td>
+                    <td>
+                      {user.course?.code || user.course?.name || (
                         <span className="admin-user-not-specified">Not specified</span>
                       )}
+                    </td>
+                    <td>
+                      {formatYearLevelNumeric(user.year_level) ||
+                        (String(user.year_level || '').trim() ? user.year_level : '-')}
+                    </td>
+                    <td>
+                      {user.section != null && String(user.section).trim() !== ''
+                        ? user.section
+                        : '—'}
                     </td>
                     
                     {/* Role */}
@@ -489,62 +1053,155 @@ const UserManagementPage = () => {
                       )}
                     </td>
                     
-                    {/* Joined */}
+                    {/* Joined/Created */}
                     <td className="text-center admin-user-joined">
                       {formatDate(user.user?.date_joined || user.created_at, 'date')}
                     </td>
                     
-                    {/* Actions */}
-                    <td>
-                      <div className="admin-user-actions">
-                        <button
-                          onClick={() => handleToggleActive(user)}
-                          disabled={actionUserId === user.id}
-                          className={`admin-action-btn ${user.user?.is_active ? 'admin-action-btn-toggle-active' : 'admin-action-btn-toggle-inactive'}`}
-                          title={user.user?.is_active ? 'Deactivate User' : 'Activate User'}
-                        >
-                          <Icon name={user.user?.is_active ? 'toggleRight' : 'toggleLeft'} size={18} />
-                        </button>
-                        
-                        <button
-                          onClick={() => {
-                            setSelectedUser(user);
-                            setSelectedRole(user.user?.is_superuser ? 'admin' : (user.user?.is_staff ? 'staff' : 'student'));
-                            setShowRoleModal(true);
-                          }}
-                          disabled={actionUserId === user.id}
-                          className="admin-action-btn admin-action-btn-role"
-                          title="Change Role"
-                        >
-                          <Icon name="shield" size={18} />
-                        </button>
-                        
-                        <button
-                          onClick={() => handleResetPassword(user)}
-                          disabled={actionUserId === user.id}
-                          className="admin-action-btn admin-action-btn-password"
-                          title="Reset Password"
-                        >
-                          <Icon name="key" size={18} />
-                        </button>
-                        
-                        <button
-                          onClick={() => {
-                            setSelectedUser(user);
-                            setShowDeleteModal(true);
-                          }}
-                          disabled={actionUserId === user.id}
-                          className="admin-action-btn admin-action-btn-delete"
-                          title="Delete User"
-                        >
-                          <Icon name="trash" size={18} />
-                        </button>
-                      </div>
-                    </td>
+                    {/* Actions: admin full set; staff edit + active toggle for in-scope students only */}
+                    {(isAdmin || isStaffOnly) && (
+                      <td>
+                        <div className="admin-user-actions">
+                          {isAdmin && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => openEditUser(user)}
+                                disabled={actionUserId === user.id}
+                                className="admin-action-btn admin-action-btn-role"
+                                title="Edit profile"
+                              >
+                                <Icon name="edit" size={18} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleToggleActive(user)}
+                                disabled={actionUserId === user.id}
+                                className={`admin-action-btn ${user.user?.is_active ? 'admin-action-btn-toggle-active' : 'admin-action-btn-toggle-inactive'}`}
+                                title={user.user?.is_active ? 'Deactivate User' : 'Activate User'}
+                              >
+                                <Icon name={user.user?.is_active ? 'toggleRight' : 'toggleLeft'} size={18} />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedUser(user);
+                                  setSelectedRole(user.user?.is_superuser ? 'admin' : (user.user?.is_staff ? 'staff' : 'student'));
+                                  setShowRoleModal(true);
+                                }}
+                                disabled={actionUserId === user.id}
+                                className="admin-action-btn admin-action-btn-role"
+                                title="Change Role"
+                              >
+                                <Icon name="shield" size={18} />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleResetPassword(user)}
+                                disabled={actionUserId === user.id}
+                                className="admin-action-btn admin-action-btn-password"
+                                title="Reset Password"
+                              >
+                                <Icon name="key" size={18} />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedUser(user);
+                                  setShowDeleteModal(true);
+                                }}
+                                disabled={actionUserId === user.id}
+                                className="admin-action-btn admin-action-btn-delete"
+                                title="Delete User"
+                              >
+                                <Icon name="trash" size={18} />
+                              </button>
+                            </>
+                          )}
+                          {isStaffOnly &&
+                            (canStaffManageStudent(authUser?.profile, user) ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => openEditUser(user)}
+                                  disabled={actionUserId === user.id}
+                                  className="admin-action-btn admin-action-btn-role"
+                                  title="Edit profile"
+                                >
+                                  <Icon name="edit" size={18} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleActive(user)}
+                                  disabled={actionUserId === user.id}
+                                  className={`admin-action-btn ${user.user?.is_active ? 'admin-action-btn-toggle-active' : 'admin-action-btn-toggle-inactive'}`}
+                                  title={user.user?.is_active ? 'Deactivate User' : 'Activate User'}
+                                >
+                                  <Icon name={user.user?.is_active ? 'toggleRight' : 'toggleLeft'} size={18} />
+                                </button>
+                              </>
+                            ) : (
+                              <span className="text-muted small" title="Outside your year-level scope">
+                                —
+                              </span>
+                            ))}
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+
+          <div className="admin-pagination">
+            <div className="admin-pagination-left">
+              <span className="admin-pagination-title">
+                Page {safeCurrentPage} of {totalPages}
+              </span>
+              <span className="admin-pagination-range">
+                ({totalRows === 0 ? 0 : startIndex + 1}-{endIndexExclusive} of {totalRows})
+              </span>
+            </div>
+
+            <div className="admin-pagination-right">
+              <button
+                type="button"
+                className="admin-btn admin-btn-small"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={safeCurrentPage <= 1}
+              >
+                Prev
+              </button>
+              <button
+                type="button"
+                className="admin-btn admin-btn-small"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safeCurrentPage >= totalPages}
+              >
+                Next
+              </button>
+
+              <div className="admin-pagination-view">
+                <label className="admin-pagination-view-label">View</label>
+                <select
+                  className="admin-pagination-view-select"
+                  value={Number.isFinite(pageSize) ? String(pageSize) : 'all'}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === 'all') setPageSize(Infinity);
+                    else setPageSize(Number(value));
+                  }}
+                >
+                  <option value="20">20</option>
+                  <option value="50">50</option>
+                  <option value="all">All</option>
+                </select>
+              </div>
+            </div>
           </div>
         </div>
       ) : (
@@ -557,6 +1214,138 @@ const UserManagementPage = () => {
             {filter !== 'all' ? `No ${filter} users found.` : 'No users registered yet.'}
           </p>
         </div>
+      )}
+
+      {/* Edit profile (staff scoped / admin full) */}
+      {showEditModal && selectedUser && (
+        <Modal
+          show={showEditModal}
+          onClose={() => {
+            setShowEditModal(false);
+            setSelectedUser(null);
+          }}
+          title="Edit profile"
+        >
+          <div className="admin-edit-profile-form">
+            <div className="row g-2 mb-2">
+              <div className="col-md-6">
+                <label className="admin-modal-label">First name</label>
+                <input
+                  className="form-control form-control-sm"
+                  value={editForm.first_name}
+                  onChange={(e) => setEditForm((f) => ({ ...f, first_name: e.target.value }))}
+                />
+              </div>
+              <div className="col-md-6">
+                <label className="admin-modal-label">Last name</label>
+                <input
+                  className="form-control form-control-sm"
+                  value={editForm.last_name}
+                  onChange={(e) => setEditForm((f) => ({ ...f, last_name: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="mb-2">
+              <label className="admin-modal-label">Middle name</label>
+              <input
+                className="form-control form-control-sm"
+                value={editForm.middle_name}
+                onChange={(e) => setEditForm((f) => ({ ...f, middle_name: e.target.value }))}
+              />
+            </div>
+            <div className="mb-2">
+              <label className="admin-modal-label">Student ID</label>
+              <input
+                className="form-control form-control-sm"
+                value={editForm.student_id}
+                onChange={(e) => setEditForm((f) => ({ ...f, student_id: e.target.value }))}
+              />
+            </div>
+            <div className="row g-2 mb-2">
+              <div className="col-md-6">
+                <label className="admin-modal-label">Department</label>
+                <select
+                  className="admin-modal-select"
+                  value={editForm.department_code}
+                  onChange={handleEditDepartmentChange}
+                >
+                  <option value="">—</option>
+                  {editDepartments.map((d) => (
+                    <option key={d.code || d.id} value={d.code}>
+                      {d.name} ({d.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="col-md-6">
+                <label className="admin-modal-label">Course</label>
+                <select
+                  className="admin-modal-select"
+                  value={editForm.course_code}
+                  onChange={(e) => setEditForm((f) => ({ ...f, course_code: e.target.value }))}
+                >
+                  <option value="">—</option>
+                  {editCourses.map((c) => (
+                    <option key={c.code || c.id} value={c.code}>
+                      {c.name} ({c.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="mb-2">
+              <label className="admin-modal-label">Year level</label>
+              <select
+                className="admin-modal-select"
+                value={editForm.year_level}
+                onChange={(e) => setEditForm((f) => ({ ...f, year_level: e.target.value }))}
+              >
+                <option value="">—</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+              </select>
+            </div>
+            <div className="mb-2">
+              <label className="admin-modal-label">Section</label>
+              <input
+                className="form-control form-control-sm"
+                value={editForm.section}
+                onChange={(e) => setEditForm((f) => ({ ...f, section: e.target.value }))}
+                maxLength={50}
+                placeholder="e.g. A, B"
+              />
+            </div>
+            <div className="mb-3 form-check">
+              <input
+                type="checkbox"
+                className="form-check-input"
+                id="edit-is-verified"
+                checked={editForm.is_verified}
+                onChange={(e) => setEditForm((f) => ({ ...f, is_verified: e.target.checked }))}
+              />
+              <label className="form-check-label" htmlFor="edit-is-verified">
+                Student verified (profile reviewed)
+              </label>
+            </div>
+          </div>
+          <div className="admin-modal-buttons">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setShowEditModal(false);
+                setSelectedUser(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={handleSaveEditProfile} disabled={modalSubmitting}>
+              {modalSubmitting ? 'Saving…' : 'Save'}
+            </Button>
+          </div>
+        </Modal>
       )}
 
       {/* Password Reset Modal */}

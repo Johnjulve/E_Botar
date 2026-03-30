@@ -234,6 +234,32 @@ export const capitalize = (str) => {
 };
 
 /**
+ * First integer in a year_level string (e.g. "4th Year", "Year 2") → 4, 2.
+ * Matches backend parse_year_level_value behavior.
+ */
+export const parseYearLevelNumber = (raw) => {
+  if (raw == null || raw === '') return null;
+  const m = String(raw).match(/\d+/);
+  if (!m) return null;
+  const n = parseInt(m[0], 10);
+  return Number.isNaN(n) ? null : n;
+};
+
+/**
+ * Tables, CSV, filters: show/store year as plain digits (1–4 typical undergraduate).
+ * Empty string if no digit can be parsed.
+ */
+export const formatYearLevelNumeric = (raw) => {
+  const n = parseYearLevelNumber(raw);
+  return n != null ? String(n) : '';
+};
+
+/**
+ * Profile form <select value="1">: map legacy DB values like "4th Year" → "4".
+ */
+export const coerceYearLevelToFormValue = (raw) => formatYearLevelNumeric(raw);
+
+/**
  * Get random color for avatar
  * @param {string} seed - Seed for color generation
  * @returns {string} Hex color code
@@ -275,6 +301,9 @@ export default {
   buildQueryString,
   scrollToTop,
   capitalize,
-  getAvatarColor
+  getAvatarColor,
+  parseYearLevelNumber,
+  formatYearLevelNumeric,
+  coerceYearLevelToFormValue,
 };
 

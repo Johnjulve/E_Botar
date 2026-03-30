@@ -1,28 +1,34 @@
 import logging
-from rest_framework import viewsets, status
-from rest_framework.decorators import action, api_view, permission_classes
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from django.db import transaction
-from apps.common.permissions import IsSuperUser, IsStaffOrSuperUser
-from apps.common.throttling import enforce_scope_throttle
-from django.db.models import Count
-from django.core.exceptions import ValidationError as DjangoValidationError
-from django.http import HttpResponse
 import csv
 import json
-from .models import VoteReceipt, AnonVote, Ballot, VoteChoice
+from django.db import transaction
+from django.db.models import Count, Exists, OuterRef, Q
+from django.http import HttpResponse
+from rest_framework import viewsets, status, generics
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.response import Response
+from rest_framework.exceptions import ValidationError
+from apps.common.permissions import IsSuperUser, IsStaffOrSuperUser
+from apps.common.throttling import enforce_scope_throttle
+from .models import VoteReceipt, Ballot, VoteChoice
 
 logger = logging.getLogger(__name__)
 from .serializers import (
-    VoteReceiptSerializer, BallotSerializer, BallotSubmissionSerializer,
-    AnonVoteSerializer, VoteReceiptVerifySerializer,
-    VoteStatisticsSerializer, PositionResultSerializer, MyVoteStatusSerializer
+    VoteReceiptSerializer,
+    BallotSerializer,
+    BallotSubmissionSerializer,
+    VoteReceiptVerifySerializer,
+    VoteStatisticsSerializer,
+    PositionResultSerializer,
+    MyVoteStatusSerializer,
+    UserVotingStatusSerializer,
 )
 from apps.elections.models import SchoolElection, SchoolPosition
 from apps.candidates.models import Candidate
 from apps.common.models import ActivityLog
 from apps.common.algorithms import SortingAlgorithm, AggregationAlgorithm
+from apps.accounts.models import UserProfile
 from .services import VotingDataService
 
 
@@ -189,6 +195,96 @@ class BallotViewSet(viewsets.ReadOnlyModelViewSet):
         else:
             ip = request.META.get('REMOTE_ADDR')
         return ip
+
+
+class VotingStatusView(generics.ListAPIView):
+    """
+    Read-only per-election voting status for students.
+    Returns student profiles plus a has_voted flag for the selected election.
+    """
+    serializer_class = UserVotingStatusSerializer
+    permission_classes = [IsAuthenticated, IsStaffOrSuperUser]
+
+    def get_queryset(self):
+        request = self.request
+        query_params = request.query_params
+
+        election_id = query_params.get('election_id')
+        if not election_id:
+            raise ValidationError({'election_id': 'This query parameter is required.'})
+
+        try:
+            election = SchoolElection.objects.get(id=election_id)
+        except SchoolElection.DoesNotExist:
+            raise ValidationError({'election_id': 'Election not found.'})
+
+        # Base queryset: active student profiles only
+        queryset = UserProfile.objects.select_related('user', 'department', 'course').filter(
+            user__is_active=True,
+            user__is_staff=False,
+            user__is_superuser=False,
+        )
+
+        # Restrict by election type (university vs department)
+        if election.election_type == 'department' and election.allowed_department:
+            queryset = queryset.filter(department=election.allowed_department)
+
+        # Filters
+        department_code = query_params.get('department_code') or query_params.get('college')
+        if department_code:
+            queryset = queryset.filter(department__code=department_code)
+
+        course_code = query_params.get('course_code') or query_params.get('course')
+        if course_code:
+            queryset = queryset.filter(course__code=course_code)
+
+        year_level = query_params.get('year_level')
+        if year_level:
+            queryset = queryset.filter(year_level=year_level)
+
+        # Annotate has_voted per election using VoteReceipt
+        vote_subquery = VoteReceipt.objects.filter(
+            user=OuterRef('user'),
+            election_id=election_id,
+        )
+        queryset = queryset.annotate(has_voted=Exists(vote_subquery))
+
+        has_voted_param = query_params.get('has_voted')
+        if has_voted_param in ['true', 'false']:
+            queryset = queryset.filter(has_voted=(has_voted_param == 'true'))
+
+        search = query_params.get('search')
+        if search:
+            search = search.strip()
+            queryset = queryset.filter(
+                Q(user__username__icontains=search) |
+                Q(user__first_name__icontains=search) |
+                Q(user__last_name__icontains=search) |
+                Q(student_id__icontains=search)
+            )
+
+        return queryset.order_by('user__last_name', 'user__first_name', 'user__username')
+
+    def list(self, request, *args, **kwargs):
+        """
+        Override list to include simple summary counts alongside the data.
+        """
+        queryset = self.get_queryset()
+
+        total_eligible = queryset.count()
+        total_voted = queryset.filter(has_voted=True).count()
+        total_not_voted = total_eligible - total_voted
+
+        serializer = self.get_serializer(queryset, many=True, context={'request': request})
+
+        return Response({
+            'summary': {
+                'total_eligible_students': total_eligible,
+                'total_voted': total_voted,
+                'total_not_voted': total_not_voted,
+            },
+            'results': serializer.data,
+        })
 
 
 class VoteReceiptViewSet(viewsets.ReadOnlyModelViewSet):
@@ -365,14 +461,15 @@ class ResultsViewSet(viewsets.ViewSet):
         # Winners will be highlighted only after election ends
         election_ended = election.is_finished()
 
-        total_voters = VoteReceipt.objects.filter(election=election).count()
-        total_ballots = Ballot.objects.filter(election=election).count()
+        total_voters = VoteReceipt.objects.filter(election=election, user__is_active=True).count()
+        total_ballots = Ballot.objects.filter(election=election, user__is_active=True).count()
         
         # Count eligible students based on election type
         from apps.accounts.models import UserProfile
         if election.election_type == 'university':
-            # For university elections, all students are eligible
+            # For university elections, all active students are eligible
             total_eligible_students = UserProfile.objects.filter(
+                user__is_active=True,
                 user__is_staff=False,
                 user__is_superuser=False
             ).count()
@@ -380,6 +477,7 @@ class ResultsViewSet(viewsets.ViewSet):
             # For department elections, only students from that department are eligible
             total_eligible_students = UserProfile.objects.filter(
                 department=election.allowed_department,
+                user__is_active=True,
                 user__is_staff=False,
                 user__is_superuser=False
             ).count()
@@ -397,12 +495,14 @@ class ResultsViewSet(viewsets.ViewSet):
             from apps.accounts.models import UserProfile
             if election.election_type == 'university':
                 total_eligible_students = UserProfile.objects.filter(
+                    user__is_active=True,
                     user__is_staff=False,
                     user__is_superuser=False
                 ).count()
             elif election.election_type == 'department' and election.allowed_department:
                 total_eligible_students = UserProfile.objects.filter(
                     department=election.allowed_department,
+                    user__is_active=True,
                     user__is_staff=False,
                     user__is_superuser=False
                 ).count()
@@ -425,11 +525,14 @@ class ResultsViewSet(viewsets.ViewSet):
             if not position:
                 continue
                 
-            # Get all votes for this position
-            position_votes_list = list(AnonVote.objects.filter(
-                election=election,
-                position=position
-            ).values('candidate_id'))
+            # Count only choices from active voters (deactivated accounts do not count)
+            position_votes_list = list(
+                VoteChoice.objects.filter(
+                    ballot__election=election,
+                    position=position,
+                    ballot__user__is_active=True,
+                ).values('candidate_id')
+            )
             
             # Use aggregation algorithm to count votes by candidate
             vote_counts = AggregationAlgorithm.aggregate(
@@ -581,9 +684,10 @@ class ResultsViewSet(viewsets.ViewSet):
             if not position:
                 continue
                 
-            position_votes = AnonVote.objects.filter(
-                election=election,
-                position=position
+            position_votes = VoteChoice.objects.filter(
+                ballot__election=election,
+                position=position,
+                ballot__user__is_active=True,
             ).values('candidate').annotate(
                 vote_count=Count('id')
             ).order_by('-vote_count')
@@ -650,7 +754,7 @@ class ResultsViewSet(viewsets.ViewSet):
                 'election_id': election.id,
                 'election_title': election.title,
                 'export_date': timezone.now().isoformat(),
-                'total_voters': VoteReceipt.objects.filter(election=election).count(),
+                'total_voters': VoteReceipt.objects.filter(election=election, user__is_active=True).count(),
                 'positions': positions_data
             }
             

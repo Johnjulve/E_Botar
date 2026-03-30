@@ -28,8 +28,8 @@ class ElectionPositionInline(admin.TabularInline):
 
 @admin.register(SchoolElection)
 class SchoolElectionAdmin(admin.ModelAdmin):
-    list_display = ['title', 'start_date', 'end_date', 'is_active', 'created_by', 'created_at']
-    list_filter = ['is_active', 'start_date', 'end_date']
+    list_display = ['title', 'start_date', 'end_date', 'is_active', 'is_paused', 'created_by', 'created_at']
+    list_filter = ['is_active', 'is_paused', 'start_date', 'end_date']
     search_fields = ['title', 'description']
     ordering = ['-start_date']
     readonly_fields = ['title', 'created_at', 'updated_at']

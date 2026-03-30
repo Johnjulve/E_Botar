@@ -74,6 +74,10 @@ class SchoolElection(models.Model):
     start_date = models.DateTimeField()
     end_date = models.DateTimeField()
     is_active = models.BooleanField(default=True)
+    is_paused = models.BooleanField(
+        default=False,
+        help_text='When True, voting is temporarily suspended while keeping published schedule.',
+    )
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_elections')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -101,9 +105,13 @@ class SchoolElection(models.Model):
         return self.title
     
     def is_active_now(self):
-        """Check if election is currently active and within schedule"""
+        """Check if election is currently active and within schedule (not paused)."""
         now = timezone.now()
-        return self.is_active and (self.start_date <= now <= self.end_date)
+        return (
+            self.is_active
+            and not self.is_paused
+            and (self.start_date <= now <= self.end_date)
+        )
     
     def is_upcoming(self):
         """Check if election is upcoming"""

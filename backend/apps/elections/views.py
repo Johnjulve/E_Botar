@@ -283,6 +283,36 @@ class SchoolElectionViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
     
+    @action(detail=True, methods=['post'], permission_classes=[IsStaffOrSuperUser])
+    def pause(self, request, pk=None):
+        """Temporarily suspend voting while keeping schedule (staff/admin)."""
+        election = self.get_object()
+        election.is_paused = True
+        election.save(update_fields=['is_paused', 'updated_at'])
+        ElectionDataService.invalidate_election_cache(election.id)
+        try:
+            from apps.voting.services import VotingDataService
+            VotingDataService.invalidate_voting_cache()
+        except Exception:
+            pass
+        serializer = SchoolElectionDetailSerializer(election, context={'request': request})
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsStaffOrSuperUser])
+    def resume(self, request, pk=None):
+        """Resume voting after pause (staff/admin)."""
+        election = self.get_object()
+        election.is_paused = False
+        election.save(update_fields=['is_paused', 'updated_at'])
+        ElectionDataService.invalidate_election_cache(election.id)
+        try:
+            from apps.voting.services import VotingDataService
+            VotingDataService.invalidate_voting_cache()
+        except Exception:
+            pass
+        serializer = SchoolElectionDetailSerializer(election, context={'request': request})
+        return Response(serializer.data)
+
     @action(detail=True, methods=['post'], permission_classes=[IsSuperUser])
     def reject_pending_applications(self, request, pk=None):
         """Manually trigger auto-rejection of pending applications for this election"""

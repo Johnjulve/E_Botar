@@ -14,20 +14,19 @@ router.register(r'programs', views.ProgramViewSet, basename='program')
 urlpatterns = [
     # Health check
     path('health/', views.health_check, name='health'),
-    
     # Current user
     path('me/', views.current_user, name='current-user'),
-    
     # Student count
     path('student-count/', views.student_count, name='student-count'),
-    
+    # User count (staff/admin only)
+    path('user-count/', views.user_count, name='user-count'),
+    # Unified user directory (students + staff/admin)
+    path('directory/', views.UserDirectoryView.as_view(), name='user-directory'),
     # Registration
     path('register/', views.UserRegistrationView.as_view(), name='register'),
-    
     # JWT Token endpoints - using custom view that accepts email or username
     path('token/', views.CustomTokenObtainPairView.as_view(), name='token-obtain'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
-    
     # ViewSet routes
     path('', include(router.urls)),
 ]

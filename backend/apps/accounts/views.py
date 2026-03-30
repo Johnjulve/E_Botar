@@ -1,6 +1,7 @@
 import logging
 import csv
 import io
+from django.db.models import Q
 from rest_framework import generics, status, viewsets
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
@@ -8,7 +9,10 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.contrib.auth.models import User
 from django.http import HttpResponse
+from rest_framework.exceptions import PermissionDenied
+
 from .models import UserProfile, Program
+from .utils import staff_can_manage_student_profile
 from apps.common.models import ActivityLog
 from apps.common.permissions import IsSuperUser, IsStaffOrSuperUser
 from apps.common.throttling import enforce_scope_throttle
@@ -52,6 +56,21 @@ def student_count(request):
     
     return Response({
         'total_students': total_students
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsStaffOrSuperUser])
+def user_count(request):
+    """Get total count of registered users (active + inactive). Staff/Admin only."""
+    total_users = User.objects.count()
+    total_active_users = User.objects.filter(is_active=True).count()
+    total_inactive_users = total_users - total_active_users
+
+    return Response({
+        'total_users': total_users,
+        'total_active_users': total_active_users,
+        'total_inactive_users': total_inactive_users,
     })
 
 
@@ -196,7 +215,7 @@ def current_user(request):
         
         # Update profile fields
         profile_data = {}
-        profile_fields = ['middle_name', 'student_id', 'year_level']
+        profile_fields = ['middle_name', 'student_id', 'year_level', 'section']
         for field in profile_fields:
             if field in request.data:
                 # For admins, allow empty strings to clear the field
@@ -293,12 +312,53 @@ class UserProfileViewSet(viewsets.ModelViewSet):
         if self.request.user.is_staff or self.request.user.is_superuser:
             return UserProfile.objects.all()
         return UserProfile.objects.filter(user=self.request.user)
+
+    def _can_edit_profile(self, request, profile):
+        """Superuser: all. Own profile: yes. Staff: students at/below staff year level only."""
+        if request.user.is_superuser:
+            return True
+        if profile.user_id == request.user.id:
+            return True
+        if request.user.is_staff and staff_can_manage_student_profile(request.user, profile):
+            return True
+        return False
+
+    def update(self, request, *args, **kwargs):
+        profile = self.get_object()
+        if not self._can_edit_profile(request, profile):
+            raise PermissionDenied(
+                'You do not have permission to edit this profile. '
+                'Staff may only edit student profiles at or below their own year level.'
+            )
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        profile = self.get_object()
+        if not self._can_edit_profile(request, profile):
+            raise PermissionDenied(
+                'You do not have permission to edit this profile. '
+                'Staff may only edit student profiles at or below their own year level.'
+            )
+        return super().partial_update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        if not request.user.is_superuser:
+            raise PermissionDenied('Only administrators can delete user profiles.')
+        return super().destroy(request, *args, **kwargs)
     
-    @action(detail=True, methods=['post'], permission_classes=[IsSuperUser])
+    @action(detail=True, methods=['post'], permission_classes=[IsStaffOrSuperUser])
     def toggle_active(self, request, pk=None):
-        """Toggle user's active status (admin only)"""
+        """Toggle user's active status (admin: any user; staff: students in year scope only)."""
         profile = self.get_object()
         user = profile.user
+
+        if not request.user.is_superuser:
+            if user.is_superuser or user.is_staff:
+                raise PermissionDenied('Staff cannot change active status for administrators or staff.')
+            if not staff_can_manage_student_profile(request.user, profile):
+                raise PermissionDenied(
+                    'You can only change active status for students at or below your own year level.'
+                )
         
         # Get client IP
         x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
@@ -313,18 +373,26 @@ class UserProfileViewSet(viewsets.ModelViewSet):
         # Toggle the is_active status
         user.is_active = not user.is_active
         user.save()
+
+        # Results/statistics cache may include vote counts; refresh after activation changes
+        try:
+            from apps.voting.services import VotingDataService
+            VotingDataService.invalidate_voting_cache()
+        except Exception:
+            pass
         
         # Log the activity
         student_id = getattr(profile, 'student_id', None)
         target_identifier = student_id if student_id else user.username
         action_word = 'activated' if user.is_active else 'deactivated'
         
+        actor_label = 'Admin' if request.user.is_superuser else 'Staff'
         ActivityLog.objects.create(
             user=request.user,
             action='update',
             resource_type='User',
             resource_id=user.id,
-            description=f"Admin {request.user.username} {action_word} user {target_identifier} ({user.get_full_name()})",
+            description=f"{actor_label} {request.user.username} {action_word} user {target_identifier} ({user.get_full_name()})",
             ip_address=ip_address,
             metadata={
                 'target_user_id': user.id,
@@ -476,6 +544,75 @@ class UserProfileViewSet(viewsets.ModelViewSet):
         return Response({
             'message': 'Password reset successfully'
         }, status=status.HTTP_200_OK)
+
+
+class UserDirectoryView(generics.ListAPIView):
+    """Read-only unified directory for students and staff/admin users."""
+    serializer_class = UserProfileSerializer
+    permission_classes = [IsAuthenticated, IsStaffOrSuperUser]
+
+    def get_queryset(self):
+        request = self.request
+        query_params = request.query_params
+
+        # Base queryset: always join related user/program data
+        queryset = UserProfile.objects.select_related('user', 'department', 'course')
+
+        # Filter by type: students (default) or staff (staff/admin)
+        directory_type = (query_params.get('type') or 'students').lower()
+        if directory_type == 'staff':
+            # Staff/Admin users
+            queryset = queryset.filter(
+                Q(user__is_staff=True) | Q(user__is_superuser=True)
+            )
+        else:
+            # Students (non-staff, non-superuser)
+            queryset = queryset.filter(
+                user__is_staff=False,
+                user__is_superuser=False
+            )
+
+        # Optional filters
+        department_code = query_params.get('department_code') or query_params.get('college')
+        if department_code:
+            queryset = queryset.filter(department__code=department_code)
+
+        course_code = query_params.get('course_code') or query_params.get('course')
+        if course_code:
+            queryset = queryset.filter(course__code=course_code)
+
+        year_level = query_params.get('year_level')
+        if year_level:
+            queryset = queryset.filter(year_level=year_level)
+
+        role = query_params.get('role')
+        if role in ['student', 'staff', 'admin']:
+            if role == 'admin':
+                queryset = queryset.filter(user__is_superuser=True)
+            elif role == 'staff':
+                queryset = queryset.filter(user__is_staff=True, user__is_superuser=False)
+            else:
+                queryset = queryset.filter(user__is_staff=False, user__is_superuser=False)
+
+        is_active = query_params.get('is_active')
+        if is_active in ['true', 'false']:
+            queryset = queryset.filter(user__is_active=(is_active == 'true'))
+
+        is_verified = query_params.get('is_verified')
+        if is_verified in ['true', 'false']:
+            queryset = queryset.filter(is_verified=(is_verified == 'true'))
+
+        search = query_params.get('search')
+        if search:
+            search = search.strip()
+            queryset = queryset.filter(
+                Q(user__username__icontains=search) |
+                Q(user__first_name__icontains=search) |
+                Q(user__last_name__icontains=search) |
+                Q(student_id__icontains=search)
+            )
+
+        return queryset.order_by('user__last_name', 'user__first_name', 'user__username')
 
 
 class DepartmentViewSet(viewsets.ReadOnlyModelViewSet):

@@ -45,7 +45,6 @@ const DataExportPage = () => {
   const [studentsByDept, setStudentsByDept] = useState({});
   const [categorizeVotes, setCategorizeVotes] = useState(false);
   const [votesByCategory, setVotesByCategory] = useState({});
-  const [mockVotesByCategory, setMockVotesByCategory] = useState(null); // For frontend-only mock votes
 
   useEffect(() => {
     if (!isStaffOrAdmin) {
@@ -146,12 +145,6 @@ const DataExportPage = () => {
   // Organizes votes by: Candidate → Department → Course → Year Level
   const fetchVotesByCategory = useCallback(async (electionId, electionData, allProfiles) => {
     try {
-      // If we have mock votes (frontend-only), use those instead of fetching from database
-      if (mockVotesByCategory !== null) {
-        setVotesByCategory(mockVotesByCategory);
-        return;
-      }
-      
       // Get all ballots for this election (admin only)
       const ballotsResponse = await votingService.getMyBallots();
       const allBallots = ballotsResponse.data || [];
@@ -251,7 +244,7 @@ const DataExportPage = () => {
       console.error('Error details:', errorMessage);
       setVotesByCategory({});
     }
-  }, [mockVotesByCategory]);
+  }, []);
   
   // Fetch votes by category for student data export when election is selected
   useEffect(() => {
@@ -388,7 +381,6 @@ const DataExportPage = () => {
         setTotalStudents(resultsData.total_voters || 0);
         setStudentsByDept({});
         setVotesByCategory({});
-        setMockVotesByCategory(null);
       }
     } catch (error) {
       console.error('Error fetching election results:', error);
@@ -401,7 +393,6 @@ const DataExportPage = () => {
       setStudentsByDept({});
       setTotalStudents(0);
       setVotesByCategory({});
-      setMockVotesByCategory(null);
     } finally {
       setLoadingResults(false);
     }
@@ -417,7 +408,6 @@ const DataExportPage = () => {
       setStudentsByDept({});
       setTotalStudents(0);
       setVotesByCategory({});
-      setMockVotesByCategory(null);
       setError(null);
     }
   }, [selectedElection, fetchElectionResults]);
@@ -580,450 +570,19 @@ const DataExportPage = () => {
     setFilteredStudents(organized);
   };
 
-  // Generate mock students for testing - uses actual departments and courses from database
-  const generateMockStudents = (count = 150) => {
-    // Use actual departments and courses from database
-    let availableDepartments = departments.filter(dept => dept.program_type === 'department');
-    let availableCourses = allCourses.filter(course => course.program_type === 'course');
-    
-    // If lists are empty but we have selected values, use those
-    if (availableDepartments.length === 0 && selectedDept) {
-      // Try to find in departments array first (selectedDept is now a code)
-      const selectedDeptObj = departments.find(d => d.code === selectedDept);
-      if (selectedDeptObj) {
-        availableDepartments = [selectedDeptObj];
-      } else {
-        // If not found, try to get from the courses array's department reference
-        const courseWithDept = courses.find(c => c.department && c.department.code === selectedDept);
-        if (courseWithDept && courseWithDept.department) {
-          availableDepartments = [courseWithDept.department];
-        }
-      }
-    }
-    
-    // If courses list is empty, try using the filtered courses array (populated when dept is selected)
-    if (availableCourses.length === 0) {
-      if (courses.length > 0) {
-        // Use the courses array which is populated when a department is selected
-        availableCourses = courses;
-      } else if (selectedCourse) {
-        // If we have a selected course but courses array is empty, try allCourses
-        const selectedCourseObj = allCourses.find(c => String(c.id) === selectedCourse);
-        if (selectedCourseObj) {
-          availableCourses = [selectedCourseObj];
-        }
-      }
-    }
-    
-    // If we still have no courses but have a selected course, we need at least one course to generate
-    // In this case, we'll create a minimal course object from the selected course ID
-    if (availableCourses.length === 0 && selectedCourse && selectedDept) {
-      // We can't generate without course data, so return empty
-      console.warn('Cannot generate mock students: No course data available');
-      return [];
-    }
-    
-    // If still no departments or courses available, return empty array
-    if (availableDepartments.length === 0 || availableCourses.length === 0) {
-      console.warn('Cannot generate mock students:', {
-        availableDepartments: availableDepartments.length,
-        availableCourses: availableCourses.length,
-        departments: departments.length,
-        allCourses: allCourses.length,
-        courses: courses.length,
-        selectedDept,
-        selectedCourse
-      });
-      return [];
-    }
-    
-    // Build a map of courses by department ID for quick lookup
-    const coursesByDept = {};
-    availableCourses.forEach(course => {
-      const deptId = course.department?.id || course.department;
-      if (deptId) {
-        if (!coursesByDept[deptId]) {
-          coursesByDept[deptId] = [];
-        }
-        coursesByDept[deptId].push(course);
-      }
-    });
-
-    const firstNames = [
-      'John', 'Maria', 'Michael', 'Sarah', 'David', 'Jennifer', 'James', 'Lisa', 'Robert', 'Emily',
-      'William', 'Jessica', 'Richard', 'Ashley', 'Joseph', 'Amanda', 'Thomas', 'Melissa', 'Charles', 'Michelle',
-      'Christopher', 'Kimberly', 'Daniel', 'Amy', 'Matthew', 'Angela', 'Anthony', 'Stephanie', 'Mark', 'Nicole',
-      'Donald', 'Elizabeth', 'Steven', 'Helen', 'Paul', 'Sandra', 'Andrew', 'Donna', 'Joshua', 'Carol',
-      'Kenneth', 'Ruth', 'Kevin', 'Sharon', 'Brian', 'Michelle', 'George', 'Laura', 'Timothy', 'Sarah'
-    ];
-
-    const lastNames = [
-      'Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez',
-      'Hernandez', 'Lopez', 'Wilson', 'Anderson', 'Thomas', 'Taylor', 'Moore', 'Jackson', 'Martin', 'Lee',
-      'Perez', 'Thompson', 'White', 'Harris', 'Sanchez', 'Clark', 'Ramirez', 'Lewis', 'Robinson', 'Walker',
-      'Young', 'Allen', 'King', 'Wright', 'Scott', 'Torres', 'Nguyen', 'Hill', 'Flores', 'Green',
-      'Adams', 'Nelson', 'Baker', 'Hall', 'Rivera', 'Campbell', 'Mitchell', 'Carter', 'Roberts', 'Gomez'
-    ];
-
-    const yearLevels = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
-
-    const mockStudents = [];
-    const currentYear = new Date().getFullYear();
-    
-    // Only generate if we have departments with courses
-    let departmentsWithCourses = availableDepartments.filter(dept => {
-      const deptId = dept.id;
-      return coursesByDept[deptId] && coursesByDept[deptId].length > 0;
-    });
-    
-    // If no departments with courses found, but we have available courses,
-    // try to match courses to departments by department ID in the course object
-    if (departmentsWithCourses.length === 0 && availableCourses.length > 0) {
-      // Group courses by their department
-      const deptIdsFromCourses = new Set();
-      availableCourses.forEach(course => {
-        const deptId = course.department?.id || course.department;
-        if (deptId) {
-          deptIdsFromCourses.add(deptId);
-        }
-      });
-      
-      // Find departments that match these course departments
-      departmentsWithCourses = availableDepartments.filter(dept => {
-        return deptIdsFromCourses.has(dept.id);
-      });
-      
-      // If still none, but we have available departments and courses, use all available departments
-      if (departmentsWithCourses.length === 0 && availableDepartments.length > 0 && availableCourses.length > 0) {
-        departmentsWithCourses = availableDepartments;
-        // Rebuild coursesByDept to include all courses
-        availableCourses.forEach(course => {
-          const deptId = course.department?.id || course.department;
-          if (deptId) {
-            if (!coursesByDept[deptId]) {
-              coursesByDept[deptId] = [];
-            }
-            coursesByDept[deptId].push(course);
-          }
-        });
-      }
-    }
-    
-    if (departmentsWithCourses.length === 0 || availableCourses.length === 0) {
-      return [];
-    }
-    
-    for (let i = 0; i < count; i++) {
-      // Pick a random department that has courses
-      const dept = departmentsWithCourses[Math.floor(Math.random() * departmentsWithCourses.length)];
-      const deptId = dept.id;
-      let deptCourses = coursesByDept[deptId] || [];
-      
-      // If no courses for this department, use all available courses
-      if (deptCourses.length === 0) {
-        deptCourses = availableCourses;
-      }
-      
-      if (deptCourses.length === 0) {
-        continue; // Skip if still no courses
-      }
-      
-      const course = deptCourses[Math.floor(Math.random() * deptCourses.length)];
-      
-      const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
-      const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
-      const yearLevel = yearLevels[Math.floor(Math.random() * yearLevels.length)];
-      const studentId = `${currentYear - Math.floor(Math.random() * 4)}-${String(Math.floor(Math.random() * 90000) + 10000)}`;
-      
-      mockStudents.push({
-        id: i + 1,
-        student_id: studentId,
-        year_level: yearLevel,
-        department: { id: dept.id, name: dept.name },
-        course: { id: course.id, name: course.name, code: course.code },
-        user: {
-          id: i + 1,
-          first_name: firstName,
-          last_name: lastName,
-          username: `${firstName.toLowerCase()}.${lastName.toLowerCase()}${i}`,
-          is_staff: false,
-          is_superuser: false
-        }
-      });
-    }
-
-    return mockStudents;
-  };
-
-  const loadMockStudents = () => {
-    // Check if election is selected
-    if (!selectedElectionForStudents) {
-      alert('Please select an election first before loading mock students.');
-      return;
-    }
-    
-    // Check if we have at least one department and course available
-    // Use selected department/course if available, otherwise check the lists
-    const hasDept = selectedDept || (departments && departments.length > 0);
-    const hasCourse = selectedCourse || (allCourses && allCourses.length > 0);
-    
-    if (!hasDept || !hasCourse) {
-      // If we have selected values, we can still generate mock data
-      if (selectedDept && selectedCourse) {
-        // We have selected values, we can proceed
-      } else {
-        alert('Please wait for data to load, or ensure departments and courses are added in Program Management. You can also select a specific department and course to generate mock data.');
-        return;
-      }
-    }
-    
-    const mockStudents = generateMockStudents(150);
-    
-    // If no mock students generated (no programs available), show empty template
-    if (mockStudents.length === 0) {
-      alert('No departments or courses available in the database. Please add programs first before generating mock data.');
-      return;
-    }
-    
-    // Generate mock votes for a random subset of students (70-90% voting rate)
-    const votingRate = 0.7 + Math.random() * 0.2; // 70-90%
-    const numVoters = Math.floor(mockStudents.length * votingRate);
-    const shuffledStudents = [...mockStudents].sort(() => Math.random() - 0.5);
-    const voters = shuffledStudents.slice(0, numVoters);
-    
-    // Create a Set of voter user IDs for voting status checking
-    const mockVoterIds = new Set();
-    voters.forEach(voter => {
-      const userId = voter.user?.id || voter.user || voter.id;
-      if (userId) {
-        mockVoterIds.add(Number(userId));
-      }
-    });
-    setVoterUserIds(mockVoterIds);
-    
-    // Organize by department, course, and year level (same structure as election results)
-    const organized = {};
-    mockStudents.forEach(student => {
-      const deptName = student.department?.name || 'Unassigned College';
-      const deptCode = student.department?.code || 'N/A';
-      const courseName = student.course?.name || 'Unassigned Course';
-      const courseCode = student.course?.code || 'N/A';
-      const yearLevel = student.year_level || 'N/A';
-      const studentId = student.student_id || 'N/A';
-      const fullName = student.user?.first_name && student.user?.last_name
-                      ? `${student.user.first_name} ${student.user.last_name}`.trim()
-                      : student.user?.username || 'Unknown';
-      
-      if (!organized[deptName]) {
-        organized[deptName] = {
-          code: deptCode
-        };
-      }
-      if (!organized[deptName][courseName]) {
-        organized[deptName][courseName] = {
-          code: courseCode,
-          yearLevels: {}
-        };
-      }
-      if (!organized[deptName][courseName].yearLevels[yearLevel]) {
-        organized[deptName][courseName].yearLevels[yearLevel] = {
-          count: 0,
-          students: []
-        };
-      }
-      
-      organized[deptName][courseName].yearLevels[yearLevel].students.push({
-        student_id: studentId,
-        name: fullName,
-        year_level: yearLevel,
-        user: {
-          id: student.user?.id || student.user || student.id
-        }
-      });
-      organized[deptName][courseName].yearLevels[yearLevel].count++;
-    });
-    
-    // Set the data for display and export
-    setStudents(mockStudents);
-    setFilteredStudents(organized);
-    
-    // Show success message
-    alert(`Successfully loaded ${mockStudents.length} mock students (${numVoters} voted, ${mockStudents.length - numVoters} did not vote). You can now export to PDF.`);
-  };
-
-  const loadMockStudentsForElection = () => {
-    // Check if data is loaded
-    if (departments.length === 0 || allCourses.length === 0) {
-      alert('Please wait for data to load, or ensure departments and courses are added in Program Management.');
-      return;
-    }
-    
-    const mockStudents = generateMockStudents(150);
-    
-    // If no mock students generated (no programs available), show empty template
-    if (mockStudents.length === 0) {
-      alert('No departments or courses available in the database. Please add programs first before generating mock data.');
-      return;
-    }
-    
-    // Organize by department, course, and year level for election results
-    const deptMap = {};
-    mockStudents.forEach(student => {
-      const deptName = student.department?.name || 'Unassigned College';
-      const deptCode = student.department?.code || 'N/A';
-      const courseName = student.course?.name || 'Unassigned Course';
-      const courseCode = student.course?.code || 'N/A';
-      const yearLevel = student.year_level || 'N/A';
-      const studentId = student.student_id || 'N/A';
-      const fullName = student.user?.first_name && student.user?.last_name
-                      ? `${student.user.first_name} ${student.user.last_name}`.trim()
-                      : student.user?.username || 'Unknown';
-      
-      if (!deptMap[deptName]) {
-        deptMap[deptName] = {
-          code: deptCode
-        };
-      }
-      if (!deptMap[deptName][courseName]) {
-        deptMap[deptName][courseName] = {
-          code: courseCode,
-          yearLevels: {}
-        };
-      }
-      if (!deptMap[deptName][courseName].yearLevels[yearLevel]) {
-        deptMap[deptName][courseName].yearLevels[yearLevel] = {
-          count: 0,
-          students: []
-        };
-      }
-      
-      deptMap[deptName][courseName].yearLevels[yearLevel].students.push({
-        student_id: studentId,
-        name: fullName,
-        year_level: yearLevel,
-        user: {
-          id: student.user?.id || student.user || student.id
-        }
-      });
-      deptMap[deptName][courseName].yearLevels[yearLevel].count++;
-    });
-    
-    // Generate mock votes for a random subset of students (70-90% voting rate)
-    const votingRate = 0.7 + Math.random() * 0.2; // 70-90%
-    const numVoters = Math.floor(mockStudents.length * votingRate);
-    const shuffledStudents = [...mockStudents].sort(() => Math.random() - 0.5);
-    const voters = shuffledStudents.slice(0, numVoters);
-    
-    // Organize mock votes by category (same structure as real votes)
-    const electionData = election || { election_type: 'university' };
-    const mockVotesMap = {};
-    
-    voters.forEach(student => {
-      const deptName = student.department?.name || 'Unassigned College';
-      const courseName = student.course?.name || 'Unassigned Course';
-      const courseCode = student.course?.code || 'N/A';
-      const yearLevel = student.year_level || 'N/A';
-      
-      // For department elections, organize by course → year level only
-      // For university elections, organize by department → course → year level
-      if (electionData.election_type === 'department') {
-        // Department election: Course → Year Level
-        if (!mockVotesMap[courseName]) {
-          mockVotesMap[courseName] = {
-            code: courseCode,
-            yearLevels: {}
-          };
-        }
-        if (!mockVotesMap[courseName].yearLevels[yearLevel]) {
-          mockVotesMap[courseName].yearLevels[yearLevel] = {
-            count: 0
-          };
-        }
-        mockVotesMap[courseName].yearLevels[yearLevel].count++;
-      } else {
-        // University election: Department → Course → Year Level
-        if (!mockVotesMap[deptName]) {
-          mockVotesMap[deptName] = {};
-        }
-        if (!mockVotesMap[deptName][courseName]) {
-          mockVotesMap[deptName][courseName] = {
-            code: courseCode,
-            yearLevels: {}
-          };
-        }
-        if (!mockVotesMap[deptName][courseName].yearLevels[yearLevel]) {
-          mockVotesMap[deptName][courseName].yearLevels[yearLevel] = {
-            count: 0
-          };
-        }
-        mockVotesMap[deptName][courseName].yearLevels[yearLevel].count++;
-      }
-    });
-    
-    // Temporarily set the data for export
-    setStudentsByDept(deptMap);
-    setTotalStudents(mockStudents.length);
-    setMockVotesByCategory(mockVotesMap); // Set mock votes
-    // Always set votesByCategory with mock votes so they're available for export
-    setVotesByCategory(mockVotesMap);
-    
-    // Create a temporary election object if none is selected
-    const tempElection = election || { 
-      title: 'Mock Election Results - Test Export', 
-      id: 'mock',
-      start_year: new Date().getFullYear(),
-      end_year: new Date().getFullYear() + 1,
-      election_type: 'university'
-    };
-    
-    // Create temporary election results if none exist
-    const tempElectionResults = electionResults && electionResults.length > 0 
-      ? electionResults 
-      : [{
-          position_name: 'Mock Position',
-          candidates: []
-        }];
-    
-    // Store original values
-    const originalElection = election;
-    const originalElectionResults = electionResults;
-    const originalStatistics = statistics;
-    
-    // Set temporary values for export
-    if (!election) {
-      setElection(tempElection);
-    }
-    if (!electionResults || electionResults.length === 0) {
-      setElectionResults(tempElectionResults);
-      setStatistics({
-        total_voters: numVoters,
-        total_votes: numVoters,
-        total_positions: 1,
-        turnout_percentage: Math.round((numVoters / mockStudents.length) * 100)
-      });
-    }
-    
-    // Wait a bit for state to update, then export (data will be cleared automatically in export function)
-    setTimeout(() => {
-      exportElectionResultsToPDF(deptMap, mockStudents.length);
-      
-      // Restore original values if they were empty (after a short delay to ensure export completes)
-      setTimeout(() => {
-        if (!originalElection) {
-          setElection(null);
-        }
-        if (!originalElectionResults || originalElectionResults.length === 0) {
-          setElectionResults(null);
-          setStatistics(null);
-        }
-        // Clear mock votes
-        setMockVotesByCategory(null);
-        setVotesByCategory({});
-      }, 500);
-    }, 100);
-  };
-
   const exportElectionResultsToPDF = (mockStudentsData = null, mockTotalStudents = null) => {
+    // Prevent React click event from being treated as mockStudentsData
+    if (mockStudentsData && typeof mockStudentsData === 'object') {
+      const isProbablyReactEvent =
+        typeof mockStudentsData.preventDefault === 'function' ||
+        typeof mockStudentsData.stopPropagation === 'function' ||
+        'nativeEvent' in mockStudentsData;
+      if (isProbablyReactEvent) {
+        mockStudentsData = null;
+        mockTotalStudents = null;
+      }
+    }
+
     // If no election is selected and we're using mock data, create a temporary election object
     const electionToUse = election || (mockStudentsData ? { title: 'Mock Election Results', id: 'mock' } : null);
     
@@ -1223,10 +782,10 @@ const DataExportPage = () => {
         yPosition += 10;
       }
 
-      // Add Vote Counts by Category if enabled OR if we have mock votes
+      // Add Vote Counts by Category if enabled
       // Structure: Candidate → Department → Course → Year Level
-      const votesToUse = mockVotesByCategory || votesByCategory;
-      if ((categorizeVotes || mockVotesByCategory) && votesToUse && Object.keys(votesToUse).length > 0) {
+      const votesToUse = votesByCategory;
+      if (categorizeVotes && votesToUse && Object.keys(votesToUse).length > 0) {
         doc.addPage();
         yPosition = margin;
         
@@ -1235,7 +794,7 @@ const DataExportPage = () => {
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(11, 110, 59);
         doc.text(
-          'Vote Counts by Candidate, College, Course, and Year Level',
+          'Vote Counts by Position (College and Course Breakdown)',
           pageWidth / 2,
           yPosition,
           { align: 'center' }
@@ -1255,133 +814,138 @@ const DataExportPage = () => {
         yPosition += 10;
         doc.setTextColor(0, 0, 0);
         
-        // Iterate through candidates
-        Object.keys(votesToUse).sort().forEach(candidateName => {
+        const calculateCourseTotalVotes = (courseData) => {
+          if (!courseData || !courseData.yearLevels) return 0;
+          return Object.values(courseData.yearLevels).reduce((sum, yl) => sum + (yl.count || 0), 0);
+        };
+
+        const calculateDepartmentTotalVotes = (deptData) => {
+          if (!deptData || !deptData.courses) return 0;
+          return Object.values(deptData.courses).reduce(
+            (sum, courseData) => sum + calculateCourseTotalVotes(courseData),
+            0
+          );
+        };
+
+        const calculateCandidateTotalVotes = (candidateData) => {
+          if (!candidateData || !candidateData.departments) return 0;
+          if (electionToUse.election_type === 'department') {
+            return Object.values(candidateData.departments).reduce(
+              (sum, courseData) => sum + calculateCourseTotalVotes(courseData),
+              0
+            );
+          }
+          return Object.values(candidateData.departments).reduce(
+            (sum, deptData) => sum + calculateDepartmentTotalVotes(deptData),
+            0
+          );
+        };
+
+        const positionsMap = {};
+        Object.keys(votesToUse).forEach((candidateName) => {
           const candidateData = votesToUse[candidateName];
           if (!candidateData || !candidateData.departments) return;
-          
           const positionName = candidateData.position_name || 'Unknown Position';
-          
+          if (!positionsMap[positionName]) positionsMap[positionName] = [];
+          positionsMap[positionName].push({
+            candidateName,
+            candidateData,
+            totalVotes: calculateCandidateTotalVotes(candidateData),
+          });
+        });
+
+        Object.keys(positionsMap).sort().forEach((positionName) => {
+          const positionCandidates = positionsMap[positionName] || [];
+          if (!positionCandidates.length) return;
+
           checkPageBreak(60);
-          
-          // Candidate header
+
           doc.setFillColor(11, 110, 59);
-          doc.rect(margin, yPosition - 5, contentWidth, 10, 'F');
+          doc.rect(margin, yPosition - 5, contentWidth, 8, 'F');
           doc.setTextColor(255, 255, 255);
-          doc.setFontSize(14);
+          doc.setFontSize(13);
           doc.setFont('helvetica', 'bold');
-          doc.text(`${candidateName}`, margin + 5, yPosition + 2);
-          doc.setFontSize(10);
-          doc.setFont('helvetica', 'normal');
-          doc.text(`Position: ${positionName}`, margin + 5, yPosition + 8);
-          
+          doc.text(positionName, margin + 5, yPosition);
+
           yPosition += 12;
           doc.setTextColor(0, 0, 0);
-          
-          if (electionToUse.election_type === 'department') {
-            // Department election: Course → Year Level (no department grouping)
-            Object.keys(candidateData.departments)
-              .filter(key => candidateData.departments[key] && typeof candidateData.departments[key] === 'object' && candidateData.departments[key].yearLevels)
-              .sort()
-              .forEach(courseName => {
-                const courseData = candidateData.departments[courseName];
-                if (!courseData || !courseData.yearLevels) return;
-                
-                checkPageBreak(40);
-                
-                // Course header
-                doc.setFillColor(16, 185, 129);
-                doc.rect(margin + 5, yPosition - 5, contentWidth - 10, 8, 'F');
-                doc.setTextColor(255, 255, 255);
-                doc.setFontSize(11);
-                doc.setFont('helvetica', 'bold');
-                const totalCourseVotes = Object.values(courseData.yearLevels).reduce((sum, yl) => sum + (yl.count || 0), 0);
-                doc.text(`${courseName} (${courseData.code || 'N/A'}) - Total: ${totalCourseVotes}`, margin + 10, yPosition);
-                
-                yPosition += 10;
-                doc.setTextColor(0, 0, 0);
-                
-                // Year levels
-                Object.keys(courseData.yearLevels).sort().forEach(yearLevel => {
-                  checkPageBreak(15);
-                  const yearLevelData = courseData.yearLevels[yearLevel];
-                  const voteCount = yearLevelData.count || 0;
-                  
+
+          const sortedCandidates = [...positionCandidates].sort((a, b) => (b.totalVotes || 0) - (a.totalVotes || 0));
+
+          sortedCandidates.forEach(({ candidateName, candidateData, totalVotes }) => {
+            checkPageBreak(45);
+
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`${candidateName} - Total Votes: ${formatNumber(totalVotes || 0)}`, margin + 2, yPosition);
+
+            yPosition += 8;
+
+            if (electionToUse.election_type === 'department') {
+              // Department election: Course breakdown
+              Object.keys(candidateData.departments)
+                .filter((key) => candidateData.departments[key] && typeof candidateData.departments[key] === 'object' && candidateData.departments[key].yearLevels)
+                .sort()
+                .forEach((courseName) => {
+                  const courseData = candidateData.departments[courseName];
+                  const courseTotalVotes = calculateCourseTotalVotes(courseData);
+                  checkPageBreak(20);
                   doc.setFontSize(10);
                   doc.setFont('helvetica', 'normal');
-                  doc.setFillColor(243, 244, 246);
-                  doc.rect(margin + 15, yPosition - 4, contentWidth - 30, 6, 'F');
-                  doc.text(`Year ${yearLevel}: ${voteCount} vote${voteCount !== 1 ? 's' : ''}`, margin + 20, yPosition);
-                  
-                  yPosition += 8;
+                  doc.text(
+                    `- ${courseName} (${courseData.code || 'N/A'}): ${formatNumber(courseTotalVotes)} vote${courseTotalVotes !== 1 ? 's' : ''}`,
+                    margin + 6,
+                    yPosition
+                  );
+                  yPosition += 6;
                 });
-                
-                yPosition += 5; // Space between courses
-              });
-          } else {
-            // University election: Department → Course → Year Level
-            Object.keys(candidateData.departments)
-              .filter(key => candidateData.departments[key] && typeof candidateData.departments[key] === 'object')
-              .sort()
-              .forEach(deptName => {
-                const deptData = candidateData.departments[deptName];
-                if (!deptData || !deptData.courses) return;
-                
-                checkPageBreak(50);
-                
-                // Department header
-                doc.setFillColor(16, 185, 129);
-                doc.rect(margin + 5, yPosition - 5, contentWidth - 10, 8, 'F');
-                doc.setTextColor(255, 255, 255);
-                doc.setFontSize(12);
-                doc.setFont('helvetica', 'bold');
-                const deptCode = deptData.code || 'N/A';
-                doc.text(`${deptName} (${deptCode})`, margin + 10, yPosition);
-                
-                yPosition += 10;
-                doc.setTextColor(0, 0, 0);
-                
-                // Courses
-                Object.keys(deptData.courses)
-                  .filter(key => deptData.courses[key] && typeof deptData.courses[key] === 'object' && deptData.courses[key].yearLevels)
-                  .sort()
-                  .forEach(courseName => {
-                    const courseData = deptData.courses[courseName];
-                    if (!courseData || !courseData.yearLevels) return;
-                    
-                    checkPageBreak(40);
-                    
-                    // Course subheader
-                    doc.setFontSize(10);
-                    doc.setFont('helvetica', 'bold');
-                    const totalCourseVotes = Object.values(courseData.yearLevels).reduce((sum, yl) => sum + (yl.count || 0), 0);
-                    doc.text(`${courseName} (${courseData.code || 'N/A'}) - Total: ${totalCourseVotes}`, margin + 15, yPosition);
-                    
-                    yPosition += 8;
-                    
-                    // Year levels
-                    Object.keys(courseData.yearLevels).sort().forEach(yearLevel => {
+            } else {
+              // University election: College totals, then courses within college
+              Object.keys(candidateData.departments)
+                .filter((key) => candidateData.departments[key] && typeof candidateData.departments[key] === 'object')
+                .sort()
+                .forEach((deptName) => {
+                  const deptData = candidateData.departments[deptName];
+                  if (!deptData || !deptData.courses) return;
+
+                  const deptTotalVotes = calculateDepartmentTotalVotes(deptData);
+                  checkPageBreak(28);
+
+                  doc.setFontSize(10);
+                  doc.setFont('helvetica', 'bold');
+                  doc.text(
+                    `- ${deptName} (${deptData.code || 'N/A'}) - Total: ${formatNumber(deptTotalVotes)}`,
+                    margin + 6,
+                    yPosition
+                  );
+
+                  yPosition += 6;
+
+                  Object.keys(deptData.courses)
+                    .filter((key) => deptData.courses[key] && typeof deptData.courses[key] === 'object' && deptData.courses[key].yearLevels)
+                    .sort()
+                    .forEach((courseName) => {
+                      const courseData = deptData.courses[courseName];
+                      const courseTotalVotes = calculateCourseTotalVotes(courseData);
                       checkPageBreak(15);
-                      const yearLevelData = courseData.yearLevels[yearLevel];
-                      const voteCount = yearLevelData.count || 0;
-                      
                       doc.setFontSize(9);
                       doc.setFont('helvetica', 'normal');
-                      doc.setFillColor(243, 244, 246);
-                      doc.rect(margin + 20, yPosition - 4, contentWidth - 40, 6, 'F');
-                      doc.text(`Year ${yearLevel}: ${voteCount} vote${voteCount !== 1 ? 's' : ''}`, margin + 25, yPosition);
-                      
-                      yPosition += 8;
+                      doc.text(
+                        `• ${courseName} (${courseData.code || 'N/A'}): ${formatNumber(courseTotalVotes)}`,
+                        margin + 12,
+                        yPosition
+                      );
+                      yPosition += 5;
                     });
-                    
-                    yPosition += 5; // Space between courses
-                  });
-                
-                yPosition += 5; // Space between departments
-              });
-          }
-          
-          yPosition += 10; // Space between candidates
+
+                  yPosition += 3;
+                });
+            }
+
+            yPosition += 6;
+          });
+
+          yPosition += 6;
         });
       }
 
@@ -1515,16 +1079,8 @@ const DataExportPage = () => {
         );
       }
 
-      const fileName = `Election_Results_${electionToUse.title?.replace(/[^a-z0-9]/gi, '_') || electionToUse.id || 'Mock'}_${new Date().toISOString().split('T')[0]}.pdf`;
+      const fileName = `Election_Results_${electionToUse.title?.replace(/[^a-z0-9]/gi, '_') || electionToUse.id}_${new Date().toISOString().split('T')[0]}.pdf`;
       doc.save(fileName);
-      
-      // If this was a mock data export, clear the data immediately after saving
-      if (mockStudentsData) {
-        setStudentsByDept({});
-        setTotalStudents(0);
-        setMockVotesByCategory(null);
-        setVotesByCategory({});
-      }
     } catch (error) {
       console.error('PDF export error:', error);
       const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
@@ -2186,14 +1742,7 @@ const DataExportPage = () => {
                   </div>
                   <div className="admin-export-actions">
                     <Button
-                      onClick={loadMockStudentsForElection}
-                      disabled={exporting}
-                      className="admin-btn-mock"
-                    >
-                      Load Mock Students (150)
-                    </Button>
-                    <Button
-                      onClick={exportElectionResultsToPDF}
+                      onClick={() => exportElectionResultsToPDF()}
                       disabled={exporting || !electionResults}
                       className="admin-btn-export"
                     >
@@ -2339,13 +1888,6 @@ const DataExportPage = () => {
                   </div>
                 </div>
               <div className="admin-export-actions">
-                 <Button
-                   onClick={loadMockStudents}
-                   disabled={exporting}
-                   className="admin-btn-mock"
-                 >
-                   Load Mock Students (150)
-                 </Button>
                  <Button
                    onClick={() => {
                      if (!selectedElectionForStudents) {

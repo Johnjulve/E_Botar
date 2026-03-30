@@ -5,7 +5,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Container } from '../../../components/layout';
-import { LoadingSpinner } from '../../../components/common';
+import { Link } from 'react-router-dom';
+import { LoadingSpinner, Modal } from '../../../components/common';
 import { electionService } from '../../../services';
 import '../admin.css';
 
@@ -191,6 +192,24 @@ const PartyManagementPage = () => {
     setErrors({});
   };
 
+  const openCreateModal = () => {
+    setEditingParty(null);
+    setFormData({
+      name: '',
+      description: '',
+      color: '#2563eb',
+      is_active: true
+    });
+    setErrors({});
+    setShowForm(true);
+  };
+
+  const handleModalHide = () => {
+    if (!saving) {
+      resetForm();
+    }
+  };
+
   if (loading) {
     return <LoadingSpinner fullScreen text="Loading parties..." />;
   }
@@ -203,138 +222,166 @@ const PartyManagementPage = () => {
 
   return (
     <Container>
-      {/* Header */}
-      <div className="admin-header">
-        <div className="admin-party-header-flex">
-          <div>
-            <h1>
-              <Icon name="users" size={28} className="admin-icon-primary" />
-              Party Management
-            </h1>
-            <p>Manage political parties</p>
+      <div className="admin-registry-page">
+        <header className="admin-registry-header">
+          <div className="admin-registry-header-text">
+            <p className="admin-registry-eyebrow">Election setup</p>
+            <div className="admin-registry-title-row">
+              <div className="admin-registry-icon" aria-hidden>
+                <Icon name="users" size={22} />
+              </div>
+              <div>
+                <h1 className="admin-registry-title">Parties</h1>
+                <p className="admin-registry-lede">
+                  Create and maintain political parties used when candidates file or appear on ballots.
+                </p>
+              </div>
+            </div>
+            <nav className="admin-registry-nav" aria-label="Election admin sections">
+              <Link to="/admin/elections" className="admin-btn secondary admin-registry-nav-btn">
+                Elections
+              </Link>
+              <Link to="/admin/parties" className="admin-btn primary admin-registry-nav-btn" aria-current="page">
+                Parties
+              </Link>
+              <Link to="/admin/positions" className="admin-btn secondary admin-registry-nav-btn">
+                Positions
+              </Link>
+            </nav>
           </div>
-          <div className="admin-party-header-actions">
+          <div className="admin-registry-header-actions">
             <button
-              onClick={() => setShowForm(!showForm)}
+              type="button"
+              onClick={openCreateModal}
               className="admin-btn primary"
             >
-              <Icon name={showForm ? 'x' : 'plus'} size={16} />
-              {showForm ? 'Cancel' : 'Add Party'}
+              <Icon name="plus" size={16} />
+              Add party
             </button>
           </div>
-        </div>
-      </div>
+        </header>
 
-      {/* Form */}
-      {showForm && (
-        <div className="admin-form-section">
-          <h5 className="admin-form-title">
-            {editingParty ? 'Edit Party' : 'Add New Party'}
-          </h5>
-          <form onSubmit={handleSubmit}>
-            <div className="admin-form-grid">
-              <div>
-                <label className="admin-form-label">
-                  Name *
-                </label>
+      <Modal
+        show={showForm}
+        onHide={handleModalHide}
+        title={editingParty ? 'Edit party' : 'New party'}
+        size="lg"
+        className="admin-registry-modal"
+        container={typeof document !== 'undefined' ? document.body : undefined}
+        backdrop={saving ? 'static' : true}
+        keyboard={!saving}
+        footer={(
+          <div className="admin-registry-modal-footer">
+            <button
+              type="button"
+              className="admin-btn secondary"
+              onClick={resetForm}
+              disabled={saving}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="party-form-modal"
+              className="admin-btn primary"
+              disabled={saving}
+            >
+              <Icon name="check" size={16} />
+              {saving ? (editingParty ? 'Updating...' : 'Creating...') : (editingParty ? 'Update' : 'Create')}
+            </button>
+          </div>
+        )}
+      >
+        <form id="party-form-modal" onSubmit={handleSubmit} className="admin-registry-modal-form">
+          <div className="admin-form-grid">
+            <div>
+              <label className="admin-form-label" htmlFor="party-form-name">
+                Name <span className="admin-registry-field-required" aria-hidden="true">*</span>
+              </label>
+              <input
+                id="party-form-name"
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleInputChange}
+                required
+                className={`admin-form-input ${errors.name ? 'error' : ''}`}
+              />
+              {errors.name && (
+                <div className="admin-form-error">
+                  {errors.name}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="admin-form-label">
+                Color
+              </label>
+              <div className="admin-party-color-group">
+                <input
+                  type="color"
+                  name="color"
+                  value={formData.color}
+                  onChange={handleInputChange}
+                  className="admin-party-color-picker"
+                  aria-label="Party color"
+                />
                 <input
                   type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  required
-                  className={`admin-form-input ${errors.name ? 'admin-form-input-error' : ''}`}
-                />
-                {errors.name && (
-                  <div className="admin-form-error">
-                    {errors.name}
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="admin-form-label">
-                  Color
-                </label>
-                <div className="admin-party-color-group">
-                  <input
-                    type="color"
-                    name="color"
-                    value={formData.color}
-                    onChange={handleInputChange}
-                    className="admin-party-color-picker"
-                  />
-                  <input
-                    type="text"
-                    value={formData.color}
-                    onChange={(e) => setFormData(prev => ({ ...prev, color: e.target.value }))}
-                    className="admin-party-color-input"
-                    placeholder="#2563eb"
-                  />
-                </div>
-              </div>
-
-              <div className="admin-form-checkbox-group">
-                <input
-                  type="checkbox"
-                  name="is_active"
-                  checked={formData.is_active}
-                  onChange={handleInputChange}
-                  id="is_active"
-                />
-                <label htmlFor="is_active" className="admin-form-checkbox-label">
-                  Active
-                </label>
-              </div>
-
-              <div className="admin-grid-full-width">
-                <label className="admin-form-label">
-                  Description
-                </label>
-                <textarea
-                  name="description"
-                  value={formData.description}
-                  onChange={handleInputChange}
-                  rows="3"
-                  className="admin-form-textarea"
+                  value={formData.color}
+                  onChange={(e) => setFormData(prev => ({ ...prev, color: e.target.value }))}
+                  className="admin-party-color-input"
+                  placeholder="#2563eb"
+                  aria-label="Party color hex"
                 />
               </div>
             </div>
 
-            {errors.general && (
-              <div className="admin-form-error-box">
-                {errors.general}
-              </div>
-            )}
-
-            <div className="admin-form-buttons">
-              <button
-                type="button"
-                onClick={resetForm}
-                className="admin-btn secondary"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="admin-btn primary"
-                disabled={saving}
-              >
-                <Icon name="check" size={16} />
-                {saving ? (editingParty ? 'Updating...' : 'Creating...') : (editingParty ? 'Update' : 'Create')}
-              </button>
+            <div className="admin-form-checkbox-group">
+              <input
+                type="checkbox"
+                name="is_active"
+                checked={formData.is_active}
+                onChange={handleInputChange}
+                id="party-is-active"
+              />
+              <label htmlFor="party-is-active" className="admin-form-checkbox-label">
+                Active
+              </label>
             </div>
-          </form>
-        </div>
-      )}
+
+            <div className="admin-grid-full-width">
+              <label className="admin-form-label" htmlFor="party-form-description">
+                Description
+              </label>
+              <textarea
+                id="party-form-description"
+                name="description"
+                value={formData.description}
+                onChange={handleInputChange}
+                rows="3"
+                className="admin-form-textarea"
+              />
+            </div>
+          </div>
+
+          {errors.general && (
+            <div className="admin-form-error-box">
+              {errors.general}
+            </div>
+          )}
+        </form>
+      </Modal>
 
       {/* Filter Tabs */}
-      <div className="admin-filter-tabs">
+      <div className="admin-filter-tabs admin-registry-filters" role="group" aria-label="Filter parties">
         {filterButtons.map(btn => (
           <button
             key={btn.key}
+            type="button"
             onClick={() => setFilter(btn.key)}
-            className={`admin-filter-btn ${filter === btn.key ? 'admin-filter-btn-active' : 'admin-filter-btn-inactive-default'}`}
+            className={`admin-filter-btn ${filter === btn.key ? 'active' : ''}`}
           >
             {btn.label}
           </button>
@@ -343,7 +390,7 @@ const PartyManagementPage = () => {
 
       {/* Parties Table */}
       {parties.length > 0 ? (
-        <div className="admin-table-container">
+        <div className="admin-table-wrapper admin-registry-table-wrap">
           <table className="admin-table">
             <thead>
               <tr>
@@ -384,12 +431,14 @@ const PartyManagementPage = () => {
                   <td className="admin-table-actions">
                     <div className="admin-table-action-buttons">
                       <button
+                        type="button"
                         onClick={() => handleEdit(party)}
                         className="admin-btn secondary admin-btn-small"
                       >
                         <Icon name="edit" size={14} />
                       </button>
                       <button
+                        type="button"
                         onClick={() => handleDelete(party.id)}
                         className="admin-btn secondary admin-btn-danger-small"
                       >
@@ -403,22 +452,24 @@ const PartyManagementPage = () => {
           </table>
         </div>
       ) : (
-        <div className="admin-card-container admin-empty-state">
-          <Icon name="users" size={48} className="admin-empty-state-icon" />
-          <h5 className="admin-empty-state-title">
-            No Parties Found
-          </h5>
-          <p className="admin-empty-state-message" style={{ marginBottom: '1.5rem' }}>
-            {filter !== 'all' ? `No ${filter} parties found.` : 'Get started by adding your first party.'}
+        <div className="admin-empty-card admin-registry-empty">
+          <Icon name="users" size={40} className="admin-empty-icon" />
+          <h2 className="admin-empty-title">
+            No parties yet
+          </h2>
+          <p className="admin-empty-text">
+            {filter !== 'all' ? `No ${filter} parties match this filter.` : 'Add a party to attach candidates and ballot branding.'}
           </p>
           <button
-            onClick={() => setShowForm(true)}
+            type="button"
+            onClick={openCreateModal}
             className="admin-btn primary"
           >
-            Add Party
+            Add party
           </button>
         </div>
       )}
+      </div>
     </Container>
   );
 };

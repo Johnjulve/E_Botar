@@ -96,14 +96,13 @@ def test_cryptographic():
     assert len(hash1) == 64, f"SHA-256 hash should be 64 chars, got {len(hash1)}"
     print("✓ SHA-256 hash test passed")
     
-    # Test MD5
-    test_string2 = "cache_key_test"
-    md5_hash1 = CryptographicAlgorithm.md5_hash(test_string2)
-    md5_hash2 = CryptographicAlgorithm.md5_hash(test_string2)
-    
-    assert md5_hash1 == md5_hash2, "MD5 hash should be deterministic"
-    assert len(md5_hash1) == 32, f"MD5 hash should be 32 chars, got {len(md5_hash1)}"
-    print("✓ MD5 hash test passed")
+    # Cache / memoization keys use the same SHA-256 helper
+    cache_key_string = "cache_key_test"
+    key1 = CryptographicAlgorithm.sha256_hash(cache_key_string)
+    key2 = CryptographicAlgorithm.sha256_hash(cache_key_string)
+    assert key1 == key2, "SHA-256 cache key should be deterministic"
+    assert len(key1) == 64
+    print("✓ SHA-256 cache key test passed")
     
     print("All cryptographic tests passed!\n")
 
@@ -306,7 +305,7 @@ def test_memoization():
     
     assert key1 == key2, "Hash key should be deterministic for same inputs"
     assert key1 != key3, "Hash key should be different for different inputs"
-    assert len(key1) == 32, f"MD5 hash should be 32 chars, got {len(key1)}"
+    assert len(key1) == 64, f"SHA-256 hash should be 64 chars, got {len(key1)}"
     print("✓ Hash key generation test passed")
     
     # Test memoization with multiple arguments

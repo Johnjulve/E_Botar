@@ -82,6 +82,11 @@ class UserProfile(models.Model):
         to_field='code'
     )
     year_level = models.CharField(max_length=20, blank=True)
+    section = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text='Class section (e.g. A, B, or block code)',
+    )
     avatar = models.ImageField(upload_to='profile_photos/', blank=True, null=True)
     is_verified = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -121,7 +126,8 @@ class UserProfile(models.Model):
             self.student_id,  # Student ID (can be auto-generated)
             self.department,  # Department
             self.course,      # Course
-            self.year_level    # Year level
+            self.year_level,  # Year level
+            self.section,
         ]
         
         # Check if all required fields are filled
@@ -143,6 +149,8 @@ class UserProfile(models.Model):
             missing.append('Course')
         if not self.year_level or not str(self.year_level).strip():
             missing.append('Year Level')
+        if not self.section or not str(self.section).strip():
+            missing.append('Section')
         
         return missing
     

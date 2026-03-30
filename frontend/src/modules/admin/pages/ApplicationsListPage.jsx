@@ -73,6 +73,8 @@ const ApplicationsListPage = () => {
   const [filteredApps, setFilteredApps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all, pending, approved, rejected
+  const [pageSize, setPageSize] = useState(20); // 20 | 50 | Infinity (All)
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     fetchApplications();
@@ -81,6 +83,10 @@ const ApplicationsListPage = () => {
   useEffect(() => {
     filterApplications();
   }, [filter, applications]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter, pageSize]);
 
   const fetchApplications = async () => {
     try {
@@ -101,6 +107,14 @@ const ApplicationsListPage = () => {
       setFilteredApps(applications.filter(app => app.status === filter));
     }
   };
+
+  const totalRows = filteredApps.length;
+  const effectivePageSize = Number.isFinite(pageSize) ? pageSize : totalRows || 1;
+  const totalPages = Math.max(1, Math.ceil(totalRows / effectivePageSize));
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+  const startIndex = (safeCurrentPage - 1) * effectivePageSize;
+  const endIndexExclusive = Math.min(startIndex + effectivePageSize, totalRows);
+  const paginatedApps = filteredApps.slice(startIndex, endIndexExclusive);
 
   if (loading) {
     return <LoadingSpinner fullScreen text="Loading applications..." />;
@@ -160,8 +174,9 @@ const ApplicationsListPage = () => {
 
       {/* Applications Grid */}
       {filteredApps.length > 0 ? (
-        <div className="admin-card-grid">
-          {filteredApps.map(application => {
+        <div className="admin-table-container">
+          <div className="admin-card-grid" style={{ padding: 'var(--spacing-md)' }}>
+            {paginatedApps.map(application => {
             const status = getApplicationStatus(application.status);
             
             return (
@@ -233,7 +248,55 @@ const ApplicationsListPage = () => {
                 </Link>
               </div>
             );
-          })}
+            })}
+          </div>
+
+          <div className="admin-pagination">
+            <div className="admin-pagination-left">
+              <span className="admin-pagination-title">
+                Page {safeCurrentPage} of {totalPages}
+              </span>
+              <span className="admin-pagination-range">
+                ({totalRows === 0 ? 0 : startIndex + 1}-{endIndexExclusive} of {totalRows})
+              </span>
+            </div>
+
+            <div className="admin-pagination-right">
+              <button
+                type="button"
+                className="admin-btn admin-btn-small"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={safeCurrentPage <= 1}
+              >
+                Prev
+              </button>
+              <button
+                type="button"
+                className="admin-btn admin-btn-small"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safeCurrentPage >= totalPages}
+              >
+                Next
+              </button>
+
+              <div className="admin-pagination-view">
+                <label className="admin-pagination-view-label">View</label>
+                <select
+                  className="admin-pagination-view-select"
+                  value={Number.isFinite(pageSize) ? String(pageSize) : 'all'}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === 'all') setPageSize(Infinity);
+                    else setPageSize(Number(value));
+                  }}
+                >
+                  <option value="20">20</option>
+                  <option value="50">50</option>
+                  <option value="all">All</option>
+                </select>
+              </div>
+            </div>
+          </div>
         </div>
       ) : (
         <div className="admin-card-container admin-empty-state">

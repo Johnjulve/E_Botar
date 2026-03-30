@@ -6,9 +6,9 @@
 import React from 'react';
 import { Container as BootstrapContainer } from 'react-bootstrap';
 
-const Container = ({ children, fluid = false, className = '', ...props }) => {
+const Container = ({ children, fluid = true, className = '', ...props }) => {
   return (
-    <BootstrapContainer fluid={fluid} className={`py-4 ${className}`} {...props}>
+    <BootstrapContainer fluid={fluid} className={`py-4 px-4 px-md-5 ${className}`} {...props}>
       {children}
     </BootstrapContainer>
   );

@@ -135,6 +135,14 @@ export const getElectionStatus = (election) => {
   const startDate = new Date(election.start_date);
   const endDate = new Date(election.end_date);
   
+  if (
+    election.is_paused &&
+    election.is_active &&
+    now >= startDate &&
+    now <= endDate
+  ) {
+    return { label: 'Paused', variant: 'warning' };
+  }
   if (now < startDate) {
     return { label: 'Upcoming', variant: 'info' };
   } else if (now >= startDate && now <= endDate && election.is_active) {

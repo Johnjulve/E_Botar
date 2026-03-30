@@ -9,6 +9,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.0] - 2026-03-23
+### Added
+- **Admin User Directory (Read-Only)**: Students/staff/admin directory with advanced multi-field filters, summary cards, and client-side pagination.
+- **Voting Status (Per Election, Read-Only)**: Per-election voting completion status page with pagination.
+- **Admin Dashboard Registered Users Metric**: Total registered users (active/inactive) shown on the admin dashboard.
+- **Admin Backend Endpoints**:
+  - `GET /api/auth/user-count/` (Staff/Admin)
+  - `GET /api/auth/directory/` (Staff/Admin)
+  - `GET /api/voting/voting-status/` (Staff/Admin, requires `election_id`)
+- **Admin Tables Upgrade**: Pagination and search/filter improvements across admin list pages (User Management, Voting Status, Applications list).
+- **Data Export PDF Improvements**: Reorganized categorized election results PDF hierarchy and removed mock-student export loading.
+- **Application Pages Upgrade**: Cleaner Application Review layout and consistent avatar/initials fallback.
+- **App Version Single Source of Truth**: UI version labeling controlled by `frontend/src/constants.js` (`APP_VERSION`).
+- **Unified environment template**: `E_Botar/.env.example` documents Django and Vite-related variables in one place (copy to `E_Botar/.env`; never commit real secrets).
+- **Documentation refresh**: `README.md`, `Information.md`, and this changelog updated for repository layout, env loading order, admin UI patterns, and CSS scope fixes.
+
+### Changed
+- **User Management Table Columns**: Updated columns to First/Middle/Last name, ID, Course, Year level (numbers only), Role, Status, Joined/Created, and admin-only Actions.
+- **Layout + Responsiveness**: Removed boxed centering behavior, fixed admin sidebar submenu clipping, and improved results-details alignment/responsiveness.
+- **Django environment loading** (`backend/backend/settings.py`): Loads `E_Botar/.env` first, then `E_Botar/backend/.env` (the latter overrides when both exist).
+- **Admin “registry” UI**: Election, party, and position management pages share a consistent layout (eyebrow, icon tile, nav pills, filters, tables); party and position add/edit use shared `Modal` components with `admin-registry-modal` styling and `container={document.body}` where needed for correct centering.
+- **Bootstrap modal conflicts**: Global styles in `applications.css` that targeted `.modal-content` were scoped (e.g. under `.modal-overlay`) so React-Bootstrap admin modals are not squeezed or offset; withdraw modal keeps an explicit max-width where appropriate.
+- **Application Review layout**: Centered column wrapper (`admin-review-page`) and grid breakpoints for a cleaner transition between list and detail on large screens.
+- **Verify Receipt (voter)**: Narrow-column, minimal layout for verify flow (`verify-receipt-page` and related classes in `voting.css`).
+- **`.gitignore`**: Root and `frontend/.gitignore` aligned for monorepo use (e.g. allow committing `.env.example`, ignore local env and deploy artifacts such as `frontend/.vercel/`).
+
+### Notes
+- **Vite env files**: Development API calls use the Vite proxy (`/api` → backend). For `npm run build`, set `VITE_API_BASE_URL` in `frontend/.env` or in the build environment (Vite reads env from `frontend/` by default; the root `.env.example` documents the variable for the whole stack).
+
+### Technical Details
+- **Backend**:
+  - Implemented/updated directory and voting status endpoints (`apps/accounts`, `apps/voting`) and added registered users count (`apps/accounts`).
+  - Simplified boolean environment variable parsing in `backend/settings.py` (kept existing behavior).
+- **Frontend**:
+  - Updated pages: `UserDirectoryPage.jsx`, `VotingStatusPage.jsx`, `UserManagementPage.jsx`, `ApplicationsListPage.jsx`, `ApplicationReviewPage.jsx`.
+  - Updated admin UI behavior: client-side pagination, advanced search filters, and consistent styling across admin tables.
+
+---
+
 ## [0.7.8] - 2025-12-XX
 ### Added
 - **Program Type Badge Labeling**: Program list now shows `College` for department-type programs, keeping `Course` unchanged.

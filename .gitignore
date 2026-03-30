@@ -57,22 +57,23 @@ cover/
 
 # Django stuff:
 db.sqlite3
-*.log
 local_settings.py
-db.sqlite3
 db.sqlite3-journal
 db - Copy.sqlite3
 media/
 staticfiles/
 static/
 *.sqlite3
+/backend/db.sqlite3
+*.sql
 
-# Django secrets & env
-.env*
-*.env
+# Secrets & local env (commit templates only)
+.env
+.env.*
 !.env.example
+!.env.template
 
-# Frontend build artifacts (duplicated here in case frontend/.gitignore missed)
+# Frontend (also see frontend/.gitignore)
 frontend/node_modules/
 frontend/dist/
 frontend/.vite/
@@ -81,6 +82,7 @@ frontend/.turbo/
 frontend/coverage/
 frontend/.parcel-cache/
 frontend/storybook-static/
+frontend/.vercel/
 
 # Ignore local editor configs globally (except curated examples)
 .vscode/
@@ -242,8 +244,8 @@ THESIS_DEFEND.md
 backend/apps/accounts/management/commands/reset_passwords.py
 Sample_userdata.csv
 
-# Logs
-logs
+# Monorepo — root-level Node / Vite (safety net; primary rules under frontend/)
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -251,21 +253,21 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+node_modules/
+dist/
+dist-ssr/
 *.local
-.env*
 .eslintcache
 .vite/
 coverage/
 .parcel-cache/
 storybook-static/
+*.tsbuildinfo
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
+.vercel/
+
+# Editors & OS
+.idea/
 .DS_Store
 *.suo
 *.ntvs*
@@ -275,3 +277,4 @@ storybook-static/
 
 CSS_STRUCTURE_REVIEW.md
 CSS_ARCHITECTURE_STRATEGY.md
+major_improvement.md

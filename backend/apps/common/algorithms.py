@@ -885,10 +885,6 @@ class CryptographicAlgorithm:
     def sha256_hash(data: str) -> str:
 
         return hashlib.sha256(data.encode()).hexdigest()
-    
-    @staticmethod
-    def md5_hash(data: str) -> str:
-        return hashlib.md5(data.encode()).hexdigest()
 
 
 class MemoizationAlgorithm:
@@ -932,12 +928,12 @@ class MemoizationAlgorithm:
             **kwargs: Keyword arguments
         
         Returns:
-            MD5 hash string
+            SHA-256 hash string (hex)
         """
         key_parts = [str(arg) for arg in args]
         key_parts.extend([f"{k}:{v}" for k, v in sorted(kwargs.items())])
         key_string = '|'.join(key_parts)
-        return CryptographicAlgorithm.md5_hash(key_string)
+        return CryptographicAlgorithm.sha256_hash(key_string)
 
 
 class SortingAlgorithm:

@@ -56,18 +56,26 @@ class SchoolElectionListSerializer(serializers.ModelSerializer):
             'id', 'title', 'election_type', 'allowed_department', 
             'allowed_department_name', 'allowed_department_code',
             'start_year', 'end_year', 'description',
-            'start_date', 'end_date', 'is_active', 'status', 
+            'start_date', 'end_date', 'is_active', 'is_paused', 'status', 
             'is_active_now', 'is_upcoming', 'is_finished',
             'created_by', 'created_by_name', 'total_votes', 'total_positions',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['created_at', 'updated_at', 'title']
+        read_only_fields = ['created_at', 'updated_at', 'title', 'is_paused']
     
     def get_status(self, obj):
         """Return human-readable status"""
         if obj is None:
             return 'inactive'
         try:
+            from django.utils import timezone
+            now = timezone.now()
+            if (
+                getattr(obj, 'is_paused', False)
+                and obj.is_active
+                and obj.start_date <= now <= obj.end_date
+            ):
+                return 'paused'
             if obj.is_active_now():
                 return 'ongoing'
             elif obj.is_upcoming():
@@ -152,18 +160,26 @@ class SchoolElectionDetailSerializer(serializers.ModelSerializer):
             'id', 'title', 'election_type', 'allowed_department',
             'allowed_department_name', 'allowed_department_code',
             'start_year', 'end_year', 'description',
-            'start_date', 'end_date', 'is_active', 'status', 'is_active_now',
+            'start_date', 'end_date', 'is_active', 'is_paused', 'status', 'is_active_now',
             'created_by', 'created_by_name', 
             'election_positions', 'total_positions', 'total_votes',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['created_at', 'updated_at', 'title']
+        read_only_fields = ['created_at', 'updated_at', 'title', 'is_paused']
     
     def get_status(self, obj):
         """Return human-readable status"""
         if obj is None:
             return 'inactive'
         try:
+            from django.utils import timezone
+            now = timezone.now()
+            if (
+                getattr(obj, 'is_paused', False)
+                and obj.is_active
+                and obj.start_date <= now <= obj.end_date
+            ):
+                return 'paused'
             if obj.is_active_now():
                 return 'ongoing'
             elif obj.is_upcoming():
@@ -253,10 +269,16 @@ class SchoolElectionCreateUpdateSerializer(serializers.ModelSerializer):
     
     def validate(self, data):
         """Validate election data"""
-        start_year = data.get('start_year')
-        end_year = data.get('end_year')
-        election_type = data.get('election_type', 'university')
-        allowed_department_code = data.get('allowed_department_code')
+        inst = self.instance
+        start_year = data.get('start_year', inst.start_year if inst else None)
+        end_year = data.get('end_year', inst.end_year if inst else None)
+        election_type = data.get('election_type', inst.election_type if inst else 'university')
+        if 'allowed_department_code' in data:
+            allowed_department_code = data.get('allowed_department_code')
+        elif inst is not None:
+            allowed_department_code = inst.allowed_department.code if inst.allowed_department else None
+        else:
+            allowed_department_code = None
         
         # Validate year range
         if start_year and end_year:
@@ -316,6 +338,43 @@ class SchoolElectionCreateUpdateSerializer(serializers.ModelSerializer):
                         'You cannot create another election for the same academic year and department.'
                     )
                 raise serializers.ValidationError({'non_field_errors': [msg]})
+
+        if inst is not None:
+            if 'start_date' in data and data['start_date'] != inst.start_date:
+                raise serializers.ValidationError({
+                    'start_date': 'Start date cannot be changed after the election is created.'
+                })
+            if 'end_date' in data and data['end_date'] < inst.end_date:
+                raise serializers.ValidationError({
+                    'end_date': 'End date can only be extended, not moved earlier.'
+                })
+            if 'start_year' in data and data['start_year'] != inst.start_year:
+                raise serializers.ValidationError({
+                    'start_year': 'Academic year cannot be changed when editing an election.'
+                })
+            if 'end_year' in data and data['end_year'] != inst.end_year:
+                raise serializers.ValidationError({
+                    'end_year': 'Academic year cannot be changed when editing an election.'
+                })
+            if 'election_type' in data and data['election_type'] != inst.election_type:
+                raise serializers.ValidationError({
+                    'election_type': 'Election type cannot be changed when editing an election.'
+                })
+            old_dept = inst.allowed_department.code if inst.allowed_department else None
+            if 'allowed_department_code' in data:
+                new_dept = data.get('allowed_department_code')
+                if new_dept != old_dept:
+                    raise serializers.ValidationError({
+                        'allowed_department_code': 'Department cannot be changed when editing an election.'
+                    })
+            if 'position_ids' in data:
+                current_ids = list(
+                    inst.election_positions.order_by('order').values_list('position_id', flat=True)
+                )
+                if list(data['position_ids']) != current_ids:
+                    raise serializers.ValidationError({
+                        'position_ids': 'Positions cannot be changed when editing an election.'
+                    })
 
         return data
     

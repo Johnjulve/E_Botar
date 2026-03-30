@@ -5,7 +5,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Container } from '../../../components/layout';
-import { LoadingSpinner } from '../../../components/common';
+import { Link } from 'react-router-dom';
+import { LoadingSpinner, Modal } from '../../../components/common';
 import { electionService } from '../../../services';
 import '../admin.css';
 
@@ -300,6 +301,24 @@ const PositionManagementPage = () => {
     setErrors({});
   };
 
+  const openCreateModal = () => {
+    setEditingPosition(null);
+    setFormData({
+      name: '',
+      description: '',
+      max_candidates: 1,
+      is_active: true
+    });
+    setErrors({});
+    setShowForm(true);
+  };
+
+  const handleModalHide = () => {
+    if (!saving) {
+      resetForm();
+    }
+  };
+
   if (loading) {
     return <LoadingSpinner fullScreen text="Loading positions..." />;
   }
@@ -312,128 +331,155 @@ const PositionManagementPage = () => {
 
   return (
     <Container>
-      {/* Header */}
-      <div className="admin-header">
-        <div className="admin-header-layout">
-          <div>
-            <h1>
-              <Icon name="briefcase" size={28} className="admin-header-icon" />
-              Position Management
-            </h1>
-            <p>Manage election positions</p>
+      <div className="admin-registry-page">
+        <header className="admin-registry-header">
+          <div className="admin-registry-header-text">
+            <p className="admin-registry-eyebrow">Election setup</p>
+            <div className="admin-registry-title-row">
+              <div className="admin-registry-icon" aria-hidden>
+                <Icon name="briefcase" size={22} />
+              </div>
+              <div>
+                <h1 className="admin-registry-title">Positions</h1>
+                <p className="admin-registry-lede">
+                  Define offices that appear on ballots and set how many candidates can run per seat.
+                </p>
+              </div>
+            </div>
+            <nav className="admin-registry-nav" aria-label="Election admin sections">
+              <Link to="/admin/elections" className="admin-btn secondary admin-registry-nav-btn">
+                Elections
+              </Link>
+              <Link to="/admin/parties" className="admin-btn secondary admin-registry-nav-btn">
+                Parties
+              </Link>
+              <Link to="/admin/positions" className="admin-btn primary admin-registry-nav-btn" aria-current="page">
+                Positions
+              </Link>
+            </nav>
           </div>
-          <div className="admin-header-actions-right">
+          <div className="admin-registry-header-actions">
             <button
-              onClick={() => setShowForm(!showForm)}
+              type="button"
+              onClick={openCreateModal}
               className="admin-btn primary"
             >
-              <Icon name={showForm ? 'x' : 'plus'} size={16} />
-              {showForm ? 'Cancel' : 'Add Position'}
+              <Icon name="plus" size={16} />
+              Add position
             </button>
           </div>
-        </div>
-      </div>
+        </header>
 
-      {/* Form */}
-      {showForm && (
-        <div className="admin-form-card">
-          <h5 className="admin-form-title">
-            {editingPosition ? 'Edit Position' : 'Add New Position'}
-          </h5>
-          <form onSubmit={handleSubmit}>
-            <div className="admin-form-grid">
-              <div>
-                <label className="admin-form-label">
-                  Name *
-                </label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  required
-                  className={`admin-form-input ${errors.name ? 'error' : ''}`}
-                />
-                {errors.name && (
-                  <div className="admin-field-error">
-                    {errors.name}
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="admin-form-label">
-                  Max Candidates
-                </label>
-                <input
-                  type="number"
-                  name="max_candidates"
-                  value={formData.max_candidates}
-                  onChange={handleInputChange}
-                  min="1"
-                  className="admin-form-input"
-                />
-              </div>
-
-              <div className="admin-checkbox-row">
-                <input
-                  type="checkbox"
-                  name="is_active"
-                  checked={formData.is_active}
-                  onChange={handleInputChange}
-                  id="is_active"
-                />
-                <label htmlFor="is_active" className="admin-checkbox-label">
-                  Active
-                </label>
-              </div>
-
-              <div className="admin-grid-full-width">
-                <label className="admin-form-label">
-                  Description
-                </label>
-                <textarea
-                  name="description"
-                  value={formData.description}
-                  onChange={handleInputChange}
-                  rows="3"
-                  className="admin-textarea"
-                />
-              </div>
+      <Modal
+        show={showForm}
+        onHide={handleModalHide}
+        title={editingPosition ? 'Edit position' : 'New position'}
+        size="lg"
+        className="admin-registry-modal"
+        container={typeof document !== 'undefined' ? document.body : undefined}
+        backdrop={saving ? 'static' : true}
+        keyboard={!saving}
+        footer={(
+          <div className="admin-registry-modal-footer">
+            <button
+              type="button"
+              className="admin-btn secondary"
+              onClick={resetForm}
+              disabled={saving}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="position-form-modal"
+              className="admin-btn primary"
+              disabled={saving}
+            >
+              <Icon name="check" size={16} />
+              {saving ? (editingPosition ? 'Updating...' : 'Creating...') : (editingPosition ? 'Update' : 'Create')}
+            </button>
+          </div>
+        )}
+      >
+        <form id="position-form-modal" onSubmit={handleSubmit} className="admin-registry-modal-form">
+          <div className="admin-form-grid">
+            <div>
+              <label className="admin-form-label" htmlFor="position-form-name">
+                Name <span className="admin-registry-field-required" aria-hidden="true">*</span>
+              </label>
+              <input
+                id="position-form-name"
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleInputChange}
+                required
+                className={`admin-form-input ${errors.name ? 'error' : ''}`}
+              />
+              {errors.name && (
+                <div className="admin-field-error">
+                  {errors.name}
+                </div>
+              )}
             </div>
 
-            {errors.general && (
-              <div className="admin-form-error">
-                {errors.general}
-              </div>
-            )}
-
-            <div className="admin-form-actions">
-              <button
-                type="button"
-                onClick={resetForm}
-                className="admin-btn secondary"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="admin-btn primary"
-                disabled={saving}
-              >
-                <Icon name="check" size={16} />
-                {saving ? (editingPosition ? 'Updating...' : 'Creating...') : (editingPosition ? 'Update' : 'Create')}
-              </button>
+            <div>
+              <label className="admin-form-label" htmlFor="position-max-candidates">
+                Max candidates
+              </label>
+              <input
+                id="position-max-candidates"
+                type="number"
+                name="max_candidates"
+                value={formData.max_candidates}
+                onChange={handleInputChange}
+                min="1"
+                className="admin-form-input"
+              />
             </div>
-          </form>
-        </div>
-      )}
+
+            <div className="admin-checkbox-row">
+              <input
+                type="checkbox"
+                name="is_active"
+                checked={formData.is_active}
+                onChange={handleInputChange}
+                id="position-is-active"
+              />
+              <label htmlFor="position-is-active" className="admin-checkbox-label">
+                Active
+              </label>
+            </div>
+
+            <div className="admin-grid-full-width">
+              <label className="admin-form-label" htmlFor="position-form-description">
+                Description
+              </label>
+              <textarea
+                id="position-form-description"
+                name="description"
+                value={formData.description}
+                onChange={handleInputChange}
+                rows="3"
+                className="admin-textarea"
+              />
+            </div>
+          </div>
+
+          {errors.general && (
+            <div className="admin-form-error">
+              {errors.general}
+            </div>
+          )}
+        </form>
+      </Modal>
 
       {/* Filter Tabs */}
-      <div className="admin-filter-tabs">
+      <div className="admin-filter-tabs admin-registry-filters" role="group" aria-label="Filter positions">
         {filterButtons.map(btn => (
           <button
             key={btn.key}
+            type="button"
             onClick={() => setFilter(btn.key)}
             className={`admin-filter-btn ${filter === btn.key ? 'active' : ''}`}
           >
@@ -444,7 +490,7 @@ const PositionManagementPage = () => {
 
       {/* Positions Table */}
       {positions.length > 0 ? (
-        <div className="admin-table-wrapper">
+        <div className="admin-table-wrapper admin-registry-table-wrap">
           <table className="admin-table">
             <thead>
               <tr>
@@ -479,6 +525,7 @@ const PositionManagementPage = () => {
                   <td className="admin-table-actions-cell">
                     <div className="admin-table-actions">
                       <button
+                        type="button"
                         onClick={() => handleMoveUp(position)}
                         className={`admin-btn secondary admin-table-action-btn ${!canMoveUp(position) ? 'disabled' : ''}`}
                         disabled={!canMoveUp(position)}
@@ -487,6 +534,7 @@ const PositionManagementPage = () => {
                         <Icon name="arrowUp" size={14} />
                       </button>
                       <button
+                        type="button"
                         onClick={() => handleMoveDown(position)}
                         className={`admin-btn secondary admin-table-action-btn ${!canMoveDown(position) ? 'disabled' : ''}`}
                         disabled={!canMoveDown(position)}
@@ -495,12 +543,14 @@ const PositionManagementPage = () => {
                         <Icon name="arrowDown" size={14} />
                       </button>
                       <button
+                        type="button"
                         onClick={() => handleEdit(position)}
                         className="admin-btn secondary admin-table-action-btn"
                       >
                         <Icon name="edit" size={14} />
                       </button>
                       <button
+                        type="button"
                         onClick={() => handleDelete(position.id)}
                         className="admin-btn secondary admin-table-action-btn danger"
                       >
@@ -514,23 +564,25 @@ const PositionManagementPage = () => {
           </table>
         </div>
       ) : (
-        <div className="admin-empty-card">
-          <Icon name="briefcase" size={48} className="admin-empty-icon" />
-          <h5 className="admin-empty-title">
-            No Positions Found
-          </h5>
+        <div className="admin-empty-card admin-registry-empty">
+          <Icon name="briefcase" size={40} className="admin-empty-icon" />
+          <h2 className="admin-empty-title">
+            No positions yet
+          </h2>
           <p className="admin-empty-text">
-            {filter !== 'all' ? `No ${filter} positions found.` : 'Get started by adding your first position.'}
+            {filter !== 'all' ? `No ${filter} positions match this filter.` : 'Add positions before building elections and ballots.'}
           </p>
           <button
-            onClick={() => setShowForm(true)}
+            type="button"
+            onClick={openCreateModal}
             className="admin-btn primary"
           >
             <Icon name="plus" size={16} />
-            Add Position
+            Add position
           </button>
         </div>
       )}
+      </div>
     </Container>
   );
 };

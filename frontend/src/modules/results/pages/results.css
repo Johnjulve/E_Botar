@@ -17,13 +17,13 @@
   background: linear-gradient(135deg, var(--brand-green) 0%, var(--brand-green-dark) 100%);
   color: var(--white);
   padding: 2.5rem 0;
-  margin: calc(var(--spacing-xl) * -1) 0 var(--spacing-xl) 0;
+  margin: calc(var(--spacing-xl) * -0.5) 0 var(--spacing-xl) 0;
   box-shadow: var(--shadow-md);
   border-radius: var(--radius-2xl);
 }
 
 .results-header-content {
-  max-width: 1200px;
+  max-width: 1500px;
   margin: 0 auto;
   padding: 0 var(--spacing-lg);
 }

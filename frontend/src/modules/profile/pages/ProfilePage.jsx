@@ -10,7 +10,7 @@ import { LoadingSpinner } from '../../../components/common';
 import { authService } from '../../../services';
 import { useAuth } from '../../../hooks/useAuth';
 import { formatDate } from '../../../utils/formatters';
-import { getFullName, getInitials } from '../../../utils/helpers';
+import { getFullName, getInitials, formatYearLevelNumeric } from '../../../utils/helpers';
 import '../profile.css';
 
 const ProfilePage = () => {
@@ -210,7 +210,12 @@ const ProfilePage = () => {
           </div>
 
           {/* Academic Information - Only show if user has academic info or is not admin */}
-          {(profile?.student_id || profile?.department || profile?.course || profile?.year_level || !isAdmin) && (
+          {(profile?.student_id ||
+            profile?.department ||
+            profile?.course ||
+            profile?.year_level ||
+            (profile?.section && String(profile.section).trim() !== '') ||
+            !isAdmin) && (
           <div className="profile-section">
             <h3 className="profile-section-title">Academic Information</h3>
             <div className="profile-info-grid">
@@ -220,10 +225,12 @@ const ProfilePage = () => {
                     <span className="profile-info-value">{profile.student_id}</span>
               </div>
                 )}
-                {profile?.year_level && (
+                {profile?.year_level && String(profile.year_level).trim() !== '' && (
               <div className="profile-info-item">
                 <span className="profile-info-label">Year Level</span>
-                    <span className="profile-info-value">{profile.year_level}</span>
+                    <span className="profile-info-value">
+                      {formatYearLevelNumeric(profile.year_level) || profile.year_level}
+                    </span>
               </div>
                 )}
                 {profile?.department && (
@@ -238,7 +245,18 @@ const ProfilePage = () => {
                     <span className="profile-info-value">{profile.course.name}</span>
                   </div>
                 )}
-                {isAdmin && !profile?.student_id && !profile?.department && !profile?.course && !profile?.year_level && (
+                {profile?.section && String(profile.section).trim() !== '' && (
+              <div className="profile-info-item">
+                <span className="profile-info-label">Section</span>
+                    <span className="profile-info-value">{profile.section}</span>
+              </div>
+                )}
+                {isAdmin &&
+                  !profile?.student_id &&
+                  !profile?.department &&
+                  !profile?.course &&
+                  !profile?.year_level &&
+                  !(profile?.section && String(profile.section).trim() !== '') && (
                   <div className="profile-info-item grid-full-width">
                     <span className="profile-info-value muted-italic">
                       No academic information provided (optional for administrators)
