@@ -10,11 +10,12 @@ import { LoadingSpinner } from '../../../components/common';
 import { authService } from '../../../services';
 import { useAuth } from '../../../hooks/useAuth';
 import { getFullName, getInitials, coerceYearLevelToFormValue } from '../../../utils/helpers';
+import { getChangedFields } from '../../../utils/patchPayload';
 import '../profile.css';
 
 const ProfileEditPage = () => {
   const navigate = useNavigate();
-  const { updateUser, user: authUser, logout } = useAuth();
+  const { updateUser, user: authUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -23,7 +24,9 @@ const ProfileEditPage = () => {
   const [courses, setCourses] = useState([]);
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarRemoved, setAvatarRemoved] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [initialFormData, setInitialFormData] = useState(null);
   
   // Check if user is admin/staff
   const isAdmin = authUser?.user?.is_superuser || authUser?.user?.is_staff || false;
@@ -42,6 +45,17 @@ const ProfileEditPage = () => {
   });
 
   const [hasExistingEmail, setHasExistingEmail] = useState(false);
+  const formFieldRules = {
+    first_name: 'string',
+    middle_name: 'string',
+    last_name: 'string',
+    email: 'string',
+    student_id: 'string',
+    year_level: 'string',
+    section: 'string',
+    department: 'string',
+    course: 'string',
+  };
 
   useEffect(() => {
     fetchData();
@@ -78,7 +92,7 @@ const ProfileEditPage = () => {
       const emailExists = !!(user?.email && user.email.trim() !== '');
       setHasExistingEmail(emailExists);
 
-      setFormData({
+      const nextFormData = {
         first_name: user?.first_name || '',
         middle_name: profile?.middle_name || '',
         last_name: user?.last_name || '',
@@ -89,7 +103,9 @@ const ProfileEditPage = () => {
         course: profile?.course?.code || '',
         year_level: coerceYearLevelToFormValue(profile?.year_level),
         section: profile?.section != null ? String(profile.section) : '',
-      });
+      };
+      setFormData(nextFormData);
+      setInitialFormData(nextFormData);
 
       setDepartments(departmentsResponse.data || []);
       
@@ -151,6 +167,7 @@ const ProfileEditPage = () => {
       }
 
       setAvatarFile(file);
+      setAvatarRemoved(false);
       
       // Create preview
       const reader = new FileReader();
@@ -164,6 +181,7 @@ const ProfileEditPage = () => {
   const handleRemoveAvatar = () => {
     setAvatarFile(null);
     setAvatarPreview(null);
+    setAvatarRemoved(true);
   };
 
   const handleSubmit = async (e) => {
@@ -176,30 +194,46 @@ const ProfileEditPage = () => {
       
       // Create FormData for file upload
       const submitData = new FormData();
+      const {
+        normalizedCurrent: normalizedCurrentData,
+        normalizedInitial: normalizedInitialData,
+        changedFields,
+        hasChanges: hasFieldChanges,
+      } = getChangedFields({
+        currentValues: formData,
+        initialValues: initialFormData,
+        fieldRules: formFieldRules,
+      });
+      const hasAvatarChanges = Boolean(avatarFile) || avatarRemoved;
+
+      if (!hasFieldChanges && !hasAvatarChanges) {
+        setSuccess('No changes to save.');
+        return;
+      }
       
       // Append user fields
-      if (formData.first_name) submitData.append('first_name', formData.first_name);
-      if (formData.middle_name != null) submitData.append('middle_name', formData.middle_name);
-      if (formData.last_name) submitData.append('last_name', formData.last_name);
-      if (formData.email && !hasExistingEmail) submitData.append('email', formData.email);
+      if (Object.prototype.hasOwnProperty.call(changedFields, 'first_name')) submitData.append('first_name', normalizedCurrentData.first_name);
+      if (Object.prototype.hasOwnProperty.call(changedFields, 'middle_name')) submitData.append('middle_name', normalizedCurrentData.middle_name);
+      if (Object.prototype.hasOwnProperty.call(changedFields, 'last_name')) submitData.append('last_name', normalizedCurrentData.last_name);
+      if (!hasExistingEmail && Object.prototype.hasOwnProperty.call(changedFields, 'email')) submitData.append('email', normalizedCurrentData.email);
       
       // Append profile fields
-      if (formData.student_id) submitData.append('student_id', formData.student_id);
-      if (formData.year_level) submitData.append('year_level', formData.year_level);
-      submitData.append('section', formData.section != null ? String(formData.section).trim() : '');
+      if (Object.prototype.hasOwnProperty.call(changedFields, 'student_id')) submitData.append('student_id', normalizedCurrentData.student_id);
+      if (Object.prototype.hasOwnProperty.call(changedFields, 'year_level')) submitData.append('year_level', normalizedCurrentData.year_level);
+      if (Object.prototype.hasOwnProperty.call(changedFields, 'section')) submitData.append('section', normalizedCurrentData.section);
       
       // Append department and course as IDs (ensure they're numbers)
-      if (formData.department) {
-        submitData.append('department', formData.department);
+      if (Object.prototype.hasOwnProperty.call(changedFields, 'department')) {
+        submitData.append('department', normalizedCurrentData.department);
       }
-      if (formData.course) {
-        submitData.append('course', formData.course);
+      if (Object.prototype.hasOwnProperty.call(changedFields, 'course')) {
+        submitData.append('course', normalizedCurrentData.course);
       }
       
       // Append avatar file if exists
       if (avatarFile) {
         submitData.append('avatar', avatarFile);
-      } else if (avatarPreview === null) {
+      } else if (avatarRemoved) {
         // If avatar was removed, send removal flag
         submitData.append('remove_avatar', 'true');
       }
@@ -209,6 +243,13 @@ const ProfileEditPage = () => {
       
       if (result.success) {
         setSuccess('Profile updated successfully!');
+        setAvatarRemoved(false);
+        setAvatarFile(null);
+        setInitialFormData({
+          ...formData,
+          section: formData.section != null ? String(formData.section).trim() : '',
+          student_id: formData.student_id != null ? String(formData.student_id).trim() : '',
+        });
         setTimeout(() => {
           navigate('/profile');
         }, 1500);

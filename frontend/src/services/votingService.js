@@ -54,6 +54,18 @@ export const votingService = {
     return api.get('/voting/voting-status/', { params });
   },
 
+  // Get receipt audit rows (staff/admin only)
+  getReceiptAudit: (params = {}) => {
+    return api.get('/voting/receipts/audit/', { params });
+  },
+
+  // Reveal full receipt code for audit row (staff/admin only)
+  revealReceiptCode: (receiptId) => {
+    return api.post('/voting/receipts/reveal_receipt/', {
+      receipt_id: receiptId
+    });
+  },
+
   // === Results ===
   
   // Get election results

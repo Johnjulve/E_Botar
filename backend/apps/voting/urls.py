@@ -10,9 +10,6 @@ router.register(r'receipts', views.VoteReceiptViewSet, basename='receipt')
 router.register(r'results', views.ResultsViewSet, basename='results')
 
 urlpatterns = [
-    # Health check
-    path('health/', views.health_check, name='health'),
-    
     # Per-election voting status for students
     path('voting-status/', views.VotingStatusView.as_view(), name='voting-status'),
     

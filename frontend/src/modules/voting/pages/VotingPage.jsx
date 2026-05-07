@@ -3,7 +3,7 @@
  * Ballot submission interface
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Container } from '../../../components/layout';
 import { Card, Button, Alert, LoadingSpinner, EmptyState, Modal } from '../../../components/common';
@@ -32,11 +32,7 @@ const VotingPage = () => {
   const isPreview = (searchParams.get('preview') === '1' || searchParams.get('preview') === 'true') && isAdmin;
   const isAdminBypassActive = isAdmin && !isPreview;
 
-  useEffect(() => {
-    fetchVotingData();
-  }, [id]);
-
-  const fetchVotingData = async () => {
+  const fetchVotingData = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -98,13 +94,16 @@ const VotingPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, isAdmin, isPreview, isAdminBypassActive]);
+
+  useEffect(() => {
+    fetchVotingData();
+  }, [fetchVotingData]);
 
   const groupCandidatesByPosition = () => {
     const grouped = {};
     candidates.forEach(candidate => {
       const positionId = candidate.position?.id;
-      const positionName = candidate.position?.name || 'Unknown Position';
       if (!grouped[positionId]) {
         grouped[positionId] = {
           position: candidate.position,

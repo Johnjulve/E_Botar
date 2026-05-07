@@ -65,6 +65,7 @@ REST_FRAMEWORK = {
         # DRF only supports 'second', 'minute', 'hour', 'day', so we approximate.
         "vote_submit": "3/minute",
         "registration_submit": "2/minute",
+        "google_auth_submit": "10/minute",
         "application_submit": "6/minute",
         "program_submit": "15/minute",
         "program_import": "3/minute",
@@ -82,11 +83,16 @@ INSTALLED_APPS = [
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
+    'django.contrib.sites',
     'django.contrib.messages',
     'django.contrib.staticfiles',
     # DRF and third-party
     "rest_framework",
     "corsheaders",
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
     # Project apps
     "apps.accounts",
     "apps.elections",
@@ -97,6 +103,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'django.middleware.gzip.GZipMiddleware',
     'apps.common.middleware.DynamicAllowedHostsMiddleware',  # Handle ALLOWED_HOSTS dynamically (platform-agnostic)
     'whitenoise.middleware.WhiteNoiseMiddleware',  # Serve static files efficiently
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -104,12 +111,50 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'allauth.account.middleware.AccountMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'apps.common.middleware.SecurityLoggingMiddleware',  # Security logging
 ]
 
 ROOT_URLCONF = 'backend.urls'
+
+SITE_ID = int(os.getenv("SITE_ID", "1"))
+
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend",
+    "allauth.account.auth_backends.AuthenticationBackend",
+]
+
+ACCOUNT_UNIQUE_EMAIL = True
+ACCOUNT_EMAIL_VERIFICATION = "optional"
+ACCOUNT_SIGNUP_FIELDS = ["email*", "username*", "password1*", "password2*"]
+
+# Registration signup: acceptable email domains (comma- or semicolon-separated in env).
+_registration_domains_default_parts = ('snsu.edu.ph', 'ssct.edu.ph')
+_registration_domains_raw = os.getenv(
+    'REGISTRATION_ALLOWED_EMAIL_DOMAINS',
+    ','.join(_registration_domains_default_parts),
+).strip()
+REGISTRATION_ALLOWED_EMAIL_DOMAINS = tuple(
+    part.strip().lower()
+    for part in _registration_domains_raw.replace(';', ',').split(',')
+    if part.strip()
+) or _registration_domains_default_parts
+
+SOCIALACCOUNT_PROVIDERS = {
+    "google": {
+        "SCOPE": ["profile", "email"],
+        "AUTH_PARAMS": {"access_type": "online"},
+    }
+}
+
+# Skip the intermediate allauth confirmation page and redirect directly to Google.
+SOCIALACCOUNT_LOGIN_ON_GET = True
+
+SOCIALACCOUNT_FORMS = {
+    "signup": "apps.accounts.social_forms.GoogleSocialSignupForm",
+}
 
 TEMPLATES = [
     {
@@ -218,6 +263,9 @@ MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 BACKEND_BASE_URL = os.getenv('BACKEND_BASE_URL', None)
+API_VERSION = os.getenv('API_VERSION', 'v1')
+BACKEND_VERSION = os.getenv('BACKEND_VERSION', '1.1.0')
+MIN_FRONTEND_VERSION = os.getenv('MIN_FRONTEND_VERSION', '1.1.0')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

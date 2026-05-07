@@ -252,12 +252,39 @@ const ProgramManagementPage = () => {
     setImportResult(null);
 
     try {
-      const response = await programService.importCSV(importFile);
+      // Step 1: preview validation before writing any data
+      const previewResponse = await programService.importCSV(importFile, { previewOnly: true });
+      const previewData = previewResponse.data || {};
+      const previewErrors = previewData.errors || [];
+      const summary = previewData.summary || {};
+
+      if (previewErrors.length > 0) {
+        setImportResult({
+          ...previewData,
+          message: previewData.message || `Validation failed with ${previewErrors.length} error(s).`
+        });
+        return;
+      }
+
+      const createdCount = summary.created_count ?? previewData.created?.length ?? 0;
+      const updatedCount = summary.updated_count ?? previewData.updated?.length ?? 0;
+      const proceed = window.confirm(
+        `Validation passed.\n\nReady to import ${createdCount} new and ${updatedCount} existing program(s).\n\nProceed with import?`
+      );
+
+      if (!proceed) {
+        setImportResult({
+          ...previewData,
+          message: 'Import cancelled by user after successful validation.'
+        });
+        return;
+      }
+
+      // Step 2: apply import only after user confirmation
+      const response = await programService.importCSV(importFile, { previewOnly: false });
       setImportResult(response.data);
       setImportFile(null);
-      // Reset file input
       document.getElementById('csv-file-input').value = '';
-      // Refresh programs
       fetchPrograms();
       fetchDepartments();
     } catch (error) {

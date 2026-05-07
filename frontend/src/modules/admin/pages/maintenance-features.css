@@ -1,0 +1,20 @@
+/* Maintenance — feature availability UI (paired with MaintenanceFeaturesPage.jsx) */
+
+.maintenance-features-page .maintenance-features-header .eyebrow-muted {
+  letter-spacing: 0.04em;
+}
+
+.maintenance-features-form .feature-toggle-switch .form-check-input {
+  cursor: pointer;
+}
+
+.maintenance-features-form .feature-toggle-switch .form-check-label {
+  cursor: pointer;
+  user-select: none;
+}
+
+.maintenance-features-row:last-of-type {
+  border-bottom: none !important;
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}

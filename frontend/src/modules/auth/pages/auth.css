@@ -316,6 +316,118 @@
   display: none;
 }
 
+.auth-google-btn {
+  width: 100%;
+  padding: var(--spacing-md);
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: var(--radius-xl);
+  background: var(--white);
+  border: 2px solid var(--border-color);
+  color: var(--gray-700);
+  cursor: pointer;
+  transition: all var(--transition-slow) ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+}
+
+.auth-google-btn:hover {
+  border-color: var(--gray-300);
+  background: var(--gray-50);
+}
+
+.auth-google-btn:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--brand-green) 30%, transparent);
+  outline-offset: 2px;
+}
+
+.auth-google-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.auth-google-btn--muted.auth-google-btn:disabled,
+.auth-google-btn.auth-google-btn--muted {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--gray-100);
+  border-color: var(--gray-200);
+  color: var(--gray-500);
+  pointer-events: none;
+}
+
+.auth-google-btn--muted.auth-google-btn:disabled:hover,
+.auth-google-btn.auth-google-btn--muted:hover {
+  background: var(--gray-100);
+  border-color: var(--gray-200);
+}
+
+/* Google account link modal */
+.auth-link-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--gray-900) 45%, transparent);
+  backdrop-filter: blur(4px);
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-lg);
+}
+
+.auth-link-modal-card {
+  width: min(520px, 100%);
+  background: var(--white);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-xl);
+  padding: var(--spacing-xl);
+  border: 1px solid var(--border-color);
+}
+
+.auth-link-modal-card h2 {
+  font-size: var(--font-size-xl);
+  margin: 0 0 var(--spacing-sm);
+  color: var(--gray-800);
+}
+
+.auth-link-modal-card p {
+  margin: 0 0 var(--spacing-lg);
+  color: var(--text-muted);
+}
+
+.auth-link-modal-error {
+  margin-top: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.auth-link-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+}
+
+.auth-link-modal-cancel,
+.auth-link-modal-confirm {
+  border: none;
+  border-radius: var(--radius-lg);
+  padding: 0.625rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.auth-link-modal-cancel {
+  background: var(--gray-100);
+  color: var(--gray-700);
+}
+
+.auth-link-modal-confirm {
+  background: linear-gradient(135deg, var(--brand-yellow) 0%, var(--brand-yellow-dark) 100%);
+  color: var(--gray-800);
+}
+
 /* Links */
 .auth-link-text {
   text-align: center;

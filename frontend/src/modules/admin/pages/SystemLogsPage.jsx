@@ -3,7 +3,7 @@
  * System monitoring and activity logs
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Container } from '../../../components/layout';
 import { LoadingSpinner, Alert } from '../../../components/common';
 import { logService } from '../../../services';
@@ -65,11 +65,13 @@ const SystemLogsPage = () => {
   const [logTypeFilter, setLogTypeFilter] = useState('all'); // all, security, activity
   const [resourceTypeFilter, setResourceTypeFilter] = useState('all'); // all, Election, Candidate, User, etc.
   const [actionFilter, setActionFilter] = useState('all'); // all, create, update, delete, login, etc.
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchInput, setSearchInput] = useState(''); // Separate state for input to allow debouncing
+  const [searchInput, setSearchInput] = useState(''); // Input value; apply only when Search is clicked
+  const appliedSearchRef = useRef(''); // last search term actually applied to API
   const [summary, setSummary] = useState({ ...defaultSummary });
   const [error, setError] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [groupBy, setGroupBy] = useState('none'); // none | day | hour
+  const [expandedGroups, setExpandedGroups] = useState(() => new Set());
 
   const normalizeSummary = (data = {}) => ({
     total: data.total ?? 0,
@@ -121,8 +123,9 @@ const SystemLogsPage = () => {
       }
       
       // Search query
-      if (searchQuery.trim()) {
-        params.search = searchQuery.trim();
+      const appliedSearch = appliedSearchRef.current || '';
+      if (appliedSearch.trim()) {
+        params.search = appliedSearch.trim();
       }
       
       const response = await logService.getSystemLogs(params);
@@ -167,7 +170,7 @@ const SystemLogsPage = () => {
         setLoading(false);
       }
     }
-  }, [filter, logTypeFilter, resourceTypeFilter, actionFilter, searchQuery]);
+  }, [filter, logTypeFilter, resourceTypeFilter, actionFilter]);
 
   // Load summary when logTypeFilter changes (but not when severity filter changes)
   useEffect(() => {
@@ -178,15 +181,6 @@ const SystemLogsPage = () => {
   useEffect(() => {
     loadLogs();
   }, [loadLogs]);
-
-  // Debounce search input
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchQuery(searchInput);
-    }, 500); // 500ms debounce
-
-    return () => clearTimeout(timer);
-  }, [searchInput]);
 
   // Extract unique resource types and actions from all logs (before filtering)
   // We need to fetch all logs first to populate these dropdowns
@@ -243,12 +237,65 @@ const SystemLogsPage = () => {
 
   const getSeverity = (log) => log?.severity || log?.type || 'info';
 
-  if (loading) {
-    return <LoadingSpinner fullScreen text="Loading system logs..." />;
-  }
-
   // Additional client-side filtering for severity (already handled in loadLogs, but keeping for consistency)
   const filteredLogs = filter === 'all' ? logs : logs.filter(log => getSeverity(log) === filter);
+
+  const buildGroupKey = useCallback((log) => {
+    const d = new Date(log?.timestamp);
+    if (Number.isNaN(d.getTime())) return 'Unknown time';
+
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+
+    if (groupBy === 'hour') return `${yyyy}-${mm}-${dd} ${hh}:00`;
+    return `${yyyy}-${mm}-${dd}`;
+  }, [groupBy]);
+
+  const groupedLogs = useMemo(() => {
+    if (groupBy === 'none') {
+      return [{ key: 'all', title: 'All logs', logs: filteredLogs }];
+    }
+
+    const map = new Map();
+    filteredLogs.forEach((log) => {
+      const key = buildGroupKey(log);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(log);
+    });
+
+    const groups = Array.from(map.entries()).map(([key, groupLogs]) => ({
+      key,
+      title: groupBy === 'hour' ? key : formatDate(`${key}T00:00:00`, 'date'),
+      logs: groupLogs,
+    }));
+
+    // Sort groups newest first based on key (YYYY-MM-DD or YYYY-MM-DD HH:00)
+    groups.sort((a, b) => String(b.key).localeCompare(String(a.key)));
+    return groups;
+  }, [filteredLogs, groupBy, buildGroupKey]);
+
+  useEffect(() => {
+    // Auto-expand the newest group after regrouping for nicer UX
+    if (groupBy === 'none') return;
+    const first = groupedLogs[0]?.key;
+    if (!first) return;
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      next.add(first);
+      return next;
+    });
+  }, [groupBy, groupedLogs]);
+
+  const toggleGroup = (key) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   const getLogIcon = (type) => {
     switch (type) {
@@ -284,248 +331,337 @@ const SystemLogsPage = () => {
 
   return (
     <Container>
-      {/* Header */}
-      <div className="admin-header">
-        <h1>
-          <Icon name="activity" size={28} className="admin-icon-primary" />
-          System Logs & Monitoring
-        </h1>
-        <div className="admin-logs-header-actions">
-          <p className="admin-logs-header-text">View system activity and monitor events</p>
-          <button
-            onClick={() => loadLogs({ silent: true })}
-            disabled={isRefreshing}
-            className="admin-btn admin-btn-refresh"
-          >
-            {isRefreshing ? 'Refreshing...' : 'Refresh Logs'}
-          </button>
-        </div>
-      </div>
-
-      {error && (
-        <Alert variant="danger" dismissible onClose={() => setError('')}>
-          {error}
-        </Alert>
-      )}
-
-      {showBackupReminder && (
-        <div className="admin-logs-backup-reminder">
-          <div className="admin-logs-backup-icon">
-            !
-          </div>
-          <div className="admin-logs-backup-content">
-            <div className="admin-logs-backup-title">
-              Monthly backup reminder
-            </div>
-            <p className="admin-logs-backup-text">
-              You are in the last week of the month. For transparency and data safety, export and
-              back up your system and security logs for this period and store them in secure
-              offline or archival storage.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Stats */}
-      <div className="admin-stats-grid" style={{ marginBottom: '2rem' }}>
-        <div className="admin-stat-card">
-          <div className="admin-stat-icon primary">
-            <Icon name="activity" size={24} />
-          </div>
-          <div className="admin-stat-value">{summary.total}</div>
-          <div className="admin-stat-label">Total Events</div>
-        </div>
-
-        <div className="admin-stat-card">
-          <div className="admin-stat-icon success">
-            <Icon name="checkCircle" size={24} />
-          </div>
-          <div className="admin-stat-value">{summary.success}</div>
-          <div className="admin-stat-label">Success</div>
-        </div>
-
-        <div className="admin-stat-card">
-          <div className="admin-stat-icon warning">
-            <Icon name="alertCircle" size={24} />
-          </div>
-          <div className="admin-stat-value">{summary.warnings}</div>
-          <div className="admin-stat-label">Warnings</div>
-        </div>
-
-        <div className="admin-stat-card">
-          <div className="admin-stat-icon danger">
-            <Icon name="xCircle" size={24} />
-          </div>
-          <div className="admin-stat-value">{summary.errors}</div>
-          <div className="admin-stat-label">Errors</div>
-        </div>
-      </div>
-
-      {/* Advanced Filters */}
-      <div className="admin-logs-filters-section">
-        <h5 className="admin-logs-filters-title">
-          <Icon name="activity" size={18} />
-          Filter Options
-        </h5>
-        
-        <div className="admin-logs-filters-grid">
-          {/* Log Type Filter */}
-          <div>
-            <label className="admin-logs-filter-label">
-              Log Type
-            </label>
-            <select
-              value={logTypeFilter}
-              onChange={(e) => setLogTypeFilter(e.target.value)}
-              className="admin-logs-filter-select"
-            >
-              <option value="all">All Logs</option>
-              <option value="security">Security Events</option>
-              <option value="activity">Activity Logs</option>
-            </select>
-          </div>
-
-          {/* Resource Type Filter */}
-          <div>
-            <label className="admin-logs-filter-label">
-              Resource Type
-            </label>
-            <select
-              value={resourceTypeFilter}
-              onChange={(e) => setResourceTypeFilter(e.target.value)}
-              className="admin-logs-filter-select"
-            >
-              <option value="all">All Resources</option>
-              {uniqueResourceTypes.map(type => (
-                <option key={type} value={type}>{type}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Action Filter */}
-          <div>
-            <label className="admin-logs-filter-label">
-              Action
-            </label>
-            <select
-              value={actionFilter}
-              onChange={(e) => setActionFilter(e.target.value)}
-              className="admin-logs-filter-select"
-            >
-              <option value="all">All Actions</option>
-              {uniqueActions.map(action => (
-                <option key={action} value={action}>
-                  {action.charAt(0).toUpperCase() + action.slice(1)}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Search */}
-          <div>
-            <label className="admin-logs-filter-label">
-              Search
-            </label>
-            <input
-              type="text"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search logs..."
-              className="admin-logs-filter-input"
-            />
-          </div>
-        </div>
-
-        {/* Clear Filters Button */}
-        {(logTypeFilter !== 'all' || resourceTypeFilter !== 'all' || actionFilter !== 'all' || searchInput) && (
-          <button
-            onClick={() => {
-              setLogTypeFilter('all');
-              setResourceTypeFilter('all');
-              setActionFilter('all');
-              setSearchInput('');
-              setSearchQuery('');
-            }}
-            className="admin-logs-clear-filters"
-          >
-            Clear All Filters
-          </button>
-        )}
-      </div>
-
-      {/* Severity Filter Tabs */}
-      <div className="admin-filter-tabs">
-        {filterButtons.map(btn => (
-          <button
-            key={btn.key}
-            onClick={() => setFilter(btn.key)}
-            className={`admin-filter-btn ${filter === btn.key ? 'admin-filter-btn-active' : 'admin-filter-btn-inactive-default'}`}
-          >
-            {btn.label} ({btn.count})
-          </button>
-        ))}
-      </div>
-
-      {/* Logs List */}
-      {filteredLogs.length > 0 ? (
-        <div className="admin-logs-list">
-          {filteredLogs.map((log) => {
-            const severity = getSeverity(log);
-            const colors = getLogColor(severity);
-            return (
-              <div
-                key={log.id}
-                className="admin-logs-item"
+      {loading ? (
+        <LoadingSpinner fullScreen text="Loading system logs..." />
+      ) : (
+        <>
+          {/* Header */}
+          <div className="admin-header">
+            <h1>
+              <Icon name="activity" size={28} className="admin-icon-primary" />
+              System Logs & Monitoring
+            </h1>
+            <div className="admin-logs-header-actions">
+              <p className="admin-logs-header-text">View system activity and monitor events</p>
+              <button
+                onClick={() => loadLogs({ silent: true })}
+                disabled={isRefreshing}
+                className="admin-btn admin-btn-refresh"
               >
-                <div 
-                  className="admin-logs-icon-container"
-                  style={{ background: colors.bg, color: colors.color }}
-                >
-                  {getLogIcon(severity)}
-                </div>
+                {isRefreshing ? 'Refreshing...' : 'Refresh Logs'}
+              </button>
+            </div>
+          </div>
 
-                <div className="admin-logs-content">
-                  <div className="admin-logs-message">
-                    {log.message || log.event_label}
-                  </div>
-                  {log.event_label && (
-                    <div className="admin-logs-event-label">
-                      {log.event_label}
-                      {log.source && (
-                        <>
-                          {' • '}
-                          {log.source === 'security' ? 'Security Event' : 'Activity Log'}
-                        </>
-                      )}
-                    </div>
-                  )}
-                  <div className="admin-logs-meta">
-                    <span>{formatDate(log.timestamp, 'datetime')}</span>
-                    <span>•</span>
-                    <span>By: {log.user || 'System'}</span>
-                  </div>
-                </div>
+          {error && (
+            <Alert variant="danger" dismissible onClose={() => setError('')}>
+              {error}
+            </Alert>
+          )}
 
-                <div
-                  className="admin-logs-severity-badge"
-                  style={{ background: colors.bg, color: colors.color }}
+          {showBackupReminder && (
+            <div className="admin-logs-backup-reminder">
+              <div className="admin-logs-backup-icon">
+                !
+              </div>
+              <div className="admin-logs-backup-content">
+                <div className="admin-logs-backup-title">
+                  Monthly backup reminder
+                </div>
+                <p className="admin-logs-backup-text">
+                  You are in the last week of the month. For transparency and data safety, export and
+                  back up your system and security logs for this period and store them in secure
+                  offline or archival storage.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Stats */}
+          <div className="admin-stats-grid" style={{ marginBottom: '2rem' }}>
+            <div className="admin-stat-card">
+              <div className="admin-stat-icon primary">
+                <Icon name="activity" size={24} />
+              </div>
+              <div className="admin-stat-value">{summary.total}</div>
+              <div className="admin-stat-label">Total Events</div>
+            </div>
+
+            <div className="admin-stat-card">
+              <div className="admin-stat-icon success">
+                <Icon name="checkCircle" size={24} />
+              </div>
+              <div className="admin-stat-value">{summary.success}</div>
+              <div className="admin-stat-label">Success</div>
+            </div>
+
+            <div className="admin-stat-card">
+              <div className="admin-stat-icon warning">
+                <Icon name="alertCircle" size={24} />
+              </div>
+              <div className="admin-stat-value">{summary.warnings}</div>
+              <div className="admin-stat-label">Warnings</div>
+            </div>
+
+            <div className="admin-stat-card">
+              <div className="admin-stat-icon danger">
+                <Icon name="xCircle" size={24} />
+              </div>
+              <div className="admin-stat-value">{summary.errors}</div>
+              <div className="admin-stat-label">Errors</div>
+            </div>
+          </div>
+
+          {/* Advanced Filters */}
+          <div className="admin-logs-filters-section">
+            <h5 className="admin-logs-filters-title">
+              <Icon name="activity" size={18} />
+              Filter Options
+            </h5>
+            
+            <div className="admin-logs-filters-grid">
+              {/* Log Type Filter */}
+              <div>
+                <label className="admin-logs-filter-label">
+                  Log Type
+                </label>
+                <select
+                  value={logTypeFilter}
+                  onChange={(e) => setLogTypeFilter(e.target.value)}
+                  className="admin-logs-filter-select"
                 >
-                  {severity}
+                  <option value="all">All Logs</option>
+                  <option value="security">Security Events</option>
+                  <option value="activity">Activity Logs</option>
+                </select>
+              </div>
+
+              {/* Resource Type Filter */}
+              <div>
+                <label className="admin-logs-filter-label">
+                  Resource Type
+                </label>
+                <select
+                  value={resourceTypeFilter}
+                  onChange={(e) => setResourceTypeFilter(e.target.value)}
+                  className="admin-logs-filter-select"
+                >
+                  <option value="all">All Resources</option>
+                  {uniqueResourceTypes.map(type => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Action Filter */}
+              <div>
+                <label className="admin-logs-filter-label">
+                  Action
+                </label>
+                <select
+                  value={actionFilter}
+                  onChange={(e) => setActionFilter(e.target.value)}
+                  className="admin-logs-filter-select"
+                >
+                  <option value="all">All Actions</option>
+                  {uniqueActions.map(action => (
+                    <option key={action} value={action}>
+                      {action.charAt(0).toUpperCase() + action.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Search */}
+              <div>
+                <label className="admin-logs-filter-label">
+                  Search
+                </label>
+                <div className="admin-flex-row" style={{ gap: '0.5rem' }}>
+                  <input
+                    type="text"
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    placeholder="Search logs..."
+                    className="admin-logs-filter-input"
+                  />
+                  <button
+                    type="button"
+                    className="admin-btn secondary admin-btn-small"
+                    onClick={() => {
+                      appliedSearchRef.current = searchInput;
+                      loadLogs();
+                    }}
+                  >
+                    Search
+                  </button>
                 </div>
               </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="admin-card-container admin-empty-state">
-          <Icon name="activity" size={48} className="admin-empty-state-icon" />
-          <h5 className="admin-empty-state-title">
-            No Logs Found
-          </h5>
-          <p className="admin-empty-state-message">
-            No {filter !== 'all' ? filter : ''} logs to display.
-          </p>
-        </div>
+            </div>
+
+            {/* Clear Filters Button */}
+            {(logTypeFilter !== 'all' || resourceTypeFilter !== 'all' || actionFilter !== 'all' || searchInput) && (
+              <button
+                onClick={() => {
+                  setLogTypeFilter('all');
+                  setResourceTypeFilter('all');
+                  setActionFilter('all');
+                  setSearchInput('');
+                  appliedSearchRef.current = '';
+                  loadLogs();
+                }}
+                className="admin-logs-clear-filters"
+              >
+                Clear All Filters
+              </button>
+            )}
+          </div>
+
+          {/* Severity Filter Tabs */}
+          <div className="admin-filter-tabs">
+            {filterButtons.map(btn => (
+              <button
+                key={btn.key}
+                onClick={() => setFilter(btn.key)}
+                className={`admin-filter-btn ${filter === btn.key ? 'admin-filter-btn-active' : 'admin-filter-btn-inactive-default'}`}
+              >
+                {btn.label} ({btn.count})
+              </button>
+            ))}
+          </div>
+
+          {/* Logs List */}
+          {filteredLogs.length > 0 ? (
+            <div className="admin-logs-list">
+              <div className="admin-card-container" style={{ marginBottom: '1rem' }}>
+                <div className="admin-flex-between" style={{ marginBottom: '0.5rem' }}>
+                  <div className="admin-logs-filters-title" style={{ margin: 0 }}>
+                    <Icon name="activity" size={18} />
+                    Grouping
+                  </div>
+                  <div className="admin-flex-row" style={{ gap: '0.5rem' }}>
+                    <button
+                      type="button"
+                      className={`admin-btn secondary admin-btn-small ${groupBy === 'none' ? 'admin-filter-btn-active' : ''}`}
+                      onClick={() => setGroupBy('none')}
+                    >
+                      None
+                    </button>
+                    <button
+                      type="button"
+                      className={`admin-btn secondary admin-btn-small ${groupBy === 'day' ? 'admin-filter-btn-active' : ''}`}
+                      onClick={() => setGroupBy('day')}
+                    >
+                      By Day
+                    </button>
+                    <button
+                      type="button"
+                      className={`admin-btn secondary admin-btn-small ${groupBy === 'hour' ? 'admin-filter-btn-active' : ''}`}
+                      onClick={() => setGroupBy('hour')}
+                    >
+                      By Hour
+                    </button>
+                  </div>
+                </div>
+                <div className="text-muted" style={{ fontSize: '0.85rem' }}>
+                  Click a group header to expand/collapse logs.
+                </div>
+              </div>
+
+              {groupedLogs.map((group) => {
+                const isExpanded = groupBy === 'none' ? true : expandedGroups.has(group.key);
+                return (
+                  <div key={group.key} style={{ borderTop: '1px solid var(--border-color)' }}>
+                    {groupBy !== 'none' && (
+                      <button
+                        type="button"
+                        onClick={() => toggleGroup(group.key)}
+                        className="admin-btn secondary"
+                        style={{
+                          width: '100%',
+                          justifyContent: 'space-between',
+                          border: 'none',
+                          borderRadius: 0,
+                          padding: '0.9rem 1.1rem',
+                          background: 'var(--gray-50)',
+                        }}
+                      >
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.6rem' }}>
+                          <span style={{ fontWeight: 700 }}>{group.title}</span>
+                          <span className="text-muted" style={{ fontSize: '0.85rem' }}>
+                            ({group.logs.length})
+                          </span>
+                        </span>
+                        <span style={{ fontWeight: 700 }}>{isExpanded ? '−' : '+'}</span>
+                      </button>
+                    )}
+
+                    {isExpanded && (
+                      <>
+                        {group.logs.map((log) => {
+                          const severity = getSeverity(log);
+                          const colors = getLogColor(severity);
+                          return (
+                            <div
+                              key={log.id}
+                              className="admin-logs-item"
+                            >
+                              <div
+                                className="admin-logs-icon-container"
+                                style={{ background: colors.bg, color: colors.color }}
+                              >
+                                {getLogIcon(severity)}
+                              </div>
+
+                              <div className="admin-logs-content">
+                                <div className="admin-logs-message">
+                                  {log.message || log.event_label}
+                                </div>
+                                {log.event_label && (
+                                  <div className="admin-logs-event-label">
+                                    {log.event_label}
+                                    {log.source && (
+                                      <>
+                                        {' • '}
+                                        {log.source === 'security' ? 'Security Event' : 'Activity Log'}
+                                      </>
+                                    )}
+                                  </div>
+                                )}
+                                <div className="admin-logs-meta">
+                                  <span>{formatDate(log.timestamp, 'datetime')}</span>
+                                  <span>•</span>
+                                  <span>By: {log.user || 'System'}</span>
+                                </div>
+                              </div>
+
+                              <div
+                                className="admin-logs-severity-badge"
+                                style={{ background: colors.bg, color: colors.color }}
+                              >
+                                {severity}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="admin-card-container admin-empty-state">
+              <Icon name="activity" size={48} className="admin-empty-state-icon" />
+              <h5 className="admin-empty-state-title">
+                No Logs Found
+              </h5>
+              <p className="admin-empty-state-message">
+                No {filter !== 'all' ? filter : ''} logs to display.
+              </p>
+            </div>
+          )}
+        </>
       )}
     </Container>
   );

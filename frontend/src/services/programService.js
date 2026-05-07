@@ -44,11 +44,15 @@ export const programService = {
     return api.delete(`/auth/programs/${id}/`);
   },
 
-  // Import programs from CSV
-  importCSV: (file) => {
+  // Import programs from CSV (supports preview-only validation mode)
+  importCSV: (file, options = {}) => {
+    const { previewOnly = false } = options;
     const formData = new FormData();
     formData.append('file', file);
     return api.post('/auth/programs/import-csv/', formData, {
+      params: {
+        preview_only: previewOnly,
+      },
       headers: {
         'Content-Type': 'multipart/form-data',
       },

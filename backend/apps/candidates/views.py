@@ -1,28 +1,34 @@
-from rest_framework import viewsets, status
-from rest_framework.decorators import action, api_view, permission_classes
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.core.exceptions import ValidationError as DjangoValidationError
+from rest_framework import status, viewsets
+from rest_framework.decorators import action, permission_classes
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+
+from apps.accounts.models import UserProfile
 from apps.common.models import ActivityLog
-from apps.common.permissions import IsSuperUser, IsStaffOrSuperUser
+from apps.common.permissions import IsStaffOrSuperUser, IsSuperUser
 from apps.common.throttling import enforce_scope_throttle
+from apps.common.utils import get_client_ip
+
 from .models import Candidate, CandidateApplication
 from .serializers import (
-    CandidateListSerializer, CandidateDetailSerializer,
-    CandidateApplicationListSerializer, CandidateApplicationDetailSerializer,
-    CandidateApplicationCreateSerializer, CandidateApplicationReviewSerializer
+    CandidateCompactSerializer,
+    CandidateApplicationCreateSerializer,
+    CandidateApplicationDetailSerializer,
+    CandidateApplicationListSerializer,
+    CandidateApplicationReviewSerializer,
+    CandidateDetailSerializer,
+    CandidateListSerializer,
 )
 
 
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def health_check(request):
-    """Health check endpoint for candidates service"""
-    return Response({
-        'status': 'healthy',
-        'service': 'candidates',
-        'message': 'Candidates service is running'
-    })
+def applicant_public_identifier(user):
+    """Student ID when present, otherwise username (for activity log copy)."""
+    try:
+        student_id_value = user.profile.student_id
+        return student_id_value if student_id_value else user.username
+    except UserProfile.DoesNotExist:
+        return user.username
 
 
 class CandidateViewSet(viewsets.ReadOnlyModelViewSet):
@@ -31,6 +37,9 @@ class CandidateViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [AllowAny]
     
     def get_serializer_class(self):
+        compact_response_requested = str(self.request.query_params.get('compact', 'false')).lower() == 'true'
+        if compact_response_requested and self.action in ['list', 'by_election']:
+            return CandidateCompactSerializer
         if self.action == 'retrieve':
             return CandidateDetailSerializer
         return CandidateListSerializer
@@ -154,21 +163,17 @@ class CandidateApplicationViewSet(viewsets.ModelViewSet):
         action_type = serializer.validated_data['action']
         review_notes = serializer.validated_data.get('review_notes', '')
         
-        # Get client IP
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            ip_address = x_forwarded_for.split(',')[0]
-        else:
-            ip_address = request.META.get('REMOTE_ADDR')
-        
+        ip_address = get_client_ip(request)
+
         try:
             if action_type == 'approve':
                 candidate = application.approve(request.user)
-                
-                # Get student ID from application user's profile
-                applicant_profile = getattr(application.user, 'userprofile', None)
-                student_id = getattr(applicant_profile, 'student_id', None) if applicant_profile else None
-                applicant_identifier = student_id if student_id else application.user.username
+
+                applicant_identifier = applicant_public_identifier(application.user)
+                try:
+                    student_id = application.user.profile.student_id
+                except UserProfile.DoesNotExist:
+                    student_id = None
                 
                 # Log the approval
                 ActivityLog.objects.create(
@@ -198,11 +203,12 @@ class CandidateApplicationViewSet(viewsets.ModelViewSet):
                 }, status=status.HTTP_200_OK)
             
             elif action_type == 'reject':
-                # Get student ID before rejection
-                applicant_profile = getattr(application.user, 'userprofile', None)
-                student_id = getattr(applicant_profile, 'student_id', None) if applicant_profile else None
-                applicant_identifier = student_id if student_id else application.user.username
-                
+                applicant_identifier = applicant_public_identifier(application.user)
+                try:
+                    student_id = application.user.profile.student_id
+                except UserProfile.DoesNotExist:
+                    student_id = None
+
                 application.reject(request.user, review_notes)
                 
                 # Log the rejection
@@ -239,9 +245,18 @@ class CandidateApplicationViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['post'], permission_classes=[IsStaffOrSuperUser])
     def bulk_review(self, request):
-        """Bulk review multiple applications"""
+        """Bulk review multiple applications.
+
+        Compatibility: accepts both action (current) and status (legacy) fields.
+        """
         application_ids = request.data.get('application_ids', [])
-        action_type = request.data.get('action')
+        action_type = request.data.get('action') or request.data.get('status')
+        if isinstance(action_type, str):
+            action_type = action_type.strip().lower()
+            if action_type == 'approved':
+                action_type = 'approve'
+            elif action_type == 'rejected':
+                action_type = 'reject'
         review_notes = request.data.get('review_notes', '')
         
         if not application_ids or not action_type:
@@ -256,13 +271,8 @@ class CandidateApplicationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Get client IP
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            ip_address = x_forwarded_for.split(',')[0]
-        else:
-            ip_address = request.META.get('REMOTE_ADDR')
-        
+        ip_address = get_client_ip(request)
+
         applications = self.get_queryset().filter(id__in=application_ids, status='pending')
         results = {'success': [], 'failed': []}
         
@@ -270,11 +280,12 @@ class CandidateApplicationViewSet(viewsets.ModelViewSet):
             try:
                 if action_type == 'approve':
                     candidate = application.approve(request.user)
-                    
-                    # Get student ID
-                    applicant_profile = getattr(application.user, 'userprofile', None)
-                    student_id = getattr(applicant_profile, 'student_id', None) if applicant_profile else None
-                    applicant_identifier = student_id if student_id else application.user.username
+
+                    applicant_identifier = applicant_public_identifier(application.user)
+                    try:
+                        student_id = application.user.profile.student_id
+                    except UserProfile.DoesNotExist:
+                        student_id = None
                     
                     # Log each approval
                     ActivityLog.objects.create(
@@ -303,11 +314,12 @@ class CandidateApplicationViewSet(viewsets.ModelViewSet):
                     })
                     
                 elif action_type == 'reject':
-                    # Get student ID before rejection
-                    applicant_profile = getattr(application.user, 'userprofile', None)
-                    student_id = getattr(applicant_profile, 'student_id', None) if applicant_profile else None
-                    applicant_identifier = student_id if student_id else application.user.username
-                    
+                    applicant_identifier = applicant_public_identifier(application.user)
+                    try:
+                        student_id = application.user.profile.student_id
+                    except UserProfile.DoesNotExist:
+                        student_id = None
+
                     application.reject(request.user, review_notes)
                     
                     # Log each rejection

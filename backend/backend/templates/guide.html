@@ -33,7 +33,7 @@
   <div class="container">
     <header>
       <h1>E-Botar API Guide</h1>
-      <p class="subtitle">Reference for all REST API endpoints when only the backend is accessible. Base URL: this server + <code>/api</code>.</p>
+      <p class="subtitle">Reference for all REST API endpoints when only the backend is accessible. E-Botar uses a blockchain-inspired, privacy-preserving centralized voting model. Base URL: this server + <code>/api</code>.</p>
     </header>
 
     <section>
@@ -63,11 +63,21 @@ Content-Type: application/json
     </section>
 
     <section>
+      <h2>Global</h2>
+      <table>
+        <thead><tr><th>Endpoint</th><th>Method</th><th>Auth</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>/api/health/</code></td><td><span class="method method-get">GET</span></td><td>Public</td><td>Consolidated API health (<code>/api/common/health/</code> uses the same handler)</td></tr>
+          <tr><td><code>/api/version/</code></td><td><span class="method method-get">GET</span></td><td>Public</td><td>Backend and minimum frontend version</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
       <h2>Accounts <span class="base">(/api/auth/)</span></h2>
       <table>
         <thead><tr><th>Endpoint</th><th>Method</th><th>Auth</th><th>Description</th></tr></thead>
         <tbody>
-          <tr><td><code>/api/auth/health/</code></td><td><span class="method method-get">GET</span></td><td>Public</td><td>Health check</td></tr>
           <tr><td><code>/api/auth/register/</code></td><td><span class="method method-post">POST</span></td><td>Public</td><td>User registration</td></tr>
           <tr><td><code>/api/auth/token/</code></td><td><span class="method method-post">POST</span></td><td>Public</td><td>Obtain JWT token</td></tr>
           <tr><td><code>/api/auth/token/refresh/</code></td><td><span class="method method-post">POST</span></td><td>Public</td><td>Refresh JWT token</td></tr>
@@ -94,7 +104,6 @@ Content-Type: application/json
       <table>
         <thead><tr><th>Endpoint</th><th>Method</th><th>Auth</th><th>Description</th></tr></thead>
         <tbody>
-          <tr><td><code>/api/elections/health/</code></td><td><span class="method method-get">GET</span></td><td>Public</td><td>Health check</td></tr>
           <tr><td><code>/api/elections/parties/</code></td><td><span class="method method-get">GET</span></td><td>Public</td><td>List parties</td></tr>
           <tr><td><code>/api/elections/parties/</code></td><td><span class="method method-post">POST</span></td><td>Superuser</td><td>Create party</td></tr>
           <tr><td><code>/api/elections/positions/</code></td><td><span class="method method-get">GET</span></td><td>Public</td><td>List positions</td></tr>
@@ -116,7 +125,6 @@ Content-Type: application/json
       <table>
         <thead><tr><th>Endpoint</th><th>Method</th><th>Auth</th><th>Description</th></tr></thead>
         <tbody>
-          <tr><td><code>/api/candidates/health/</code></td><td><span class="method method-get">GET</span></td><td>Public</td><td>Health check</td></tr>
           <tr><td><code>/api/candidates/candidates/</code></td><td><span class="method method-get">GET</span></td><td>Public</td><td>List approved candidates</td></tr>
           <tr><td><code>/api/candidates/candidates/by_election/</code></td><td><span class="method method-get">GET</span></td><td>Public</td><td>Filter candidates by election</td></tr>
           <tr><td><code>/api/candidates/applications/</code></td><td><span class="method method-get">GET</span></td><td>Authenticated</td><td>List applications</td></tr>
@@ -136,7 +144,6 @@ Content-Type: application/json
       <table>
         <thead><tr><th>Endpoint</th><th>Method</th><th>Auth</th><th>Description</th></tr></thead>
         <tbody>
-          <tr><td><code>/api/voting/health/</code></td><td><span class="method method-get">GET</span></td><td>Public</td><td>Health check</td></tr>
           <tr><td><code>/api/voting/ballots/</code></td><td><span class="method method-get">GET</span></td><td>Authenticated</td><td>List user's ballots</td></tr>
           <tr><td><code>/api/voting/ballots/submit/</code></td><td><span class="method method-post">POST</span></td><td>Authenticated</td><td>Submit ballot</td></tr>
           <tr><td><code>/api/voting/ballots/my_ballot/</code></td><td><span class="method method-get">GET</span></td><td>Authenticated</td><td>Ballot for election</td></tr>
@@ -144,10 +151,11 @@ Content-Type: application/json
           <tr><td><code>/api/voting/receipts/my_receipts/</code></td><td><span class="method method-get">GET</span></td><td>Authenticated</td><td>User's receipts</td></tr>
           <tr><td><code>/api/voting/receipts/verify/</code></td><td><span class="method method-post">POST</span></td><td>Authenticated</td><td>Verify receipt code</td></tr>
           <tr><td><code>/api/voting/voting-status/</code></td><td><span class="method method-get">GET</span></td><td>Staff/Admin</td><td>Per-election voting status (requires <code>election_id</code>)</td></tr>
-          <tr><td><code>/api/voting/results/election_results/</code></td><td><span class="method method-get">GET</span></td><td>Public*</td><td>Election results</td></tr>
+          <tr><td><code>/api/voting/results/election_results/</code></td><td><span class="method method-get">GET</span></td><td>Public*</td><td>Election results (locked for non-admin users while election is active)</td></tr>
           <tr><td><code>/api/voting/results/my_vote_status/</code></td><td><span class="method method-get">GET</span></td><td>Authenticated</td><td>Vote status</td></tr>
           <tr><td><code>/api/voting/results/export_results/</code></td><td><span class="method method-get">GET</span></td><td>Superuser</td><td>Export results (CSV/JSON)</td></tr>
-          <tr><td><code>/api/voting/results/statistics/</code></td><td><span class="method method-get">GET</span></td><td>Public*</td><td>Election statistics</td></tr>
+          <tr><td><code>/api/voting/results/statistics/</code></td><td><span class="method method-get">GET</span></td><td>Public*</td><td>Election statistics (locked for non-admin users while election is active)</td></tr>
+          <tr><td><code>/api/voting/results/ledger_integrity/</code></td><td><span class="method method-get">GET</span></td><td>Staff / Admin</td><td><code>?election_id=</code> — recompute VoteBlock hashes and chain linkage (tamper check)</td></tr>
         </tbody>
       </table>
     </section>
@@ -157,6 +165,7 @@ Content-Type: application/json
       <table>
         <thead><tr><th>Endpoint</th><th>Method</th><th>Auth</th><th>Description</th></tr></thead>
         <tbody>
+          <tr><td><code>/api/common/health/</code></td><td><span class="method method-get">GET</span></td><td>Public</td><td>Health check (same as <code>/api/health/</code>)</td></tr>
           <tr><td><code>/api/common/branding/</code></td><td><span class="method method-get">GET</span></td><td>Public</td><td>Institution branding (logo, app name)</td></tr>
           <tr><td><code>/api/common/academic-year/</code></td><td><span class="method method-get">GET</span></td><td>Public</td><td>Current academic year</td></tr>
           <tr><td><code>/api/common/system-logs/</code></td><td><span class="method method-get">GET</span></td><td>Staff/Admin</td><td>System logs</td></tr>
@@ -185,6 +194,7 @@ Content-Type: application/json
       <h2>Error responses</h2>
       <p>Errors are returned as JSON with a <code>detail</code> field (or field-specific errors):</p>
       <pre>{"detail": "Error message here"}</pre>
+      <p style="margin-top:.75rem;"><strong>*Public results/statistics note:</strong> during active elections, non-admin users receive a locked response and can view data after election end.</p>
     </section>
 
     <footer class="footer">

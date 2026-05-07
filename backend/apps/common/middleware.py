@@ -1,11 +1,13 @@
-from django.utils.deprecation import MiddlewareMixin
-from django.contrib.auth.signals import user_logged_in, user_logged_out, user_login_failed
-from django.dispatch import receiver
-from django.conf import settings
-from django.http import Http404
-from .models import SecurityEvent, ActivityLog
 import logging
 import os
+
+from django.contrib.auth.signals import user_logged_in, user_logged_out, user_login_failed
+from django.conf import settings
+from django.dispatch import receiver
+from django.utils.deprecation import MiddlewareMixin
+
+from .models import SecurityEvent, ActivityLog
+from .utils import get_client_ip
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +53,7 @@ class SecurityLoggingMiddleware(MiddlewareMixin):
         """Log incoming requests for security monitoring"""
         # Store request metadata for later use
         request.security_meta = {
-            'ip_address': self.get_client_ip(request),
+            'ip_address': get_client_ip(request),
             'user_agent': request.META.get('HTTP_USER_AGENT', '')[:500]
         }
         return None
@@ -74,7 +76,7 @@ class SecurityLoggingMiddleware(MiddlewareMixin):
                 event_type='suspicious_activity',
                 severity='high',
                 description=f"Exception occurred: {str(exception)}",
-                ip_address=self.get_client_ip(request),
+                ip_address=get_client_ip(request),
                 user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
                 metadata={'exception_type': type(exception).__name__}
             )
@@ -85,17 +87,7 @@ class SecurityLoggingMiddleware(MiddlewareMixin):
             logger.error(f"Failed to log exception event: {e}")
         
         return None
-    
-    @staticmethod
-    def get_client_ip(request):
-        """Extract client IP address from request"""
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            ip = x_forwarded_for.split(',')[0]
-        else:
-            ip = request.META.get('REMOTE_ADDR')
-        return ip
-    
+
     def log_unauthorized_access(self, request, status_code):
         """Log unauthorized access attempts"""
         try:
@@ -105,7 +97,7 @@ class SecurityLoggingMiddleware(MiddlewareMixin):
                 event_type='unauthorized_access',
                 severity='medium',
                 description=f"Unauthorized access attempt: {request.path} (HTTP {status_code})",
-                ip_address=self.get_client_ip(request),
+                ip_address=get_client_ip(request),
                 user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
                 metadata={
                     'path': request.path,
@@ -126,7 +118,7 @@ def log_user_login(sender, request, user, **kwargs):
     """Log successful user login"""
     try:
         from django.db import OperationalError, ProgrammingError
-        ip_address = SecurityLoggingMiddleware.get_client_ip(request)
+        ip_address = get_client_ip(request)
         
         # Log security event
         try:
@@ -164,7 +156,7 @@ def log_user_logout(sender, request, user, **kwargs):
     """Log user logout"""
     try:
         if user:
-            ip_address = SecurityLoggingMiddleware.get_client_ip(request)
+            ip_address = get_client_ip(request)
             
             ActivityLog.objects.create(
                 user=user,
@@ -182,7 +174,7 @@ def log_failed_login(sender, credentials, request, **kwargs):
     """Log failed login attempt"""
     try:
         from django.db import OperationalError, ProgrammingError
-        ip_address = SecurityLoggingMiddleware.get_client_ip(request)
+        ip_address = get_client_ip(request)
         username = credentials.get('username', 'Unknown')
         
         # Log security event

@@ -6,6 +6,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from '../components/ProtectedRoute';
+import FeatureRouteGate from '../components/FeatureRouteGate';
 
 // Auth Pages
 import LoginPage from '../modules/auth/pages/LoginPage';
@@ -48,13 +49,22 @@ import PositionManagementPage from '../modules/admin/pages/PositionManagementPag
 import DataExportPage from '../modules/admin/pages/DataExportPage';
 import UserDirectoryPage from '../modules/admin/pages/UserDirectoryPage';
 import VotingStatusPage from '../modules/admin/pages/VotingStatusPage';
+import ReceiptAuditPage from '../modules/admin/pages/ReceiptAuditPage';
+import MaintenanceFeaturesPage from '../modules/admin/pages/MaintenanceFeaturesPage';
 
 const AppRoutes = () => {
   return (
     <Routes>
       {/* Public Routes */}
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
+      <Route
+        path="/register"
+        element={
+          <FeatureRouteGate requireAll={['user_registration']}>
+            <RegisterPage />
+          </FeatureRouteGate>
+        }
+      />
 
       {/* Public Home/Dashboard - Accessible to all */}
       <Route path="/" element={<DashboardPage />} />
@@ -189,6 +199,14 @@ const AppRoutes = () => {
           </ProtectedRoute>
         } 
       />
+      <Route
+        path="/admin/receipt-audit"
+        element={
+          <ProtectedRoute requireStaff>
+            <ReceiptAuditPage />
+          </ProtectedRoute>
+        }
+      />
       {/* Admin-only Routes - Only superusers can access */}
       <Route 
         path="/admin/users" 
@@ -205,6 +223,14 @@ const AppRoutes = () => {
             <SystemLogsPage />
           </ProtectedRoute>
         } 
+      />
+      <Route
+        path="/admin/maintenance/features"
+        element={
+          <ProtectedRoute requireAdmin>
+            <MaintenanceFeaturesPage />
+          </ProtectedRoute>
+        }
       />
       <Route 
         path="/admin/programs" 
@@ -234,7 +260,9 @@ const AppRoutes = () => {
         path="/admin/data-export" 
         element={
           <ProtectedRoute requireStaff>
-            <DataExportPage />
+            <FeatureRouteGate requireAll={['data_export']}>
+              <DataExportPage />
+            </FeatureRouteGate>
           </ProtectedRoute>
         } 
       />

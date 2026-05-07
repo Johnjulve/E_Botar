@@ -97,7 +97,7 @@ export const isValidStudentId = (studentId) => {
  */
 export const isValidPhone = (phone) => {
   if (!phone) return true; // Phone is optional
-  const phoneRegex = /^[\d\s\-\+\(\)]+$/;
+  const phoneRegex = /^[\d\s+()-]+$/;
   return phoneRegex.test(phone) && phone.replace(/\D/g, '').length >= 10;
 };
 

@@ -3,7 +3,7 @@
  * Display all elections with filtering
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Container } from '../../../components/layout';
 import { LoadingSpinner, EmptyState } from '../../../components/common';
@@ -16,11 +16,7 @@ const ElectionListPage = () => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all, active, upcoming, finished
 
-  useEffect(() => {
-    fetchElections();
-  }, [filter]);
-
-  const fetchElections = async () => {
+  const fetchElections = useCallback(async () => {
     try {
       setLoading(true);
       let response;
@@ -45,7 +41,11 @@ const ElectionListPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter]);
+
+  useEffect(() => {
+    fetchElections();
+  }, [fetchElections]);
 
   const getStatusBadge = (election) => {
     const status = getElectionStatus(election);

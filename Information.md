@@ -1,6 +1,6 @@
 # E-Botar - System Information
 
-**Version 1.0.0** | Complete system documentation and technical details
+**Version 2.1.0** | Complete system documentation and technical details
 
 [![Django](https://img.shields.io/badge/Django-5.2.8-green.svg)](https://www.djangoproject.com/)
 [![DRF](https://img.shields.io/badge/DRF-3.16.1-red.svg)](https://www.django-rest-framework.org/)
@@ -11,7 +11,7 @@
 
 ## 📖 Table of Contents
 
-- [Release Highlights (1.0.0)](#-release-highlights-100)
+- [Release Highlights (2.1.0)](#-release-highlights-210)
 - [Overview](#overview)
 - [Research Foundation](#research-foundation)
 - [Algorithms & Data Structures](#-algorithms--data-structures)
@@ -28,19 +28,30 @@
 
 ---
 
-## 🚀 Release Highlights (1.0.0)
+## 🚀 Release Highlights (2.1.0)
 
-- **App Version Single Source of Truth**: UI version (e.g. "E-Botar v1.0.0") is driven from one constant in `frontend/src/constants.js` (`APP_VERSION`). Navbar (sidebar and mobile) imports it, so bumping the version in one place updates the label everywhere.
-- **Admin User Directory (Read-Only)**: Students/staff/admin directory with advanced multi-field filters, summary cards (colleges/courses), and client-side pagination.
-- **Voting Status (Per Election)**: Read-only per-election voting completion status page with client-side pagination.
-- **Admin Metrics + Backend Endpoints**:
-  - `GET /api/auth/user-count/` (Staff/Admin) registered users total (active/inactive)
-  - `GET /api/auth/directory/` (Staff/Admin) unified directory endpoint
-  - `GET /api/voting/voting-status/` (Staff/Admin) voting status endpoint (requires `election_id`)
-- **Admin Tables Upgrade**: Updated User Management columns plus advanced search and pagination controls.
-- **Application Pages Upgrade**: Application list pagination and cleaner Application Review layout (including consistent avatar + initials fallback).
-- **Data Export PDF Improvements**: Reorganized election results PDF hierarchy; removed export mock-student loading; fixed React event leakage.
-- **Layout + Responsiveness Fixes**: Full-width layout behavior (no boxed centering), fixed admin sidebar submenu clipping, and improved results-details container responsiveness.
+- **Major release**: **Google Sign-In**, vote-ledger integrity, receipt UX modernization, election metrics correctness, profile-edit PATCH payloads, navbar polish, and documentation handbooks.
+- **Google Sign-In (`POST /api/auth/google/`)**:
+  - **django-allauth** `SocialAccount`/`SocialApp` integration (Sites **`SITE_ID`**) with **`google.oauth2.id_token`** verification for JWT **ID credentials** (`credential`) and **`openidconnect.googleapis.com/userinfo`** for **OAuth access tokens** (`access_token`).
+  - **Rules**: Verified Google email required (`email_verified`); new accounts get unique usernames from email locals; **`409`**/`requires_password` when linking Google to an existing local account followed by **`password`** confirmation and `SocialAccount` creation.
+  - **Frontend** ([LoginPage](frontend/src/modules/auth/pages/LoginPage.jsx), [AuthContext](frontend/src/contexts/AuthContext.jsx)): Google Identity Services script, **`VITE_GOOGLE_CLIENT_ID`**; **Continue with Google**; link modal when server requests password.
+- **Blockchain-inspired ledger**:
+  - Ballot pipeline appends **`VoteBlock`** records ([vote_ledger.py](backend/apps/voting/vote_ledger.py)); migration **`0002_voteblock`** creates the table.
+  - Staff/admin verification endpoints and Django admin integrations; hash normalization avoids false negatives on legacy payloads.
+- **Receipt flow** ([CHANGELOG.md](CHANGELOG.md) § **2.1.0**):
+  - Short **`ABCD-EFGH`** receipts; hyphenless/lowercase normalization for verify APIs/UI; legacy receipts migrated/rehashed where applicable.
+- **Election serializers** ([CHANGELOG.md](CHANGELOG.md) § **2.1.0**):
+  - **`total_votes` / `total_positions`** use distinct-aware counting paths (no inflated join counts).
+- **Profile editing** ([patchPayload.js](frontend/src/utils/patchPayload.js), [ProfileEditPage](frontend/src/modules/profile/pages/ProfileEditPage.jsx)):
+  - **`getChangedFields`** builds minimal **`PATCH`** bodies for **`/api/auth/me/`** semantics.
+- **UI**: Sidebar **E-Botar** label alignment with sidebar toggle controls.
+- **Documentation**: **[Document.md](Document.md)** handbook; this file gained a ***documentation map***, stewardship guidance, and monorepo path reference — see **[CHANGELOG.md](CHANGELOG.md)** **[2.1.0]**.
+
+### Previous Highlights (1.0.0)
+
+- **App Version Single Source of Truth**: UI version (e.g. "E-Botar v2.1.0") is driven from `frontend/src/constants.js` (`APP_VERSION`).
+- **Admin User Directory (Read-Only)**, **Voting Status (Per Election)**, **Admin metrics endpoints** (`user-count`, `directory`, `voting-status`).
+- **Admin Tables Upgrade**, **Application Pages Upgrade**, **Data Export PDF Improvements**, **Layout + Responsiveness Fixes** (see [CHANGELOG.md](CHANGELOG.md) § 1.0.0).
 
 ### Documentation & environment (since 1.0.0)
 
@@ -99,20 +110,17 @@
   - **Frontend Implementation**: Dashboard page checks `isAuthenticated` before displaying statistics and fetching sensitive data
 
 ### Previous Highlights (0.7.6)
-- **General-Purpose Algorithm Library**: Comprehensive suite of efficient, reusable algorithms
-  - **Sorting Algorithms**: Quicksort (O(n log n) avg) and Merge Sort (O(n log n) guaranteed) for efficient data sorting
-  - **Searching Algorithms**: Binary search (O(log n)) and linear search (O(n)) with flexible key functions
-  - **Grouping & Aggregation**: Hash-based grouping (O(n)) and multi-level aggregation algorithms
-  - **Cryptographic Algorithms**: Centralized SHA-256 and MD5 hashing for security operations
-  - **Categorization & Organization**: Hierarchical categorization and organization algorithms
-  - **Optimization Algorithms**: Batch processing and memoization for performance optimization
-  - **Type-Agnostic Design**: Works with dictionaries, objects, lists, tuples, and any iterable data structures
-  - **Fully Tested**: Comprehensive test suite verifies all algorithm implementations
-  - **Production Integrated**: Algorithms integrated into voting, election, and data processing modules
+- **Algorithm Library**: Efficient, reusable algorithm helpers focused on current production use.
+  - **Sorting**: Quicksort and merge sort
+  - **Searching**: Binary search, binary search by field, linear search
+  - **Aggregation**: Count/sum/avg/min/max/list/set style grouping
+  - **Cryptography**: SHA-256 and RSA helpers via `cryptography`
+  - **Memoization**: Hash-key-based memoization for repeated computations
+  - **Production Integrated**: Used by voting, election, and data-processing services
 
 ### Algorithm Integration (0.7.6)
 - **Voting Module**: Candidate sorting in election results uses `SortingAlgorithm.quicksort()`
-- **Services**: Cache key generation uses `CryptographicAlgorithm.md5_hash()` in voting and election services
+- **Services**: Cache key generation uses `CryptographicAlgorithm.sha256_hash()` in voting and election services
 - **Models**: Vote receipt and vote hash generation use `CryptographicAlgorithm.sha256_hash()`
 - **Vote Counting**: Aggregation algorithms used for efficient vote counting and statistics
 - **Performance Optimization**: Memoization added to expensive calculations (vote percentages, turnout)
@@ -206,6 +214,108 @@
 
 E-Botar is a comprehensive electronic voting system designed specifically for student government elections. Built on blockchain-inspired security principles and privacy-preserving technologies, it provides a transparent, verifiable, and user-friendly platform for democratic participation in educational institutions.
 
+### Blockchain-Inspired System Concept (Detailed)
+
+E-Botar is designed as a **single-system voting platform** that applies blockchain principles without requiring decentralized nodes or cryptocurrency infrastructure.
+
+#### Concept Goals
+
+1. **Integrity**: Any unauthorized change in vote-related records must be detectable.
+2. **Immutability (application level)**: Voting records are treated as append-only for operational trust.
+3. **Verifiability**: Voters and administrators can validate participation and results through receipts and audits.
+4. **Privacy**: Voter identity is separated from vote tally data.
+5. **Practical Deployment**: Preserve compatibility with institutional constraints (centralized backend, standard DB, existing governance).
+
+#### Blockchain Principles Adapted to E-Botar
+
+- **Block Structure Concept**:
+  - vote sequence index
+  - timestamp
+  - voter fingerprint (hashed identity reference)
+  - vote payload (position/candidate context)
+  - previous hash
+  - current hash (SHA-256)
+- **Hashing**: SHA-256 is used for receipt and vote-related integrity checks.
+- **Chaining**: Logical hash-linking enables tamper evidence across sequential vote events.
+- **Immutability Rules**: operational policy disallows arbitrary mutation of finalized vote records.
+- **Validation**: business validation + data integrity checks ensure consistent election state.
+- **Consensus Simulation**: administrative validation and audit controls simulate trust governance in a centralized setup.
+
+#### Operational Flow (How It Works in Practice)
+
+1. User authenticates and submits a ballot.
+2. System validates:
+   - election is active
+   - user is eligible
+   - user has not already voted
+3. Receipt is generated and hashed for individual verification.
+4. Vote choices are anonymized for tallying (`AnonVote`) to protect voter privacy.
+5. Results and statistics are computed from anonymized records.
+6. Activity/security logs provide audit evidence for election governance.
+
+#### Flow Process of the System (Input-Process-Output)
+
+**Input**
+- Student and admin credentials
+- Election configuration (positions, schedules, eligibility rules)
+- Candidate applications and approved candidate profiles
+- Ballot selections from authenticated voters
+
+**Process**
+1. **Authentication and Access Control**
+   - Users register/login.
+   - Role-based permissions determine allowed actions (Student, Staff, Admin).
+2. **Election and Candidate Preparation**
+   - Admin/staff configure election events and schedules.
+   - Candidate applications are reviewed and approved/rejected.
+3. **Voting Validation**
+   - System validates active election window, voter eligibility, and one-vote-per-election rule.
+4. **Vote Submission and Recording**
+   - Ballot is submitted and stored with receipt generation.
+   - Vote choices are transformed into anonymized records for tallying.
+5. **Verification and Auditing**
+   - Voters verify participation through receipt validation.
+   - Security and activity logs capture system actions.
+6. **Result Generation**
+   - Tallies and rankings are computed from anonymized vote data.
+   - Results/statistics are shown based on election state and access policy.
+
+**Output**
+- Verified vote submission receipt
+- Privacy-preserving election tallies
+- Position rankings and winner outputs
+- Auditable administrative and security records
+
+#### Research-to-Implementation Mapping
+
+- **Research Objective**: blockchain-inspired voting integrity model.
+- **Current Production-Oriented Implementation**:
+  - centralized backend (Django + DRF)
+  - cryptographic hashing (SHA-256) for verification workflows
+  - anonymized vote storage for tally integrity and privacy
+  - role-based controls and audit logging for governance accountability
+
+This approach preserves the thesis concept while remaining practical and maintainable for institutional production deployment.
+
+#### Blockchain-Inspired Highlight Flow and Benefits
+
+E-Botar applies blockchain-inspired principles in a centralized architecture by combining cryptographic integrity, controlled write paths, and auditable records.
+
+**Blockchain-Inspired Flow**
+1. Voter submits ballot after eligibility checks.
+2. System creates verifiable receipt artifacts (code + hash validation path).
+3. Vote choices are separated from direct voter identity for privacy-preserving tallying.
+4. Records are treated as append-only through process and access control policies.
+5. Audit/security logs preserve a traceable timeline of election actions.
+6. Result computation uses anonymized vote datasets.
+
+**Why this brings benefits (even with transparency and encryption concerns)**
+- **Integrity without full decentralization**: cryptographic checks make tampering detectable while keeping deployment simple for campus operations.
+- **Transparency with privacy boundaries**: stakeholders can audit process integrity and totals without exposing private voter identity.
+- **Practical security posture**: role-based controls, validation rules, and logging provide governance safeguards suitable for institutional elections.
+- **Faster and more reliable operations**: automated validation, tallying, and receipt workflows reduce manual errors and delays.
+- **Research-to-production fit**: preserves the thesis objective (blockchain-inspired trust model) while remaining maintainable in a single-system environment.
+
 ### Vision
 To modernize student elections by providing a secure, accessible, and efficient digital voting platform that maintains the integrity of the democratic process while enhancing voter participation and transparency.
 
@@ -215,6 +325,32 @@ This system is developed as part of academic research on **"Blockchain-Inspired 
 - Cryptographic receipt verification
 - Transparent audit trails without compromising voter privacy
 - Modern web architecture for scalability and maintainability
+
+### Thesis Alignment Snapshot
+
+#### General Objective
+Develop an online voting system for Surigao del Norte State University that makes elections easier, more reliable, and more secure while preserving fair results.
+
+#### Specific Module Objectives
+1. Authentication Module
+2. Voting Module
+3. Candidate Module
+4. Security Module
+5. Result Module
+6. Admin Module
+
+#### Scope and Limitations (Implemented Context)
+- **Scope**:
+  - User registration, secure login, and profile management
+  - Ballot display, vote casting, and receipt-based verification
+  - Candidate application and candidate profile display
+  - Role-based access control, activity/security logging, and cryptographic integrity workflows
+  - Real-time tally presentation and election result generation
+  - Administrative configuration for election events, applications, and user operations
+- **Limitations**:
+  - Web-based operation requires reliable internet access during voting
+  - Concurrent performance depends on hosting/server capacity
+  - Registration remains limited to authorized academic email domains
 
 ---
 
@@ -231,7 +367,7 @@ E-Botar implements key findings from extensive research on electronic voting sys
 - No linkage between votes and voters in tallying
 
 **2. Verifiability**
-- Individual verifiability through encrypted receipts
+- Individual verifiability through receipt-code validation
 - Voters can verify their ballot was recorded correctly
 - Audit trail without compromising privacy
 - Transparent result computation
@@ -260,149 +396,28 @@ The system architecture is informed by academic research on:
 
 ## 🔬 Algorithms & Data Structures
 
-E-Botar implements a comprehensive suite of efficient algorithms for data processing, optimized for performance and reusability across all system features. All algorithms are general-purpose and type-agnostic, working with dictionaries, objects, lists, and any iterable data structures.
+The backend module `apps/common/algorithms.py` is intentionally **small** and aimed at **school-scale** use: sorting and searching, vote **aggregation**, **memoization** (cache keys / optional in-process memoization), and **cryptography** (SHA-256 + RSA helpers). Older general-purpose grouping, hierarchy, categorization, organization, and batch-processing classes were removed to reduce complexity; use Django querysets, Python `defaultdict`, or plain loops where you need multi-level layouts.
 
-### Algorithm Categories
+### What’s in `algorithms.py`
 
-#### 1. **Sorting Algorithms**
+#### 1. **Sorting** (`SortingAlgorithm`)
+- **Quicksort** and **mergesort** with optional `key` and `reverse` — used for election results / candidate ordering in voting code paths.
 
-**Quicksort** (`SortingAlgorithm.quicksort`)
-- **Type**: Divide-and-conquer sorting algorithm
-- **Time Complexity**: O(n log n) average case, O(n²) worst case
-- **Space Complexity**: O(log n) average case
-- **Use Case**: Sorting election results by vote count, candidates by name, students by ID
-- **Why Chosen**: Efficient average-case performance, in-place sorting capability
-- **Implementation**: Partition-based recursive algorithm with pivot selection
+#### 2. **Searching** (`SearchingAlgorithm`)
+- **Binary search** and **binary_search_by_field** for sorted sequences.
+- **Linear search** for unsorted lists (also used by the `search()` helper when `sorted_list=False`).
 
-**Merge Sort** (`SortingAlgorithm.mergesort`)
-- **Type**: Divide-and-conquer sorting algorithm
-- **Time Complexity**: O(n log n) guaranteed (best, average, worst)
-- **Space Complexity**: O(n)
-- **Use Case**: Stable sorting when maintaining relative order matters (e.g., sorting by multiple criteria)
-- **Why Chosen**: Guaranteed O(n log n) performance, stable sort (preserves order of equal elements)
-- **Implementation**: Recursive merge of sorted sub-arrays
+#### 3. **Aggregation** (`AggregationAlgorithm.aggregate`)
+- Single-pass **count / sum / avg / min / max / list / set** by a key function — used for vote tallies and related statistics in `apps/voting`.
 
-**Nested Dictionary Sorting** (`SortingAlgorithm.sort_nested_dict`)
-- **Type**: Recursive sorting for hierarchical data structures
-- **Time Complexity**: O(n log n) per level
-- **Space Complexity**: O(n)
-- **Use Case**: Sorting multi-level grouped data (department → course → year level)
-- **Why Chosen**: Handles complex nested structures efficiently
+#### 4. **Cryptography** (`CryptographicAlgorithm`)
+- **SHA-256** for receipt and vote fingerprint digests.
+- **RSA** helpers: key generation, PSS-SHA256 sign/verify, RSA-OAEP encrypt/decrypt for short payloads (see `requirements.txt`: `cryptography`).
 
-#### 2. **Searching Algorithms**
+#### 5. **Memoization** (`MemoizationAlgorithm`)
+- **memoize_with_key** decorator and **generate_hash_key** (SHA-256 of serialized args) — used in voting/election services for cache keys and repeated computations.
 
-**Binary Search** (`SearchingAlgorithm.binary_search`)
-- **Type**: Divide-and-conquer search algorithm
-- **Time Complexity**: O(log n)
-- **Space Complexity**: O(1)
-- **Prerequisites**: Requires sorted array
-- **Use Case**: Finding students by ID, candidates by name in sorted lists
-- **Why Chosen**: Extremely efficient for sorted data, logarithmic time complexity
-- **Implementation**: Iterative/recursive search by repeatedly dividing search space in half
-
-**Linear Search** (`SearchingAlgorithm.linear_search`)
-- **Type**: Sequential search algorithm
-- **Time Complexity**: O(n)
-- **Space Complexity**: O(1)
-- **Use Case**: Searching unsorted data, finding items by custom predicates
-- **Why Chosen**: Works with unsorted data, supports custom search conditions
-- **Implementation**: Iterate through items until match found
-
-**Find All** (`SearchingAlgorithm.find_all`)
-- **Type**: Filtering algorithm with predicate matching
-- **Time Complexity**: O(n)
-- **Space Complexity**: O(k) where k = number of matches
-- **Use Case**: Finding all students matching criteria (e.g., age > 18, active status)
-- **Why Chosen**: Efficient filtering with custom conditions
-
-#### 3. **Grouping & Aggregation Algorithms**
-
-**Hash-Based Grouping** (`DataGroupingAlgorithm.group_by`)
-- **Type**: Hash map-based grouping algorithm
-- **Time Complexity**: O(n)
-- **Space Complexity**: O(n)
-- **Use Case**: Grouping students by department, votes by category
-- **Why Chosen**: Single-pass O(n) complexity, works with any data type
-- **Implementation**: Uses Python's `defaultdict` for efficient key-value mapping
-
-**Hierarchical Grouping** (`DataGroupingAlgorithm.group_by_hierarchy`)
-- **Type**: Multi-level hash map grouping
-- **Time Complexity**: O(n × m) where m = hierarchy levels
-- **Space Complexity**: O(n)
-- **Use Case**: Organizing data by department → course → year level
-- **Why Chosen**: Efficiently handles nested grouping requirements
-- **Implementation**: Nested dictionary structure with hash map lookups
-
-**Multi-Key Grouping** (`DataGroupingAlgorithm.group_by_multiple`)
-- **Type**: Simultaneous multi-key grouping
-- **Time Complexity**: O(n × m) where m = number of keys
-- **Space Complexity**: O(n)
-- **Use Case**: Grouping by multiple attributes simultaneously
-- **Why Chosen**: Flexible grouping by multiple criteria in single pass
-
-**Aggregation** (`AggregationAlgorithm.aggregate`)
-- **Type**: Single-pass aggregation with multiple operations
-- **Time Complexity**: O(n)
-- **Space Complexity**: O(k) where k = unique categories
-- **Operations Supported**: count, sum, average, min, max, list, set
-- **Use Case**: Counting votes by category, summing amounts by department
-- **Why Chosen**: Efficient single-pass aggregation, supports multiple operations
-- **Implementation**: Hash map accumulation with operation-specific logic
-
-#### 4. **Categorization & Organization Algorithms**
-
-**Hierarchical Categorization** (`CategorizationAlgorithm.categorize_by_hierarchy`)
-- **Type**: Flexible hierarchical categorization with configurable extractors
-- **Time Complexity**: O(n × m) where m = hierarchy levels
-- **Space Complexity**: O(n)
-- **Use Case**: Categorizing votes by demographics, organizing students by academic hierarchy
-- **Why Chosen**: Highly flexible, works with any data structure
-- **Implementation**: Configurable key extraction functions for maximum reusability
-
-**Hierarchical Organization** (`OrganizationAlgorithm.organize_by_hierarchy`)
-- **Type**: Multi-level data organization with metadata support
-- **Time Complexity**: O(n × m) where m = hierarchy levels
-- **Space Complexity**: O(n)
-- **Use Case**: Organizing students by department/course/year with full item lists
-- **Why Chosen**: Supports both count-only and full-item storage modes
-
-#### 5. **Cryptographic Algorithms**
-
-**SHA-256 Hashing** (`CryptographicAlgorithm.sha256_hash`)
-- **Type**: Cryptographic hash function
-- **Time Complexity**: O(n) where n = input length
-- **Space Complexity**: O(1)
-- **Use Case**: Vote receipt hashing, vote verification hashes
-- **Why Chosen**: Industry-standard cryptographic hash, collision-resistant
-- **Security**: One-way function, deterministic, avalanche effect
-- **Output**: 64-character hexadecimal string (256 bits)
-
-**MD5 Hashing** (`CryptographicAlgorithm.md5_hash`)
-- **Type**: Cryptographic hash function (for non-security purposes)
-- **Time Complexity**: O(n) where n = input length
-- **Space Complexity**: O(1)
-- **Use Case**: Cache key generation, non-critical hashing
-- **Why Chosen**: Fast hash for non-security applications
-- **Note**: Not used for security-sensitive operations (SHA-256 used instead)
-- **Output**: 32-character hexadecimal string (128 bits)
-
-#### 6. **Optimization Algorithms**
-
-**Batch Processing** (`BatchProcessingAlgorithm.process_in_batches`)
-- **Type**: Memory-efficient batch processing
-- **Time Complexity**: O(n)
-- **Space Complexity**: O(batch_size) instead of O(n)
-- **Use Case**: Processing large datasets without memory overflow
-- **Why Chosen**: Prevents memory issues with large datasets
-- **Implementation**: Divides data into fixed-size batches for sequential processing
-
-**Memoization** (`MemoizationAlgorithm.memoize_with_key`)
-- **Type**: Dynamic programming optimization technique
-- **Time Complexity**: O(1) for cached results, O(f(n)) for computation
-- **Space Complexity**: O(k) where k = unique input combinations
-- **Use Case**: Caching expensive computations (e.g., election statistics)
-- **Why Chosen**: Dramatically improves performance for repeated computations
-- **Implementation**: Decorator pattern with custom cache key generation
+Optional **convenience** functions at module bottom: `aggregate_by`, `sort_by`, `search`.
 
 ### Algorithm Selection Rationale
 
@@ -413,14 +428,14 @@ E-Botar implements a comprehensive suite of efficient algorithms for data proces
 4. **Industry Standard**: Common algorithms (quicksort, binary search) are well-understood and proven
 5. **Scalability**: Algorithms scale efficiently with data size
 
-**Common vs. Specialized Algorithms**
-- **Common Algorithms**: Quicksort, Merge Sort, Binary Search - standard CS algorithms, well-documented and commonly taught in computer science courses
-- **Specialized Algorithms**: Hierarchical grouping, multi-level aggregation - optimized for E-Botar's specific data structures (department → course → year level hierarchies) but use standard algorithmic principles
+**Common vs. Domain-Tuned Algorithms**
+- **Common Algorithms**: Quicksort, Merge Sort, Binary Search, Linear Search
+- **Domain-Tuned Usage**: Aggregation and memoization are tuned for election statistics and vote/result computations
 
 ### Data Structures Used
 
 **Hash Maps (Dictionaries)**
-- **Use**: Grouping, aggregation, categorization
+- **Use**: Grouping and aggregation
 - **Why**: O(1) average lookup time, efficient key-value storage
 - **Implementation**: Python's built-in `dict` and `defaultdict`
 
@@ -439,7 +454,6 @@ E-Botar implements a comprehensive suite of efficient algorithms for data proces
 **Best Case Scenarios**:
 - Binary Search: O(log n) - extremely fast for sorted data
 - Hash-based Grouping: O(n) - single pass through data
-- Batch Processing: O(n) with O(batch_size) memory
 
 **Worst Case Scenarios**:
 - Quicksort: O(n²) - rare, occurs with poor pivot selection
@@ -448,17 +462,16 @@ E-Botar implements a comprehensive suite of efficient algorithms for data proces
 
 **Space Efficiency**:
 - Most algorithms: O(n) space complexity
-- Batch Processing: O(batch_size) - memory-efficient for large datasets
 - Memoization: O(k) where k = unique computations
 
 ### Real-World Applications in E-Botar
 
 1. **Election Results Processing**: Quicksort for sorting candidates by vote count
-2. **Student Data Organization**: Hierarchical grouping for department/course/year organization
-3. **Vote Categorization**: Multi-level categorization by demographics
+2. **Election Statistics**: Aggregation for turnout and per-position totals
+3. **Data Export Support**: Aggregation/sorting for export-ready datasets
 4. **Data Export**: Efficient aggregation and sorting for PDF/CSV exports
 5. **Search Functionality**: Binary search for fast student/candidate lookups
-6. **Cache Management**: MD5 hashing for cache key generation
+6. **Cache Management**: SHA-256 hashing for cache key generation
 7. **Security**: SHA-256 hashing for vote receipt verification
 
 ### Algorithm Complexity Summary
@@ -470,13 +483,10 @@ E-Botar implements a comprehensive suite of efficient algorithms for data proces
 | Binary Search | O(log n) | O(1) | Searching |
 | Linear Search | O(n) | O(1) | Searching |
 | Hash Grouping | O(n) | O(n) | Grouping |
-| Hierarchical Grouping | O(n × m) | O(n) | Grouping |
 | Aggregation | O(n) | O(k) | Aggregation |
-| Batch Processing | O(n) | O(batch_size) | Optimization |
 | SHA-256 Hash | O(n) | O(1) | Cryptographic |
-| MD5 Hash | O(n) | O(1) | Cryptographic |
 
-*Where: n = number of items, m = hierarchy levels, k = unique categories*
+*Where: n = number of items, k = unique categories*
 
 ---
 
@@ -484,11 +494,11 @@ E-Botar implements a comprehensive suite of efficient algorithms for data proces
 
 ### 🗳️ **Privacy-Preserving Voting**
 - **Immediate Anonymization**: Votes are instantly separated from voter identity upon submission
-- **Encrypted Ballots**: Personal ballot copy stored encrypted for verification only
+- **Receipt-Based Verification**: Voters can verify participation through receipt code validation
 - **Anonymous Tallying**: Results computed from anonymized vote records
-- **Cryptographic Receipts**: SHA-256 hashed receipt codes with encrypted originals
+- **Cryptographic Receipts**: SHA-256 hashed receipt verification workflow
 - **One-Vote-Per-Election**: Database-level unique constraints prevent duplicate voting
-- **Vote Verification**: Voters can verify their ballot without revealing choices
+- **Vote Verification**: Voters can retrieve recorded choices via their own receipt without exposing other voters
 
 ### 👥 **Comprehensive User Management**
 - **JWT Authentication**: Stateless token-based authentication for scalability
@@ -566,7 +576,7 @@ E-Botar follows a modern **split-stack architecture** separating frontend and ba
 │  ┌─────────────────────────────────────────────────────┐   │
 │  │  React 19 + Vite                                    │   │
 │  │  - User Interface Components                        │   │
-│  │  - Admin Dashboard (In Development)                 │   │
+│  │  - Admin Dashboard                                  │   │
 │  │  - JWT Token Management                             │   │
 │  │  - API Client with Axios                            │   │
 │  └─────────────────────────────────────────────────────┘   │
@@ -896,7 +906,7 @@ Program
 **Election Management** (4 models)
 ```
 SchoolElection
-├── title (auto-generated: "SY YYYY-YYYY")
+├── title (auto-generated using election type + academic year)
 ├── start_date, end_date
 ├── is_active
 └── election_positions → ElectionPosition (1:Many)
@@ -941,16 +951,16 @@ Candidate
 VoteReceipt
 ├── user → User (FK)
 ├── election → SchoolElection (FK)
-├── receipt_code (SHA-256 hash)
-├── encrypted_original_receipt (Fernet encrypted)
+├── receipt_code (unique verification code)
+├── receipt_hash (SHA-256 hash)
 ├── created_at, ip_address
 └── [proves user voted, no vote choices]
 
 Ballot
 ├── user → User (FK)
 ├── election → SchoolElection (FK)
-├── encrypted_choices (JSON encrypted)
-├── submitted_at, ip_address
+├── receipt → VoteReceipt (1:1)
+├── submitted_at, ip_address, user_agent
 └── choices → VoteChoice (1:Many)
     └── [temporary, for verification only]
 
@@ -1027,7 +1037,7 @@ The voting system implements a **three-layer separation** for privacy:
 User submits ballot
     ↓
 1. Create VoteReceipt (user + election, hashed receipt)
-2. Create Ballot (encrypted vote choices for verification)
+2. Create Ballot (submission record linked to receipt)
 3. Create AnonVotes (one per position, NO user reference)
     ↓
 Results computed from AnonVotes ONLY
@@ -1035,9 +1045,16 @@ Results computed from AnonVotes ONLY
 
 This design ensures:
 - ✅ Voter privacy (no link between user and vote in tallying)
-- ✅ Individual verifiability (users can check their encrypted ballot)
+- ✅ Individual verifiability (users can check vote participation via receipt validation)
 - ✅ Audit trail (receipts prove participation without revealing votes)
 - ✅ Transparent counting (AnonVotes are countable by anyone with DB access)
+
+### Blockchain-Inspired Integrity Notes
+
+- E-Botar is intentionally **blockchain-inspired**, not a distributed blockchain network.
+- Integrity is enforced through cryptographic hashing, controlled write paths, and auditability.
+- Governance trust is provided by authenticated roles, access controls, and logs rather than decentralized consensus nodes.
+- This model is appropriate for campus-scale elections where transparency, privacy, and maintainability are all required.
 
 ---
 
@@ -1062,7 +1079,6 @@ This design ensures:
 - **State Management**: React Context API + Hooks
 - **Styling**: Bootstrap 5.3 + Custom CSS
 - **Icons**: Font Awesome 6.x
-- **Charts**: Chart.js (planned)
 
 ### Security
 - **Authentication**: JWT access + refresh tokens
@@ -1264,16 +1280,38 @@ Content-Type: application/json
 Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGc...
 ```
 
+**Google Sign-In** (after configuring **django-allauth** `SocialApp` for provider `google` plus matching frontend **`VITE_GOOGLE_CLIENT_ID`**):
+
+```http
+POST /api/auth/google/
+Content-Type: application/json
+
+{
+  "access_token": "<Google OAuth access token from Identity Services>",
+  "credential": "<optional ID token JWT in alternative flows>",
+  "password": "<required when linking to existing account after 409 requires_password>"
+}
+```
+
+Successful responses return **`access`** / **`refresh`** JSON in the same shape as **`POST /api/auth/token/`**. Responses may return **`403`** when Google email is unverified; **`409`** with **`requires_password: true`** for linking; **`409`** with **`code: ambiguous_email_accounts`** when multiple Django users share the same verified email (admin must deduplicate accounts); credential/auth failures use **`401`** / **`400`** as appropriate (**[CHANGELOG.md](CHANGELOG.md)** **2.1.0** § Fixed).
+
 ### API Modules
+
+#### Global endpoints
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/health/` | GET | Public | Consolidated health check (alias: `/api/common/health/`) |
+| `/api/version/` | GET | Public | API and backend version coordination |
 
 #### 1. Accounts Module (`/api/auth/`)
 
 | Endpoint | Method | Auth | Description |
 |----------|--------|------|-------------|
-| `/health/` | GET | Public | Health check |
 | `/register/` | POST | Public | User registration |
 | `/token/` | POST | Public | Obtain JWT token |
 | `/token/refresh/` | POST | Public | Refresh JWT token |
+| `/google/` | POST | Public | Google Sign-In: body `credential` (ID JWT) **or** `access_token` (OAuth); optional `password` when linking (`requires_password`); responds with JWT pair or link requirements |
 | `/me/` | GET | Authenticated | Current user profile |
 | `/departments/` | GET | Public | List departments |
 | `/departments/` | POST | Superuser | Create department |
@@ -1291,7 +1329,6 @@ Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGc...
 
 | Endpoint | Method | Auth | Description |
 |----------|--------|------|-------------|
-| `/health/` | GET | Public | Health check |
 | `/parties/` | GET | Public | List parties |
 | `/parties/` | POST | Superuser | Create party |
 | `/positions/` | GET | Public | List positions |
@@ -1309,7 +1346,6 @@ Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGc...
 
 | Endpoint | Method | Auth | Description |
 |----------|--------|------|-------------|
-| `/health/` | GET | Public | Health check |
 | `/candidates/` | GET | Public | List approved candidates |
 | `/candidates/by_election/` | GET | Public | Filter candidates by election |
 | `/applications/` | GET | Authenticated | List applications (own or all) |
@@ -1325,7 +1361,6 @@ Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGc...
 
 | Endpoint | Method | Auth | Description |
 |----------|--------|------|-------------|
-| `/health/` | GET | Public | Health check |
 | `/ballots/` | GET | Authenticated | List user's ballots |
 | `/ballots/submit/` | POST | Authenticated | Submit ballot |
 | `/ballots/my_ballot/` | GET | Authenticated | Get ballot for election |
@@ -1371,6 +1406,22 @@ If a key is missing, the API returns these defaults (current SNSU branding):
 - `app_name`: `E-Botar`
 
 No database migration is required; defaults are applied in code.
+
+## Maintenance: Feature availability (temporary disables)
+
+Superusers can temporarily disable parts of the public/admin UI using the **Feature availability** screen:
+
+- URL: `/admin/maintenance/features`
+- What it changes: backend `feature_flags` stored in **System Settings** (and returned via `GET /api/common/branding/`).
+
+Common toggles:
+
+- **Public registration** (`user_registration`): disables `/register` and removes the register call-to-action from the Login page.
+- **Google sign-in** (`google_login`): disables and visually greys out **“Continue with Google”** on the Login page.
+- **Data export** (`data_export`): controls whether export navigation/actions are available for staff/admin flows.
+- **Staff preview** (`staff_preview_disabled_features`): when enabled, staff can still *see* muted (disabled) navigation entries while actual route access remains blocked.
+
+Note: username/password sign-in remains available; this maintenance screen is intended for safe temporary access control during incidents or rehearsals.
 
 *Public after election ends, Admin anytime
 
@@ -1539,11 +1590,10 @@ Response:
 
 ### Data Protection
 
-**Encryption**:
-- Ballot copies encrypted with Fernet (symmetric encryption)
-- Receipt codes stored as SHA-256 hashes
-- Original receipts encrypted for verification
+**Cryptography & Protection**:
+- Receipt codes verified through SHA-256 hash workflow
 - Passwords hashed with PBKDF2 (Django default)
+- Role-based authorization and audit logging protect election operations
 
 **Privacy Measures**:
 - Immediate vote anonymization upon submission
@@ -1889,12 +1939,33 @@ pylint apps/
 ### Available Documentation
 
 - **[README.md](README.md)** - Quick start guide and overview
+- **[Document.md](Document.md)** - Handbook for setting up and using the system (installation, configuration, roles, troubleshooting); structured per project documentation guidelines
 - **[Information.md](Information.md)** - Complete system information (this file)
 - **[Phase_Implementation.md](Phase_Implementation.md)** - Implementation roadmap and progress
 - **[CHANGELOG.md](CHANGELOG.md)** - Version history and changes
 - **[ADMIN_DASHBOARD_SPEC.md](ADMIN_DASHBOARD_SPEC.md)** - React admin dashboard specification
 - **[PHASE1_COMPLETION_SUMMARY.md](PHASE1_COMPLETION_SUMMARY.md)** - Phase 1 completion details
 - **[PHASE2_DEFERRED_FEATURES.md](PHASE2_DEFERRED_FEATURES.md)** - Features for future implementation
+
+### Documentation map
+
+| Audience / need | Primary doc | Also useful |
+|----------------|-------------|-------------|
+| Install and day-to-day use (any role) | [Document.md](Document.md) | [README.md](README.md), this file § Getting Started |
+| Technical depth, APIs, architecture | This file ([Information.md](Information.md)) | HTML API guide at `/guide/` ([README](README.md) overview) |
+| Release notes | [CHANGELOG.md](CHANGELOG.md) | [README.md](README.md) highlights |
+| Phasing and backlog | [Phase_Implementation.md](Phase_Implementation.md) | [PHASE2_DEFERRED_FEATURES.md](PHASE2_DEFERRED_FEATURES.md) |
+
+When you change behavior or configuration, record it in **[CHANGELOG.md](CHANGELOG.md)**; for phased work, mirror progress in **[Phase_Implementation.md](Phase_Implementation.md)**. Prefer updating **[README.md](README.md)** for user-visible highlights and this file for deep technical detail.
+
+### Active codebase layout (reference)
+
+Operations and tooling assume this monorepo layout:
+
+- **Project root**: repository folder containing `backend/`, `frontend/`, and shared docs.
+- **Backend**: `backend/` (`manage.py`, Django apps under `backend/apps/` or as structured in the repo).
+- **Frontend**: `frontend/` (React + Vite).
+- **Python virtual environment**: create at **`env/`** beside `backend/` (e.g. `python -m venv ../env` from `backend/`); activate before `python`, `pip`, or `manage.py` so dependencies match [requirements.txt](backend/requirements.txt).
 
 ### Quick Reference
 
@@ -1917,8 +1988,8 @@ pylint apps/
 
 ## 🗺️ Roadmap
 
-### Current Version: 0.7.7
-- ✅ Complete Backend API (50+ endpoints)
+### Current Version: 2.1.0
+- ✅ Complete Backend API modules (accounts, elections, candidates, voting, common)
 - ✅ User authentication and profiles
 - ✅ Three-tier role system (Student, Staff, Admin)
 - ✅ Role management interface
@@ -1944,7 +2015,7 @@ pylint apps/
 - ✅ Form submission throttling (rate limiting)
 - ✅ Admin profile flexibility (optional academic info for admins)
 - ✅ Dashboard improvements (Current Administration display)
-- ✅ General-Purpose Algorithm Library (sorting, searching, grouping, aggregation, cryptographic)
+- ✅ Algorithm Library (sorting, searching, aggregation, memoization, cryptographic)
 - ✅ Algorithm integration in voting, election, and data processing modules
 - ✅ Performance testing suite with algorithm benchmarks and API testing
 - ✅ Load testing configuration with Locust
@@ -1957,17 +2028,17 @@ pylint apps/
 - ✅ Guest mode privacy (statistics hidden for unauthenticated users)
 - ✅ Position management improvements (auto-assignment, smart reordering)
 - ✅ Candidate directory enhancements (course/year display, visual updates)
+- ✅ Google Sign-In (OAuth/OpenID flows; JWT issuance; django-allauth Social Apps; frontend Google Identity Services; account linking via password modal)
 
-### Next: Version 0.8.0 (Q1 2025)
-- 🔄 Enhanced data visualizations (Chart.js integration)
+### Next: Version 1.2.x
+- 🔄 Enhanced data visualizations
 - 🔄 Advanced analytics dashboard
 - 🔄 Additional performance optimizations
 - 🔄 Extended testing suite (unit tests, integration tests)
 
-### Future: Version 1.0.0 (Q2 2025)
+### Future / deferred (beyond v2.1.0)
 - 📋 Email notification system (P1 deferred feature)
 - 📋 Analytics & reporting dashboard (P2 deferred feature)
-- 📋 Google OAuth integration (P2 deferred feature)
 - 📋 Rate limiting & advanced security (P2 deferred feature)
 - 📋 Management commands (bulk operations) (P2 deferred feature)
 - 📋 Testing infrastructure (unit + E2E tests) (P2 deferred feature)
@@ -1980,9 +2051,10 @@ pylint apps/
 - 📋 Advanced fraud detection with ML
 - 📋 Multi-institution support
 - 📋 External audit tools
-- 📋 Blockchain integration (proof-of-concept)
+- 📋 Expanded blockchain-inspired integrity controls (beyond current **VoteBlock** ledger / verification)
 
-**Note**: See [PHASE2_DEFERRED_FEATURES.md](PHASE2_DEFERRED_FEATURES.md) for complete feature roadmap with priorities and implementation details.
+
+**Integrity note**: The **`VoteBlock`** append-only ledger and verification shipped in **v2.1.0** satisfy the thesis “block-style” voting trail; roadmap items labeled “blockchain-inspired” may refine audit UX or federation rather than repeating the ledger feature.
 
 ---
 
@@ -2023,7 +2095,6 @@ For licensing inquiries or collaboration opportunities, please contact the devel
 
 ### Open Source Libraries
 - Bootstrap 5 - UI framework
-- Chart.js - Data visualization
 - Axios - HTTP client
 - Font Awesome - Icon library
 - cryptography - Python encryption library
@@ -2066,7 +2137,7 @@ For licensing inquiries or collaboration opportunities, please contact the devel
 - **Backend API**: `http://localhost:8000/api/`
 - **Django Admin**: `http://localhost:8000/admin/`
 - **Frontend**: `http://localhost:5173/`
-- **API Health**: `http://localhost:8000/api/auth/health/`
+- **API Health**: `http://localhost:8000/api/health/` (alias: `/api/common/health/`)
 
 ### Essential Commands
 ```powershell
@@ -2100,7 +2171,7 @@ python manage.py check
 
 ---
 
-**E-Botar v1.0.0** | Last Updated: March 2026 | Performance Tested & Optimized  
+**E-Botar v2.1.0** | Last Updated: May 2026 | Performance Tested & Optimized  
 **Status**: Production Ready | Full Stack Complete
 
 **Built with ❤️ for democratic student governance**

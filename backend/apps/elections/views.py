@@ -1,32 +1,53 @@
 import logging
 from datetime import timedelta
-from rest_framework import viewsets, status
-from rest_framework.decorators import action, api_view, permission_classes
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
+
 from django.utils import timezone
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+
 from apps.common.models import ActivityLog
-from apps.common.permissions import IsSuperUser, IsStaffOrSuperUser
-from .models import Party, SchoolPosition, SchoolElection, ElectionPosition
+from apps.common.permissions import IsStaffOrSuperUser, IsSuperUser
+from apps.common.utils import get_client_ip
+
+from .models import ElectionPosition, Party, SchoolElection, SchoolPosition
+from .serializers import (
+    SchoolElectionCompactSerializer,
+    ElectionPositionSerializer,
+    PartySerializer,
+    SchoolElectionCreateUpdateSerializer,
+    SchoolElectionDetailSerializer,
+    SchoolElectionListSerializer,
+    SchoolPositionSerializer,
+)
+from .services import ElectionDataService, annotate_election_list_metrics
 
 logger = logging.getLogger(__name__)
-from .serializers import (
-    PartySerializer, SchoolPositionSerializer,
-    SchoolElectionListSerializer, SchoolElectionDetailSerializer,
-    SchoolElectionCreateUpdateSerializer, ElectionPositionSerializer
-)
-from .services import ElectionDataService
 
 
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def health_check(request):
-    """Health check endpoint for elections service"""
-    return Response({
-        'status': 'healthy',
-        'service': 'elections',
-        'message': 'Elections service is running'
-    })
+def invalidate_election_and_related_voting_cache(election_id):
+    """Single place to refresh caches after election schedule or pause state changes."""
+    ElectionDataService.invalidate_election_cache(election_id)
+    try:
+        from apps.voting.services import VotingDataService
+
+        VotingDataService.invalidate_voting_cache()
+    except Exception:
+        pass
+
+
+def log_school_election_staff_activity(request, election, *, action, description, metadata):
+    """Write one ActivityLog row for create/update/delete on school elections (traceable IP + metadata)."""
+    ActivityLog.objects.create(
+        user=request.user,
+        action=action,
+        resource_type='Election',
+        resource_id=election.id,
+        description=description,
+        ip_address=get_client_ip(request),
+        metadata=metadata,
+    )
 
 
 class PartyViewSet(viewsets.ModelViewSet):
@@ -73,6 +94,9 @@ class SchoolPositionViewSet(viewsets.ModelViewSet):
 class SchoolElectionViewSet(viewsets.ModelViewSet):
     """ViewSet for managing school elections"""
     queryset = SchoolElection.objects.all()
+
+    def get_queryset(self):
+        return annotate_election_list_metrics(SchoolElection.objects.all())
     
     def get_permissions(self):
         if self.action in ['list', 'retrieve', 'active', 'upcoming', 'finished']:
@@ -83,6 +107,9 @@ class SchoolElectionViewSet(viewsets.ModelViewSet):
         return [IsStaffOrSuperUser()]
     
     def get_serializer_class(self):
+        compact_response_requested = str(self.request.query_params.get('compact', 'false')).lower() == 'true'
+        if compact_response_requested and self.action in ['active', 'upcoming', 'finished', 'list']:
+            return SchoolElectionCompactSerializer
         if self.action == 'retrieve':
             return SchoolElectionDetailSerializer
         elif self.action in ['create', 'update', 'partial_update']:
@@ -102,31 +129,19 @@ class SchoolElectionViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         election = serializer.save(created_by=self.request.user)
         
-        # Invalidate election cache
         ElectionDataService.invalidate_election_cache(election.id)
-        
-        # Get client IP
-        x_forwarded_for = self.request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            ip_address = x_forwarded_for.split(',')[0]
-        else:
-            ip_address = self.request.META.get('REMOTE_ADDR')
-        
-        # Log the activity
-        ActivityLog.objects.create(
-            user=self.request.user,
+        log_school_election_staff_activity(
+            self.request,
+            election,
             action='create',
-            resource_type='Election',
-            resource_id=election.id,
             description=f"Admin {self.request.user.username} created election '{election.title}'",
-            ip_address=ip_address,
             metadata={
                 'election_id': election.id,
                 'election_title': election.title,
                 'start_date': str(election.start_date),
                 'end_date': str(election.end_date),
-                'admin_username': self.request.user.username
-            }
+                'admin_username': self.request.user.username,
+            },
         )
     
     def perform_update(self, serializer):
@@ -139,22 +154,11 @@ class SchoolElectionViewSet(viewsets.ModelViewSet):
         
         # Invalidate election cache
         ElectionDataService.invalidate_election_cache(updated_election.id)
-        
-        # Get client IP
-        x_forwarded_for = self.request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            ip_address = x_forwarded_for.split(',')[0]
-        else:
-            ip_address = self.request.META.get('REMOTE_ADDR')
-        
-        # Log the activity
-        ActivityLog.objects.create(
-            user=self.request.user,
+        log_school_election_staff_activity(
+            self.request,
+            updated_election,
             action='update',
-            resource_type='Election',
-            resource_id=updated_election.id,
             description=f"Admin {self.request.user.username} updated election '{updated_election.title}'",
-            ip_address=ip_address,
             metadata={
                 'election_id': updated_election.id,
                 'election_title': updated_election.title,
@@ -163,38 +167,27 @@ class SchoolElectionViewSet(viewsets.ModelViewSet):
                 'old_end_date': old_end,
                 'new_start_date': str(updated_election.start_date),
                 'new_end_date': str(updated_election.end_date),
-                'admin_username': self.request.user.username
-            }
+                'admin_username': self.request.user.username,
+            },
         )
     
     def perform_destroy(self, instance):
         # Invalidate election cache
         ElectionDataService.invalidate_election_cache(instance.id)
-        
-        # Get client IP
-        x_forwarded_for = self.request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            ip_address = x_forwarded_for.split(',')[0]
-        else:
-            ip_address = self.request.META.get('REMOTE_ADDR')
-        
-        # Log the activity before deletion
-        ActivityLog.objects.create(
-            user=self.request.user,
+        log_school_election_staff_activity(
+            self.request,
+            instance,
             action='delete',
-            resource_type='Election',
-            resource_id=instance.id,
             description=f"Admin {self.request.user.username} deleted election '{instance.title}'",
-            ip_address=ip_address,
             metadata={
                 'election_id': instance.id,
                 'election_title': instance.title,
                 'start_date': str(instance.start_date),
                 'end_date': str(instance.end_date),
-                'admin_username': self.request.user.username
-            }
+                'admin_username': self.request.user.username,
+            },
         )
-        
+
         instance.delete()
     
     @action(detail=False, methods=['get'])
@@ -224,7 +217,7 @@ class SchoolElectionViewSet(viewsets.ModelViewSet):
         """Get finished elections"""
         try:
             now = timezone.now()
-            finished_elections = self.queryset.filter(
+            finished_elections = self.get_queryset().filter(
                 end_date__lt=now
             )
             serializer = self.get_serializer(finished_elections, many=True)
@@ -253,7 +246,8 @@ class SchoolElectionViewSet(viewsets.ModelViewSet):
                     {'detail': 'Position already added to this election'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
+
+            invalidate_election_and_related_voting_cache(election.id)
             serializer = ElectionPositionSerializer(election_position)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
             
@@ -263,11 +257,23 @@ class SchoolElectionViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
     
-    @action(detail=True, methods=['delete'])
+    @action(detail=True, methods=['delete', 'post'])
     def remove_position(self, request, pk=None):
-        """Remove a position from an election"""
+        """Remove a position from an election.
+
+        Compatibility: accepts both DELETE and POST while clients are being migrated.
+        """
         election = self.get_object()
-        position_id = request.data.get('position_id')
+        position_id = (
+            request.data.get('position_id')
+            or request.query_params.get('position_id')
+        )
+
+        if not position_id:
+            return Response(
+                {'detail': 'position_id is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
         try:
             election_position = ElectionPosition.objects.get(
@@ -275,6 +281,7 @@ class SchoolElectionViewSet(viewsets.ModelViewSet):
                 position_id=position_id
             )
             election_position.delete()
+            invalidate_election_and_related_voting_cache(election.id)
             return Response(status=status.HTTP_204_NO_CONTENT)
             
         except ElectionPosition.DoesNotExist:
@@ -289,12 +296,7 @@ class SchoolElectionViewSet(viewsets.ModelViewSet):
         election = self.get_object()
         election.is_paused = True
         election.save(update_fields=['is_paused', 'updated_at'])
-        ElectionDataService.invalidate_election_cache(election.id)
-        try:
-            from apps.voting.services import VotingDataService
-            VotingDataService.invalidate_voting_cache()
-        except Exception:
-            pass
+        invalidate_election_and_related_voting_cache(election.id)
         serializer = SchoolElectionDetailSerializer(election, context={'request': request})
         return Response(serializer.data)
 
@@ -304,12 +306,7 @@ class SchoolElectionViewSet(viewsets.ModelViewSet):
         election = self.get_object()
         election.is_paused = False
         election.save(update_fields=['is_paused', 'updated_at'])
-        ElectionDataService.invalidate_election_cache(election.id)
-        try:
-            from apps.voting.services import VotingDataService
-            VotingDataService.invalidate_voting_cache()
-        except Exception:
-            pass
+        invalidate_election_and_related_voting_cache(election.id)
         serializer = SchoolElectionDetailSerializer(election, context={'request': request})
         return Response(serializer.data)
 

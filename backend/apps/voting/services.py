@@ -60,7 +60,8 @@ class VotingDataService:
 
     # Official tallies use VoteChoice (linked to voter); inactive users' choices do not count.
     @staticmethod
-    def _counted_choices_qs(election_id):
+    def vote_choices_queryset_for_tally(election_id):
+        """Vote choices that count toward official tallies (active voter accounts only)."""
         return VoteChoice.objects.filter(
             ballot__election_id=election_id,
             ballot__user__is_active=True,
@@ -78,7 +79,7 @@ class VotingDataService:
         Returns:
             QuerySet with vote counts per candidate
         """
-        return VotingDataService._counted_choices_qs(election_id).values(
+        return VotingDataService.vote_choices_queryset_for_tally(election_id).values(
             'candidate_id',
             'candidate__user__first_name',
             'candidate__user__last_name',
@@ -102,7 +103,7 @@ class VotingDataService:
         Returns:
             QuerySet with vote counts per candidate for the position
         """
-        return VotingDataService._counted_choices_qs(election_id).filter(
+        return VotingDataService.vote_choices_queryset_for_tally(election_id).filter(
             position_id=position_id
         ).values(
             'candidate_id',
@@ -149,7 +150,7 @@ class VotingDataService:
         ).count()
         
         # Total votes cast (only ballots from active accounts)
-        total_votes = VotingDataService._counted_choices_qs(election_id).count()
+        total_votes = VotingDataService.vote_choices_queryset_for_tally(election_id).count()
         
         # Unique voters (users who submitted ballots, active accounts only)
         total_voters = Ballot.objects.filter(
@@ -159,7 +160,7 @@ class VotingDataService:
         
         # Votes by position - use aggregation algorithm
         votes_list = list(
-            VotingDataService._counted_choices_qs(election_id).values('position_id', 'position__name')
+            VotingDataService.vote_choices_queryset_for_tally(election_id).values('position_id', 'position__name')
         )
         
         # Aggregate votes by position using aggregation algorithm
@@ -277,7 +278,7 @@ class VotingDataService:
             
             # Get votes list for aggregation
             votes_list = list(
-                VotingDataService._counted_choices_qs(election_id).filter(
+                VotingDataService.vote_choices_queryset_for_tally(election_id).filter(
                     position=position
                 ).values('id')
             )
@@ -317,7 +318,7 @@ class VotingDataService:
         Returns:
             Dictionary with winner information or None
         """
-        winner = VotingDataService._counted_choices_qs(election_id).filter(
+        winner = VotingDataService.vote_choices_queryset_for_tally(election_id).filter(
             position_id=position_id
         ).values(
             'candidate_id',

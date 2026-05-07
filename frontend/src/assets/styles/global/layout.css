@@ -63,12 +63,6 @@
   display: block;
 }
 
-.menu-btn i {
-  font-size: 1.5rem;
-  color: #fff;
-  display: inline-block;
-}
-
 .menu-btn:hover {
   background: rgba(255, 255, 255, 0.2);
 }
@@ -228,10 +222,14 @@
   padding: 16px 10px;
 }
 
+.desktop-sidebar .sidebar-menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
 .sidebar-toggle-btn {
-  position: absolute;
-  top: 12px;
-  right: 12px;
   width: 32px;
   height: 32px;
   border-radius: 6px;
@@ -261,9 +259,8 @@
   background: rgba(0, 0, 0, 0.15);
 }
 
-.desktop-sidebar.collapsed .sidebar-toggle-btn {
-  right: 50%;
-  transform: translateX(50%);
+.desktop-sidebar.collapsed .sidebar-menu-header {
+  justify-content: center;
 }
 
 .desktop-sidebar .menu {
@@ -272,10 +269,17 @@
   gap: 10px;
   overflow-y: auto;
   overflow-x: hidden;
-  max-height: calc(100% - 100px);
+  max-height: calc(100% - 88px);
   padding-right: 8px;
-  padding-bottom: 20px;
-  padding-top: 50px;
+  padding-bottom: 18px;
+  padding-top: 0;
+}
+
+.desktop-sidebar .sidebar-menu-title {
+  font-weight: 800;
+  font-size: 1rem;
+  color: #1f2937;
+  padding: 2px 4px 8px;
 }
 
 /* Custom scrollbar for sidebar */
@@ -333,10 +337,6 @@
 
 .desktop-sidebar.collapsed .side-item > span:not(.d-inline-flex) {
   display: none !important;
-}
-
-.desktop-sidebar.collapsed .side-item i {
-  margin: 0 !important;
 }
 
 .desktop-sidebar.collapsed .side-item .chevron-icon {
@@ -545,11 +545,19 @@
   transform: rotate(180deg);
 }
 
-.desktop-sidebar .user-pill {
+.desktop-sidebar .sidebar-bottom-meta {
   position: absolute;
   left: 16px;
   right: 16px;
   bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 20;
+}
+
+.desktop-sidebar .user-pill {
+  position: relative;
   background: linear-gradient(135deg, #0e9f6e, #0b6e3b);
   color: #fff;
   border-radius: 999px;
@@ -561,28 +569,27 @@
   text-decoration: none;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   border: 2px solid rgba(255, 255, 255, 0.2);
-  z-index: 20;
+  z-index: 1;
   pointer-events: auto;
 }
 
-/* Sidebar version label above user pill */
 .desktop-sidebar .sidebar-version {
-  position: absolute;
-  left: 16px;
-  right: 16px;
-  bottom: 16px;
+  position: relative;
   font-size: 0.75rem;
   font-weight: 600;
   color: #1f2937;
   text-align: center;
   opacity: 0.9;
-  z-index: 20;
+  z-index: 1;
   pointer-events: none;
+  background: transparent;
+  padding: 0;
+  line-height: 1.1;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
-/* When user pill exists, position version text above it */
-.desktop-sidebar:has(.user-pill) .sidebar-version {
-  bottom: 96px;
+.desktop-sidebar:has(.user-pill) .menu {
+  max-height: calc(100% - 138px);
 }
 
 .desktop-sidebar.collapsed .sidebar-version {
@@ -590,9 +597,6 @@
 }
 
 .desktop-sidebar.collapsed .user-pill {
-  left: 50%;
-  right: auto;
-  bottom: 20px;
   justify-content: center;
   align-items: center;
   padding: 0;
@@ -603,11 +607,11 @@
   background: transparent;
   border: none;
   box-shadow: none;
-  transform: translateX(-50%);
+  transform: none;
 }
 
 .desktop-sidebar.collapsed .user-pill:hover {
-  transform: translate(-50%, -3px);
+  transform: translateY(-3px);
   box-shadow: none;
   border-color: transparent;
 }
@@ -708,6 +712,13 @@
   padding-bottom: 16px;
   overflow-y: auto;
   overflow-x: hidden;
+}
+
+.offcanvas .sidebar-menu-title {
+  font-weight: 800;
+  font-size: 1rem;
+  color: #1f2937;
+  padding: 2px 4px 8px;
 }
 
 .offcanvas .list-group-item {
@@ -901,6 +912,10 @@
   pointer-events: none;
   flex-shrink: 0;
   position: relative;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  color: #1f2937;
 }
 
 /* ==================== Poll Stats ==================== */

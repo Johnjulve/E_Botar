@@ -23,14 +23,26 @@ export const electionService = {
     return api.get('/elections/elections/active/');
   },
 
+  getActiveCompact: () => {
+    return api.get('/elections/elections/active/', { params: { compact: true } });
+  },
+
   // Get upcoming elections
   getUpcoming: () => {
     return api.get('/elections/elections/upcoming/');
   },
 
+  getUpcomingCompact: () => {
+    return api.get('/elections/elections/upcoming/', { params: { compact: true } });
+  },
+
   // Get finished elections
   getFinished: () => {
     return api.get('/elections/elections/finished/');
+  },
+
+  getFinishedCompact: () => {
+    return api.get('/elections/elections/finished/', { params: { compact: true } });
   },
 
   // Create election (admin only)
@@ -68,8 +80,8 @@ export const electionService = {
 
   // Remove position from election (admin only)
   removePosition: (electionId, positionId) => {
-    return api.post(`/elections/elections/${electionId}/remove_position/`, { 
-      position_id: positionId 
+    return api.delete(`/elections/elections/${electionId}/remove_position/`, {
+      params: { position_id: positionId }
     });
   },
 

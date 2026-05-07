@@ -1,46 +1,42 @@
-import logging
 import csv
 import json
+import logging
+
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.db.models import Count, Exists, OuterRef, Q
 from django.http import HttpResponse
-from rest_framework import viewsets, status, generics
-from rest_framework.decorators import action, api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework.response import Response
+from rest_framework import generics, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
-from apps.common.permissions import IsSuperUser, IsStaffOrSuperUser
-from apps.common.throttling import enforce_scope_throttle
-from .models import VoteReceipt, Ballot, VoteChoice
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
 
-logger = logging.getLogger(__name__)
+from apps.accounts.models import UserProfile
+from apps.candidates.models import Candidate
+from apps.common.algorithms import AggregationAlgorithm, SortingAlgorithm
+from apps.common.models import ActivityLog
+from apps.common.permissions import IsStaffOrSuperUser, IsSuperUser
+from apps.common.throttling import enforce_scope_throttle
+from apps.common.utils import get_client_ip
+from apps.elections.models import SchoolElection, SchoolPosition
+
+from .models import Ballot, VoteChoice, VoteReceipt, VoteBlock
 from .serializers import (
-    VoteReceiptSerializer,
     BallotSerializer,
     BallotSubmissionSerializer,
+    MyVoteStatusSerializer,
+    PositionResultSerializer,
+    UserVotingStatusSerializer,
+    VoteReceiptAuditSerializer,
+    VoteReceiptSerializer,
     VoteReceiptVerifySerializer,
     VoteStatisticsSerializer,
-    PositionResultSerializer,
-    MyVoteStatusSerializer,
-    UserVotingStatusSerializer,
 )
-from apps.elections.models import SchoolElection, SchoolPosition
-from apps.candidates.models import Candidate
-from apps.common.models import ActivityLog
-from apps.common.algorithms import SortingAlgorithm, AggregationAlgorithm
-from apps.accounts.models import UserProfile
 from .services import VotingDataService
+from .vote_ledger import append_vote_blocks_for_ballot, verify_election_vote_chain
 
-
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def health_check(request):
-    """Health check endpoint for voting service"""
-    return Response({
-        'status': 'healthy',
-        'service': 'voting',
-        'message': 'Voting service is running'
-    })
+logger = logging.getLogger(__name__)
 
 
 class BallotViewSet(viewsets.ReadOnlyModelViewSet):
@@ -105,26 +101,26 @@ class BallotViewSet(viewsets.ReadOnlyModelViewSet):
         election = serializer.validated_data['election']
         votes = serializer.validated_data['votes']
         user = request.user
-        
+        client_ip_address = get_client_ip(request)
+
         try:
             with transaction.atomic():
-                # Create vote receipt
                 receipt = VoteReceipt.objects.create(
                     user=user,
                     election=election,
-                    ip_address=self.get_client_ip(request)
+                    ip_address=client_ip_address,
                 )
-                
-                # Create ballot
+
                 ballot = Ballot.objects.create(
                     user=user,
                     election=election,
                     receipt=receipt,
-                    ip_address=self.get_client_ip(request),
-                    user_agent=request.META.get('HTTP_USER_AGENT', '')[:255]
+                    ip_address=client_ip_address,
+                    user_agent=request.META.get('HTTP_USER_AGENT', '')[:255],
                 )
                 
                 # Create vote choices and anonymize immediately
+                choices_saved = []
                 for vote_data in votes:
                     position = SchoolPosition.objects.get(id=vote_data['position_id'])
                     candidate = Candidate.objects.get(
@@ -133,22 +129,31 @@ class BallotViewSet(viewsets.ReadOnlyModelViewSet):
                         position=position,
                         is_active=True
                     )
-                    
-                    # Create vote choice
+
                     choice = VoteChoice.objects.create(
                         ballot=ballot,
                         position=position,
-                        candidate=candidate
+                        candidate=candidate,
                     )
-                    
-                    # Anonymize immediately
                     choice.anonymize()
-                
+                    choices_saved.append(choice)
+
+                append_vote_blocks_for_ballot(
+                    election_id=election.id,
+                    ballot_identifier=str(ballot.pk),
+                    receipt_secret=receipt.receipt_hash,
+                    user_id=user.id,
+                    choices=choices_saved,
+                )
+
                 # Invalidate voting cache for this election
                 VotingDataService.invalidate_voting_cache(election.id)
                 
                 # Log the vote activity
-                student_id = getattr(user.profile, 'student_id', None) if hasattr(user, 'profile') else None
+                try:
+                    student_id = getattr(user.profile, 'student_id', None)
+                except UserProfile.DoesNotExist:
+                    student_id = None
                 voter_identifier = student_id if student_id else user.username
                 
                 ActivityLog.objects.create(
@@ -157,7 +162,7 @@ class BallotViewSet(viewsets.ReadOnlyModelViewSet):
                     resource_type='Election',
                     resource_id=election.id,
                     description=f"Student {voter_identifier} cast vote in election '{election.title}'",
-                    ip_address=self.get_client_ip(request),
+                    ip_address=client_ip_address,
                     metadata={
                         'election_id': election.id,
                         'election_title': election.title,
@@ -185,16 +190,6 @@ class BallotViewSet(viewsets.ReadOnlyModelViewSet):
                 {'detail': str(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
-    
-    @staticmethod
-    def get_client_ip(request):
-        """Extract client IP address from request"""
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            ip = x_forwarded_for.split(',')[0]
-        else:
-            ip = request.META.get('REMOTE_ADDR')
-        return ip
 
 
 class VotingStatusView(generics.ListAPIView):
@@ -295,6 +290,8 @@ class VoteReceiptViewSet(viewsets.ReadOnlyModelViewSet):
     def get_permissions(self):
         if self.action in ['list', 'retrieve', 'my_receipts', 'verify', 'get_votes']:
             return [IsAuthenticated()]
+        if self.action == 'reveal_receipt':
+            return [IsStaffOrSuperUser()]
         # Only superusers can access admin actions on receipts
         return [IsSuperUser()]
     
@@ -322,9 +319,10 @@ class VoteReceiptViewSet(viewsets.ReadOnlyModelViewSet):
         serializer.is_valid(raise_exception=True)
         
         receipt_code = serializer.validated_data['receipt_code']
+        receipt_hash = VoteReceipt.hash_receipt(receipt_code)
         
         try:
-            receipt = VoteReceipt.objects.get(receipt_code=receipt_code)
+            receipt = VoteReceipt.objects.get(receipt_hash=receipt_hash)
             if receipt.verify_receipt(receipt_code):
                 election_title = receipt.election.title if receipt.election else 'Unknown Election'
                 return Response({
@@ -355,7 +353,7 @@ class VoteReceiptViewSet(viewsets.ReadOnlyModelViewSet):
             )
         
         try:
-            receipt = VoteReceipt.objects.get(receipt_code=receipt_code)
+            receipt = VoteReceipt.objects.get(receipt_hash=VoteReceipt.hash_receipt(receipt_code))
             
             # Verify the receipt belongs to the requesting user
             if receipt.user != request.user:
@@ -418,11 +416,127 @@ class VoteReceiptViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
 
+    @action(detail=False, methods=['get'], permission_classes=[IsStaffOrSuperUser])
+    def audit(self, request):
+        """Admin/staff receipt audit table with optional filters."""
+        election_id = request.query_params.get('election_id')
+        search = (request.query_params.get('search') or '').strip()
+        vote_status = request.query_params.get('vote_status')
+        page = request.query_params.get('page', '1')
+        page_size = request.query_params.get('page_size', '20')
+
+        try:
+            page = max(int(page), 1)
+        except (TypeError, ValueError):
+            page = 1
+        try:
+            page_size = int(page_size)
+        except (TypeError, ValueError):
+            page_size = 20
+        if page_size not in [20, 50, 100]:
+            page_size = 20
+
+        queryset = VoteReceipt.objects.select_related(
+            'user',
+            'user__profile',
+            'election',
+        ).prefetch_related(
+            'ballot',
+            'ballot__choices',
+            'ballot__choices__vote_blocks',
+        ).all()
+
+        if election_id:
+            queryset = queryset.filter(election_id=election_id)
+
+        if search:
+            queryset = queryset.filter(
+                Q(user__username__icontains=search)
+                | Q(user__first_name__icontains=search)
+                | Q(user__last_name__icontains=search)
+                | Q(user__profile__student_id__icontains=search)
+                | Q(receipt_code__icontains=search)
+            )
+
+        queryset = queryset.order_by('-created_at')
+
+        serializer = VoteReceiptAuditSerializer(queryset, many=True)
+        rows = serializer.data
+
+        if vote_status in ['verified', 'missing_ballot', 'hash_mismatch']:
+            rows = [row for row in rows if row.get('vote_status') == vote_status]
+
+        total_count = len(rows)
+        start = (page - 1) * page_size
+        end = start + page_size
+        paginated_rows = rows[start:end]
+
+        ActivityLog.objects.create(
+            user=request.user,
+            action='read',
+            resource_type='VoteReceiptAudit',
+            description='Viewed receipt audit table',
+            ip_address=get_client_ip(request),
+            metadata={
+                'election_id': election_id,
+                'search': search,
+                'vote_status': vote_status,
+                'result_count': total_count,
+                'page': page,
+                'page_size': page_size,
+            },
+        )
+
+        return Response({
+            'count': total_count,
+            'page': page,
+            'page_size': page_size,
+            'total_pages': ((total_count - 1) // page_size) + 1 if total_count else 1,
+            'results': paginated_rows,
+        })
+
+    @action(detail=False, methods=['post'], permission_classes=[IsStaffOrSuperUser])
+    def reveal_receipt(self, request):
+        """Reveal full receipt code for audited records (staff/admin only)."""
+        receipt_id = request.data.get('receipt_id')
+        if not receipt_id:
+            return Response(
+                {'detail': 'receipt_id is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            receipt = VoteReceipt.objects.select_related('user', 'election').get(id=receipt_id)
+        except VoteReceipt.DoesNotExist:
+            return Response(
+                {'detail': 'Receipt not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        ActivityLog.objects.create(
+            user=request.user,
+            action='read',
+            resource_type='VoteReceipt',
+            resource_id=receipt.id,
+            description='Revealed full receipt code from audit',
+            ip_address=get_client_ip(request),
+            metadata={
+                'receipt_id': receipt.id,
+                'election_id': receipt.election_id,
+                'target_user_id': receipt.user_id,
+            },
+        )
+
+        return Response({
+            'receipt_id': receipt.id,
+            'receipt_code': receipt.receipt_code,
+        })
+
 
 class ResultsViewSet(viewsets.ViewSet):
     """ViewSet for viewing election results"""
     permission_classes = [AllowAny]
-    
+
     @action(detail=False, methods=['get'])
     def election_results(self, request):
         """Get results for a specific election"""
@@ -834,19 +948,19 @@ class ResultsViewSet(viewsets.ViewSet):
                 position_id = vote_data.get('position_id')
                 if not position_id:
                     continue
-                    
-            candidates_count = Candidate.objects.filter(
-                election=election,
-                position_id=position_id,
-                is_active=True
-            ).count()
-            
-            position_stats.append({
-                'position_id': position_id,
+
+                candidates_count = Candidate.objects.filter(
+                    election=election,
+                    position_id=position_id,
+                    is_active=True,
+                ).count()
+
+                position_stats.append({
+                    'position_id': position_id,
                     'position_name': vote_data.get('position__name', 'Unknown'),
                     'total_votes': vote_data.get('vote_count', 0),
-                'candidates_count': candidates_count
-            })
+                    'candidates_count': candidates_count,
+                })
         
         return Response({
             'election_id': election.id,
@@ -858,3 +972,54 @@ class ResultsViewSet(viewsets.ViewSet):
             'turnout_percentage': stats['turnout_percentage'],
             'position_statistics': position_stats
         })
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated, IsStaffOrSuperUser])
+    def ledger_integrity(self, request):
+        """Recompute VoteBlock digests and previous-hash linkage for tamper checks (staff/admin)."""
+        election_id = request.query_params.get('election_id')
+        if not election_id:
+            return Response(
+                {'detail': 'election_id query parameter is required'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            election = SchoolElection.objects.get(id=election_id)
+        except SchoolElection.DoesNotExist:
+            return Response(
+                {'detail': 'Election not found'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        ledger_ok, errors = verify_election_vote_chain(election.id)
+        block_total = VoteBlock.objects.filter(election_id=election.id).count()
+
+        ActivityLog.objects.create(
+            user=request.user,
+            action='read',
+            resource_type='VoteLedgerIntegrity',
+            resource_id=election.id,
+            description=(
+                f"Vote ledger integrity check for election '{election.title}': "
+                f"{'OK' if ledger_ok else 'FAILED'}"
+            ),
+            ip_address=get_client_ip(request),
+            metadata={
+                'election_id': election.id,
+                'election_title': election.title,
+                'ledger_ok': ledger_ok,
+                'block_count': block_total,
+                'error_count': len(errors),
+                'errors_sample': errors[:10],
+            },
+        )
+
+        return Response(
+            {
+                'election_id': election.id,
+                'election_title': election.title,
+                'ledger_ok': ledger_ok,
+                'block_count': block_total,
+                'errors': errors,
+            },
+            status=status.HTTP_200_OK,
+        )

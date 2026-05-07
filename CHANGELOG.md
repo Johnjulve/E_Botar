@@ -5,7 +5,68 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.1.0] - 2026-05-05
+
+Major release spanning **Google Sign-In**, **blockchain-inspired vote ledger**, **receipt modernization**, election metrics correctness, admin UI polish, **Maintenance → Feature availability** controls, and documentation handbooks.
+
+### Added
+
+- **Maintenance → Feature availability** (superuser): page at `/admin/maintenance/features` toggles feature flags persisted in **`SystemSettings`** (`feature_flags`) and exposed publicly via **`GET /api/common/branding/`**:
+  - **Public registration** (`user_registration`) disables `/register` and removes the register CTA on Login.
+  - **Google sign-in** (`google_login`) disables and visually greys out **“Continue with Google”** on Login (also enforced server-side in `POST /api/auth/google/`).
+  - **Data export** (`data_export`) mutes export navigation for staff (when preview is enabled) and blocks access accordingly.
+  - **Staff preview** (`staff_preview_disabled_features`) shows muted navigation entries for staff when features are off.
+  - Username/password sign-in always remains available so administrators can recover the system.
+- **Google Sign-In (OAuth 2)**:
+  - **Backend**: `POST /api/auth/google/` accepts Google Identity **ID tokens** (`credential`) and **access tokens** (`access_token`). Verifies credentials with Django **django-allauth** `SocialApp` (Sites framework) plus `google-auth` / Google userinfo endpoints. Issues JWT access/refresh on success.
+  - **Account lifecycle**: Verified Google email required. New accounts get auto-generated username from email. **Account linking**: if an existing local user matches the verified email, the API returns **`409 Conflict`** with `requires_password`; after password confirmation (`password` body field), creates `SocialAccount` and links JWT session.
+  - **Frontend**: `LoginPage` integrates **Google Identity Services** (`VITE_GOOGLE_CLIENT_ID`; OAuth token client primary path). Styled **Continue with Google** control with loading/disable states and link/password modal flows (`AuthContext.loginWithGoogle` → `authService.loginWithGoogle`).
+  - **Configuration**: Repository [`.env.example`](.env.example) documents `VITE_GOOGLE_CLIENT_ID` and **`SITE_ID`**. Admin must configure a Google **provider** `SocialApp` in Django admin (sites + client IDs) aligned with frontend env.
+  - **`google_auth_submit` throttling**: `POST /api/auth/google/` participates in **`DEFAULT_THROTTLE_RATES['google_auth_submit']`** (**10/minute**) via `enforce_scope_throttle` to limit abuse and brute-force pressure on credential exchange / linking-password attempts.
+- **Vote ledger integrity**:
+  - Append-only **`VoteBlock`** chain written on ballot submit (`apps.voting.vote_ledger`; migration `0002_voteblock`).
+  - Staff/admin **integrity verification** API and Django admin tooling; hash/linkage checks detect tampering.
+- **Receipt UX**:
+  - Short **`ABCD-EFGH`** receipt format with migration from legacy formats; hashed values recomputed as needed.
+  - Verification UX accepts hyphenless/lowercase identifiers through canonical normalization.
+- **Operational documentation**:
+  - **`Document.md`** — install, env, roles, troubleshooting — and **`Information.md`** updates (documentation map; audience → docs table; stewardship notes for `CHANGELOG.md`, `Phase_Implementation.md`, `README.md`, `Information.md`; monorepo path reference for `backend/`, `frontend/`, **`env/`**).
+
+### Changed
+
+- **Registration domains**: Moved allowlist configuration to **`REGISTRATION_ALLOWED_EMAIL_DOMAINS`** in [`backend/backend/settings.py`](backend/backend/settings.py), optionally overridden via env **`REGISTRATION_ALLOWED_EMAIL_DOMAINS`** (comma/semicolon-separated). [`UserRegistrationSerializer`](backend/apps/accounts/serializers.py) reads **`settings.REGISTRATION_ALLOWED_EMAIL_DOMAINS`**.
+- **Election list/detail serializers**: **`total_votes`** and **`total_positions`** computed with **`distinct`** / accurate counting so joins do not inflate metrics.
+- **Election serializers**: Tidier helper methods around status and count fields tied to distinct metrics.
+- **Frontend profile editing**: **`patchPayload.js`** helpers (`getChangedFields`, etc.) produce **minimal PATCH** bodies from form snapshots (**`ProfileEditPage`**) compared to blasting full payloads.
+- **Navbar / shell**: Sidebar **E-Botar** label alignment polish next to sidebar toggle controls.
+
+### Fixed
+
+- **Google auth / duplicate Django users**: if more than one `User` row shares the verified Google email, **`POST /api/auth/google/`** responds with **409** and **`code: ambiguous_email_accounts`** rather than arbitrarily linking via **`QuerySet.first()`**.
+- **JWT login by email**: **`CustomTokenObtainPairSerializer`** resolves matches with **`email__iexact`**; rejects no match and rejects **multiple** explicit accounts (drops the old nondeterministic **`.filter(...).first()`** recovery path inside **`MultipleObjectsReturned`**).
+- **Registration email duplicate guard**: verifies **case-insensitive** uniqueness and stores email **normalized to lowercase**.
+- **Google auth concurrency**: **`IntegrityError`** from racing **`SocialAccount`** creation or signup is recovered when another request already created **`SocialAccount(uid=sub)`**; otherwise clients receive **503** with “retry” wording instead of an unhandled database error.
+
+### Notes
+
+- **Database**: Run migrations after upgrading (includes **`VoteBlock`**).
+- Detailed API and workflows: [`Information.md`](Information.md).
+
+---
+
+## [1.1.0] - 2026-04-06
+
+Minor release focused on maintainability, smaller API payloads on list endpoints, and security/configuration review.
+
+### Changed
+- **List API payloads**: Narrow nested serializers for candidate/application lists and related voting serializers (minimal election/position/party fields where full nested objects were unnecessary). Candidate list manifesto text is truncated for browse views; detail views unchanged.
+- **HTTP compression**: `django.middleware.gzip.GZipMiddleware` added after `SecurityMiddleware` for compressible responses (e.g. JSON) when clients accept gzip.
+
+### Removed
+- **DRF default pagination** (reverted): List routes continue to return plain JSON arrays—no `{count, next, results}` wrapper—so the frontend stays simple (no pagination helper layer).
+
+### Security
+- Ongoing review of environment variables, secrets handling (`.env.example` / production `SECRET_KEY`), and dependency posture; no change to core JWT/throttle behavior beyond routine checks.
 
 ---
 

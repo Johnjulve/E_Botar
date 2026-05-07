@@ -8,7 +8,7 @@ import { Container } from '../../../components/layout';
 import { Card, Button, LoadingSpinner } from '../../../components/common';
 import { authService, programService, electionService, votingService } from '../../../services';
 import { useAuth } from '../../../hooks/useAuth';
-import { useBranding } from '../../../contexts/BrandingContext';
+import { useBranding } from '../../../hooks/useBranding';
 import { formatNumber } from '../../../utils/formatters';
 import jsPDF from 'jspdf';
 import './studentExport.css';
@@ -24,7 +24,6 @@ const DataExportPage = () => {
   
   // Student export state
   const [departments, setDepartments] = useState([]);
-  const [allCourses, setAllCourses] = useState([]); // All courses for mock data generation
   const [courses, setCourses] = useState([]); // Filtered courses for dropdown
   const [selectedDept, setSelectedDept] = useState('');
   const [selectedCourse, setSelectedCourse] = useState('');
@@ -376,7 +375,7 @@ const DataExportPage = () => {
         } else {
           setVotesByCategory({});
         }
-      } catch (profileError) {
+      } catch {
         // Cannot fetch student count, using fallback
         setTotalStudents(resultsData.total_voters || 0);
         setStudentsByDept({});
@@ -424,11 +423,9 @@ const DataExportPage = () => {
       ]);
       
       const deptList = departmentsResponse.data || [];
-      const courseList = coursesResponse.data || [];
+      const _courseList = coursesResponse.data || [];
       
       setDepartments(deptList);
-      setAllCourses(courseList);
-      
       // Fetch all students (staff can access all profiles)
       // Note: getAllProfiles() returns all profiles for staff/admin users
       const profilesResponse = await authService.getAllProfiles();
@@ -1329,7 +1326,7 @@ const DataExportPage = () => {
                     if (Array.isArray(truncatedName)) {
                       truncatedName = truncatedName[0];
                     }
-                  } catch (e) {
+                  } catch {
                     // If splitTextToSize fails, just use the original name
                     truncatedName = studentName.length > 50 ? studentName.substring(0, 47) + '...' : studentName;
                   }

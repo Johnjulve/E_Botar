@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import VoteReceipt, AnonVote, Ballot, VoteChoice
+from .models import VoteReceipt, AnonVote, Ballot, VoteChoice, VoteBlock
 
 
 @admin.register(VoteReceipt)
@@ -139,3 +139,52 @@ class AnonVoteAdmin(admin.ModelAdmin):
     def has_change_permission(self, request, obj=None):
         """Prevent modification of anonymous votes"""
         return False
+
+
+@admin.register(VoteBlock)
+class VoteBlockAdmin(admin.ModelAdmin):
+    list_display = ['election', 'block_index', 'vote_choice', 'hash_short', 'timestamp']
+    list_filter = ['election', 'timestamp']
+    search_fields = ['election__title', 'current_hash', 'previous_hash', 'voter_fingerprint']
+    ordering = ['election', 'block_index']
+    readonly_fields = [
+        'election',
+        'vote_choice',
+        'block_index',
+        'timestamp',
+        'voter_fingerprint',
+        'vote_data',
+        'previous_hash',
+        'current_hash',
+        'validator_signature',
+        'created_at',
+    ]
+
+    fieldsets = (
+        ('Block Header', {
+            'fields': ('election', 'vote_choice', 'block_index', 'timestamp')
+        }),
+        ('Blockchain Integrity', {
+            'fields': ('previous_hash', 'current_hash', 'validator_signature', 'voter_fingerprint')
+        }),
+        ('Payload', {
+            'fields': ('vote_data',),
+        }),
+        ('Metadata', {
+            'fields': ('created_at',),
+            'classes': ('collapse',)
+        }),
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def hash_short(self, obj):
+        return f"{obj.current_hash[:16]}..."
+    hash_short.short_description = 'Current Hash'

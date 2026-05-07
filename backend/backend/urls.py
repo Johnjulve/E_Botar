@@ -3,9 +3,12 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.views.generic import TemplateView
+from apps.common.views import VersionView, health_check
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path("accounts/", include("allauth.urls")),
+    path('api/health/', health_check, name='api-health'),
     # API guide (HTML) — when only backend is accessible
     path('guide/', TemplateView.as_view(template_name='guide.html'), name='api-guide'),
     # Accounts & Authentication API
@@ -18,6 +21,8 @@ urlpatterns = [
     path("api/voting/", include("apps.voting.urls")),
     # Common / system utilities API
     path("api/common/", include("apps.common.urls")),
+    # Version endpoint for backend/frontend compatibility checks
+    path("api/version/", VersionView.as_view(), name="api-version"),
     # DRF browsable API auth
     path("api-auth/", include("rest_framework.urls")),
 ]

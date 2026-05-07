@@ -7,8 +7,8 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Container, Row, Col, Form } from 'react-bootstrap';
 import { useAuth } from '../../../hooks/useAuth';
-import { useBranding } from '../../../contexts/BrandingContext';
-import { validatePassword, isValidEmail, isValidEmailDomain } from '../../../utils/validators';
+import { useBranding } from '../../../hooks/useBranding';
+import { validatePassword, isValidEmailDomain } from '../../../utils/validators';
 import './auth.css';
 
 const RegisterPage = () => {
@@ -150,7 +150,7 @@ const RegisterPage = () => {
       } else {
         setErrorMessage(result.error);
       }
-    } catch (error) {
+    } catch {
       setErrorMessage('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);

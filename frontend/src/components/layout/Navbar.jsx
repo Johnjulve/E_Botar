@@ -3,12 +3,13 @@
  * Main navigation bar with E-Botar branding
  */
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { Offcanvas } from 'react-bootstrap';
 import { electionService } from '../../services';
+import { DEFAULT_FEATURE_FLAGS } from '../../services/systemService';
 import { useAuth } from '../../hooks/useAuth';
-import { useBranding } from '../../contexts/BrandingContext';
+import { useBranding } from '../../hooks/useBranding';
 import { APP_VERSION } from '../../constants';
 import logoImg from '../../assets/images/logo.png';
 
@@ -116,6 +117,54 @@ const Icon = ({ name, size = 20, className = '' }) => {
   return icons[name] || null;
 };
 
+function suppressedByFeatureFlags(navItem, featureFlagsResolved) {
+  const keyGate = navItem.featureDisableKey;
+  if (keyGate != null && featureFlagsResolved[keyGate] === false) {
+    return true;
+  }
+  const anyGate = navItem.featureDisableAny;
+  if (
+    Array.isArray(anyGate) &&
+    anyGate.length > 0 &&
+    anyGate.every((candidateKey) => featureFlagsResolved[candidateKey] === false)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function applySidebarFeaturePresentation(navItem, featureFlagsResolved, { isStaffOrAdminSubset, isSuperuser }) {
+  if (!navItem) {
+    return null;
+  }
+  const suppressed = suppressedByFeatureFlags(navItem, featureFlagsResolved);
+
+  if (!suppressed) {
+    return navItem;
+  }
+
+  if (isSuperuser) {
+    return navItem;
+  }
+
+  const staffShowsMuted =
+    isStaffOrAdminSubset &&
+    featureFlagsResolved.staff_preview_disabled_features !== false;
+
+  if (staffShowsMuted) {
+    return { ...navItem, disabled: true };
+  }
+
+  return null;
+}
+
+function mapNavChildren(navItems, featureFlagsResolved, sidebarViewer) {
+  return navItems
+    .map((child) =>
+      applySidebarFeaturePresentation(child, featureFlagsResolved, sidebarViewer))
+    .filter(Boolean);
+}
+
 const Navbar = () => {
   const { user, isAuthenticated, isAdmin, isStaffOrAdmin, logout } = useAuth();
   const navigate = useNavigate();
@@ -126,6 +175,16 @@ const Navbar = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const branding = useBranding();
+  const sidebarFeatureFlags = branding.feature_flags;
+  const brandingLoading = branding.loading;
+
+  const resolvedSidebarFlags = useMemo(
+    () =>
+      brandingLoading
+        ? DEFAULT_FEATURE_FLAGS
+        : { ...DEFAULT_FEATURE_FLAGS, ...(sidebarFeatureFlags || {}) },
+    [brandingLoading, sidebarFeatureFlags],
+  );
 
   // Initialize sidebar state on mount
   useEffect(() => {
@@ -135,11 +194,11 @@ const Navbar = () => {
     }
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     logout();
     navigate('/login');
     setShowMenu(false);
-  };
+  }, [logout, navigate]);
 
   // Determine if candidate applications are open (based on upcoming elections)
   useEffect(() => {
@@ -153,7 +212,7 @@ const Navbar = () => {
         const res = await electionService.getUpcoming();
         const list = Array.isArray(res?.data) ? res.data : [];
         if (isAlive) setCanApplyAsCandidate(list.length > 0);
-      } catch (_e) {
+      } catch {
         // On error, allow applying to avoid blocking users erroneously
         if (isAlive) setCanApplyAsCandidate(true);
       }
@@ -168,24 +227,37 @@ const Navbar = () => {
     const sections = [];
 
     // Show admin menu for staff and admins
+    const sidebarAudience = {
+      isSuperuser: Boolean(isAdmin),
+      isStaffOrAdminSubset: Boolean(isStaffOrAdmin),
+    };
+
     if (isStaffOrAdmin) {
-      const adminMenuItems = [
+      let adminMenuItems = [
         { key: 'admin-dashboard', label: 'Dashboard', to: '/admin', icon: 'home' },
         { key: 'admin-elections', label: 'Elections', to: '/admin/elections', icon: 'calendar' },
         { key: 'admin-applications', label: 'Applications', to: '/admin/applications', icon: 'users' },
         { key: 'admin-voting-status', label: 'Voting Status', to: '/admin/voting-status', icon: 'vote' },
-        { key: 'admin-data-export', label: 'Data Export', to: '/admin/data-export', icon: 'download' },
+        { key: 'admin-receipt-audit', label: 'Receipt Audit', to: '/admin/receipt-audit', icon: 'activity' },
+        {
+          key: 'admin-data-export',
+          label: 'Data Export',
+          to: '/admin/data-export',
+          icon: 'download',
+          featureDisableKey: 'data_export',
+        },
         { key: 'admin-users', label: 'Users', to: '/admin/users', icon: 'users' },
       ];
 
-      // Admin-only extra items (superuser only)
+      // Admin-only registry items (superuser only)
       if (isAdmin) {
         adminMenuItems.push(
-          { key: 'admin-programs', label: 'Programs', to: '/admin/programs', icon: 'building' },
-          { key: 'admin-logs', label: 'System Logs', to: '/admin/logs', icon: 'activity' }
+          { key: 'admin-programs', label: 'Programs', to: '/admin/programs', icon: 'building' }
         );
       }
-      
+
+      adminMenuItems = mapNavChildren(adminMenuItems, resolvedSidebarFlags, sidebarAudience);
+
       sections.push({
         key: 'admin',
         label: isAdmin ? 'Admin' : 'Staff',
@@ -193,6 +265,27 @@ const Navbar = () => {
         collapsible: true,
         children: adminMenuItems,
       });
+
+      // Superuser-only: operations / monitoring
+      if (isAdmin) {
+        let maintenanceLinks = [
+          {
+            key: 'admin-maint-features',
+            label: 'Feature availability',
+            to: '/admin/maintenance/features',
+            icon: 'settings',
+          },
+          { key: 'admin-logs', label: 'System Logs', to: '/admin/logs', icon: 'activity' },
+        ];
+        maintenanceLinks = mapNavChildren(maintenanceLinks, resolvedSidebarFlags, sidebarAudience);
+        sections.push({
+          key: 'maintenance',
+          label: 'Maintenance',
+          icon: 'briefcase',
+          collapsible: true,
+          children: maintenanceLinks,
+        });
+      }
     }
 
     sections.push(
@@ -247,14 +340,46 @@ const Navbar = () => {
         { key: 'logout', label: 'Logout', to: '#logout', icon: 'logout', action: handleLogout }
       );
     } else {
-      sections.push(
-        { key: 'login', label: 'Login', to: '/login', icon: 'login' },
-        { key: 'register', label: 'Register', to: '/register', icon: 'userPlus' }
+      const guestAudience = {
+        isSuperuser: false,
+        isStaffOrAdminSubset: false,
+      };
+
+      const publicAuthLinks = [];
+      const registrationAccessible = resolvedSidebarFlags.user_registration !== false;
+
+      publicAuthLinks.push({
+        key: 'login',
+        label: 'Login',
+        to: '/login',
+        icon: 'login',
+      });
+
+      if (registrationAccessible) {
+        publicAuthLinks.push({
+          key: 'register',
+          label: 'Register',
+          to: '/register',
+          icon: 'userPlus',
+          featureDisableKey: 'user_registration',
+        });
+      }
+
+      mapNavChildren(publicAuthLinks, resolvedSidebarFlags, guestAudience).forEach((item) =>
+        sections.push(item)
       );
     }
 
     return sections;
-  }, [isAuthenticated, isAdmin, isStaffOrAdmin, canApplyAsCandidate]);
+  }, [
+    brandingLoading,
+    canApplyAsCandidate,
+    handleLogout,
+    isAdmin,
+    isAuthenticated,
+    isStaffOrAdmin,
+    resolvedSidebarFlags,
+  ]);
 
   useEffect(() => {
     const activeSections = {};
@@ -430,6 +555,21 @@ const Navbar = () => {
 
   const userInitials = buildInitials();
 
+  const renderUserAvatar = () => {
+    if (user?.profile?.avatar_url && !avatarLoadFailed) {
+      return (
+        <img
+          src={user.profile.avatar_url}
+          alt={userFullName}
+          className="avatar-image"
+          onError={() => setAvatarLoadFailed(true)}
+        />
+      );
+    }
+
+    return userInitials;
+  };
+
   useEffect(() => {
     setAvatarLoadFailed(false);
   }, [user?.profile?.avatar_url]);
@@ -482,19 +622,22 @@ const Navbar = () => {
       </header>
 
       <aside className={`desktop-sidebar d-none d-lg-block ${sidebarCollapsed ? 'collapsed' : ''}`}>
-        <button 
-          className="sidebar-toggle-btn" 
-          onClick={toggleSidebar}
-          aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            {sidebarCollapsed ? (
-              <polyline points="9 18 15 12 9 6"/>
-            ) : (
-              <polyline points="15 18 9 12 15 6"/>
-            )}
-          </svg>
-        </button>
+        <div className="sidebar-menu-header">
+          {!sidebarCollapsed && <div className="sidebar-menu-title">E-Botar</div>}
+          <button 
+            className="sidebar-toggle-btn" 
+            onClick={toggleSidebar}
+            aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              {sidebarCollapsed ? (
+                <polyline points="9 18 15 12 9 6"/>
+              ) : (
+                <polyline points="15 18 9 12 15 6"/>
+              )}
+            </svg>
+          </button>
+        </div>
         
         <div className="menu">
           {menuSections.map((section) =>
@@ -502,36 +645,28 @@ const Navbar = () => {
           )}
         </div>
 
-        {/* Sidebar version label above user pill */}
-        <div className="sidebar-version text-selectable">
-          {branding.app_name} v{APP_VERSION}
-        </div>
+        <div className="sidebar-bottom-meta">
+          <div className="sidebar-version text-selectable">
+            {branding.app_name} v{APP_VERSION}
+          </div>
 
-        {isAuthenticated && (
-          <Link
-            to="/profile"
-            className={`user-pill text-decoration-none ${sidebarCollapsed ? 'avatar-only' : ''}`}
-          >
-            <div className="avatar">
-              {user?.profile?.avatar_url && !avatarLoadFailed ? (
-                <img 
-                  src={user.profile.avatar_url} 
-                  alt={userFullName}
-                  className="avatar-image"
-                  onError={() => setAvatarLoadFailed(true)}
-                />
-              ) : (
-                userInitials
-              )}
-            </div>
-            {!sidebarCollapsed && (
-              <div className="user-pill-text">
-                <span className="name">{userFullName}</span>
-                <span className="email">{user?.user?.email}</span>
+          {isAuthenticated && (
+            <Link
+              to="/profile"
+              className={`user-pill text-decoration-none ${sidebarCollapsed ? 'avatar-only' : ''}`}
+            >
+              <div className="avatar">
+                {renderUserAvatar()}
               </div>
-            )}
-          </Link>
-        )}
+              {!sidebarCollapsed && (
+                <div className="user-pill-text">
+                  <span className="name">{userFullName}</span>
+                  <span className="email">{user?.user?.email}</span>
+                </div>
+              )}
+            </Link>
+          )}
+        </div>
       </aside>
 
       <Offcanvas
@@ -545,6 +680,7 @@ const Navbar = () => {
         </Offcanvas.Header>
         <Offcanvas.Body>
           <nav className="list-group">
+            <div className="sidebar-menu-title">E-Botar</div>
             {menuSections.map((section) =>
               renderSection(section, 'list-group-item list-group-item-action', true)
             )}
@@ -562,16 +698,7 @@ const Navbar = () => {
               onClick={() => setShowMenu(false)}
             >
               <div className="avatar">
-                {user?.profile?.avatar_url && !avatarLoadFailed ? (
-                  <img 
-                    src={user.profile.avatar_url} 
-                    alt={userFullName}
-                    className="avatar-image"
-                    onError={() => setAvatarLoadFailed(true)}
-                  />
-                ) : (
-                  userInitials
-                )}
+                {renderUserAvatar()}
               </div>
               <div className="user-pill-text">
                 <span className="name">{userFullName}</span>

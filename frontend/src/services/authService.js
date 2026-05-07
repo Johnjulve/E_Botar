@@ -16,6 +16,11 @@ export const authService = {
     return api.post('/auth/token/', credentials);
   },
 
+  // Google sign-in (Google Identity Services credential token)
+  loginWithGoogle: ({ credential, accessToken, password }) => {
+    return api.post('/auth/google/', { credential, access_token: accessToken, password });
+  },
+
   // Refresh JWT token
   refreshToken: (refreshToken) => {
     return api.post('/auth/token/refresh/', { refresh: refreshToken });

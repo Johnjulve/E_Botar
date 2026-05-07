@@ -2,19 +2,25 @@
 Django signals for election events
 """
 
+import logging
+
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
+
 from .models import SchoolElection
+
+logger = logging.getLogger(__name__)
 
 
 @receiver(post_save, sender=SchoolElection)
-def check_election_start(sender, instance, created, **kwargs):
+def auto_reject_pending_applications_on_election_saved(sender, instance, created, **kwargs):
     """
-    Check if election has started and auto-reject pending applications
-    This runs every time an election is saved
+    On election updates (not creates), reject pending applications when voting has started:
+
+    election is active, ``start_date <= now``, and pending applications exist for this election.
     """
-    if not created:  # Only for updates, not new creations
+    if not created:
         now = timezone.now()
         
         # Check if election just started (within last 5 minutes)
@@ -31,4 +37,8 @@ def check_election_start(sender, instance, created, **kwargs):
                 # Auto-reject pending applications
                 rejected_count = instance.auto_reject_pending_applications()
                 if rejected_count > 0:
-                    print(f"Auto-rejected {rejected_count} pending applications for election: {instance.title}")
+                    logger.info(
+                        'Auto-rejected %s pending applications for election: %s',
+                        rejected_count,
+                        instance.title,
+                    )

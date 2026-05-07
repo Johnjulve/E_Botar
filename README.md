@@ -1,6 +1,6 @@
 # E-Botar - Blockchain-Inspired Electronic Voting System
 
-**Version 1.0.0** | A secure, privacy-preserving electronic voting platform for student government elections
+**Version 2.1.0** | A secure, privacy-preserving electronic voting platform for student government elections
 
 [![Django](https://img.shields.io/badge/Django-5.2.8-green.svg)](https://www.djangoproject.com/)
 [![DRF](https://img.shields.io/badge/DRF-3.16.1-red.svg)](https://www.django-rest-framework.org/)
@@ -11,32 +11,50 @@
 
 ## 📖 Table of Contents
 
-- [Release Highlights (1.0.0)](#-release-highlights-100)
+- [Release Highlights (2.1.0)](#-release-highlights-210)
 - [Quick Start](#quick-start)
 - [Key Features](#key-features)
 - [Role-Based Access Control](#role-based-access-control)
 - [Documentation](#documentation)
 - [Quick Reference](#quick-reference)
 
-> 📚 **For complete system information**, see [Information.md](Information.md)
+> 📚 **For setup and everyday use**, see [Document.md](Document.md). **For complete technical detail**, see [Information.md](Information.md).
 
 ---
 
-## 🚀 Release Highlights (1.0.0)
+## 🚀 Release Highlights (2.1.0)
 
-- **App Version Single Source of Truth**: UI version (e.g. "E-Botar v1.0.0") is driven from one constant in `frontend/src/constants.js` (`APP_VERSION`). Navbar (sidebar and mobile) imports it; bump the version in one place to update the label everywhere.
+- **Major release**: **Google Sign-In**, blockchain-inspired vote-ledger integrity, receipt UX modernization, election metrics correctness, profile-edit PATCH efficiency, and documentation handbooks.
+- **Google Sign-In** (`POST /api/auth/google/`):
+  - **Frontend**: Continue with Google (Google Identity Services + `VITE_GOOGLE_CLIENT_ID`); JWT returned on success ([`.env.example`](.env.example)).
+  - **Backend**: django-allauth **Social App** (`SocialApp`) + Sites; verifies Google **ID tokens** or **OAuth access tokens**; optional **link-existing-account** via password modal when Google email matches a local user (`requires_password` response path).
+  - **Ops**: Configure Google OAuth client IDs in Django admin (Sites + Social applications) consistently with frontend env (`SITE_ID` in [.env.example](.env.example)).
+- **Vote ledger integrity is now end-to-end**:
+  - Ballot submit appends **`VoteBlock`** chain entries (`apps/voting`).
+  - Staff/admin verify integrity via API and Django admin workflow.
+  - Hash linkage normalization avoids false mismatches across round-trips and legacy payloads.
+- **Receipt verification is practical for real users**:
+  - Short receipt format (`ABCD-EFGH`); hyphenless/lowercase normalization on verify.
+  - Legacy long receipts migrated where applicable with hashes recomputed.
+- **Election counting correctness**:
+  - `total_votes` and `total_positions` use **`distinct`/accurate** counting instead of inflated join counts.
+- **Profile editing** ([`frontend/src/utils/patchPayload.js`](frontend/src/utils/patchPayload.js)):
+  - **Minimal PATCH payloads** derived from dirty field detection on **`ProfileEditPage`** (`getChangedFields`) for cleaner API updates.
+- **UI polish**: Sidebar **`E-Botar`** label aligned with the collapse toggle ([`CHANGELOG.md`](CHANGELOG.md) § 2.1.0 detail).
+- **Docs**: **[`Document.md`](Document.md)** (setup/use handbook) plus **[`Information.md`](Information.md)** documentation map and stewardship notes — see changelog for the full notes list.
+
+### Previous Highlights (1.0.0)
+
+- **App Version Single Source of Truth**: UI version (e.g. "E-Botar v2.1.0") is driven from one constant in `frontend/src/constants.js` (`APP_VERSION`). Navbar (sidebar and mobile) imports it; bump the version in one place to update the label everywhere.
 - **Admin User Directory (Read-Only)**: Students/staff/admin directory with advanced multi-field filters, summary cards (colleges/courses), and client-side pagination.
 - **Voting Status (Per Election)**: Read-only per-election voting completion status page with client-side pagination.
-- **`GET /api/auth/user-count/` (Staff/Admin)**: Returns total registered users (active/inactive) for the Admin Dashboard.
-- **`GET /api/auth/directory/` (Staff/Admin)**: Unified admin directory endpoint for directory pages.
-- **`GET /api/voting/voting-status/` (Staff/Admin)**: Per-election voting status endpoint (requires `election_id`).
-- **Admin Tables Upgrade**: User Management columns updated (first/middle/last name, ID, course, year level as numbers, role, status, joined/created, and admin-only actions) plus pagination and advanced search behavior.
-- **Application Pages Upgrade**: Application list pagination and cleaner Application Review layout with consistent avatar + initials fallback.
-- **Data Export PDF Improvements**: Reorganized election results PDF hierarchy; removed export mock-student loading; fixed React event leakage in the export flow.
-- **Layout + Responsiveness Fixes**: Full-width layout behavior (no boxed centering), fixed admin sidebar submenu clipping, and improved results-details container responsiveness.
+- **`GET /api/auth/user-count/` (Staff/Admin)**, **`GET /api/auth/directory/` (Staff/Admin)**, **`GET /api/voting/voting-status/` (Staff/Admin)** for admin metrics and directory flows.
+- **Admin Tables Upgrade**, **Application Pages Upgrade**, **Data Export PDF Improvements**, **Layout + Responsiveness Fixes** (full notes in [CHANGELOG.md](CHANGELOG.md) for 1.0.0).
 
 ### Documentation & environment (since 1.0.0)
 
+- **`Document.md` handbook**: Step-by-step install, env configuration, role-based usage, troubleshooting, and where each core markdown file belongs in the docs set.
+- **`Information.md` refresh**: Handbook linked from the docs index plus a documentation map for developers, admins, and release notes (`CHANGELOG.md`).
 - **Unified `.env.example`**: Template at repository root [`.env.example`](.env.example) covers Django and documented Vite build variables. Copy to `.env` in the same folder (not committed).
 - **Load order**: Django loads the repo-root `.env`, then optional `backend/.env` (backend file overrides). See [`backend/backend/settings.py`](backend/backend/settings.py).
 - **Admin UI consistency**: Party, position, and election management use the same registry-style layout; add/edit party and position run in modals with scoped CSS so Bootstrap dialogs stay centered.
@@ -231,6 +249,26 @@
 ## 🎯 Overview
 
 E-Botar is a comprehensive electronic voting system designed specifically for student government elections. Built on blockchain-inspired security principles and privacy-preserving technologies, it provides a transparent, verifiable, and user-friendly platform for democratic participation in educational institutions.
+
+### Blockchain-Inspired Concept (Single-System)
+
+E-Botar applies blockchain principles in a centralized architecture (Django + relational DB), not a decentralized public chain. The design objective is to preserve election integrity and auditability while keeping deployment practical for school operations.
+
+- **Block-style data idea**: each vote event is represented with hash-friendly fields (timestamp, vote payload, voter fingerprint, hash links).
+- **Integrity via hashing**: SHA-256 is used for receipt verification and vote-related fingerprints.
+- **Chaining principle**: vote records can be organized with previous/current hash references to detect tampering.
+- **Immutability objective**: vote records are treated as append-only in workflow and policy.
+- **Privacy first**: voter identity is separated from vote tally records; only anonymized votes are used for result computation.
+- **Auditability**: receipts and activity logs provide verifiable participation and operational traceability.
+
+### How the Voting Concept Works
+
+1. A voter submits a ballot during an active election.
+2. The system validates eligibility, election state, and one-vote-per-election constraints.
+3. A vote receipt is generated and hashed (SHA-256) for personal verification.
+4. Individual choices are converted into anonymized vote records for tallying.
+5. Results are computed from anonymized data, not direct voter-linked records.
+6. Administrative and security logs provide audit evidence for governance review.
 
 ### Vision
 To modernize student elections by providing a secure, accessible, and efficient digital voting platform that maintains the integrity of the democratic process while enhancing voter participation and transparency.
@@ -524,6 +562,7 @@ E-Botar implements a **three-tier role system**:
 - Role management (assign Student/Staff/Admin roles)
 - Full system configuration access
 - Export election results
+- **Maintenance → Feature availability**: temporarily disable **Public registration** and **Google sign-in** (greys out Login options), plus export navigation availability and staff preview behavior.
 - Access Django admin panel
 
 > 📖 **For detailed role permissions and API documentation**, see [Information.md](Information.md#security-features)
@@ -553,11 +592,25 @@ E-Botar implements a **three-tier role system**:
 
 ---
 
+## 🔢 Versioning Strategy
+
+E-Botar follows **Semantic Versioning (SemVer)**:
+
+- **MAJOR** (`X.0.0`): Breaking architectural or API changes
+- **MINOR** (`0.X.0`): Backward-compatible feature additions
+- **PATCH** (`0.0.X`): Backward-compatible fixes and maintenance
+
+Release notes are maintained in [CHANGELOG.md](CHANGELOG.md).  
+Detailed technical and conceptual documentation is maintained in [Information.md](Information.md).
+
+---
+
 ## 📚 Documentation
 
 ### Available Documentation
 
 - **[README.md](README.md)** - Quick start guide (this file)
+- **[Document.md](Document.md)** - Setup, configuration, roles, and troubleshooting handbook
 - **[Information.md](Information.md)** - Complete system information and technical details
 - **[CHANGELOG.md](CHANGELOG.md)** - Version history and changes
 - **[frontend/CSS_ARCHITECTURE_STRATEGY.md](frontend/CSS_ARCHITECTURE_STRATEGY.md)** - Frontend CSS architecture (foundation, global, module layers) and naming rules
@@ -566,15 +619,17 @@ E-Botar implements a **three-tier role system**:
 ### Quick Reference
 
 **For Developers**:
-1. Start with [Information.md](Information.md) for complete system documentation
-2. Check [CHANGELOG.md](CHANGELOG.md) for recent changes
-3. Reference [Phase_Implementation.md](Phase_Implementation.md) for architecture
-4. For frontend CSS (variables, module prefixes, loading order), see [frontend/CSS_ARCHITECTURE_STRATEGY.md](frontend/CSS_ARCHITECTURE_STRATEGY.md)
+1. Use [Document.md](Document.md) for local setup and operational workflow
+2. Start with [Information.md](Information.md) for complete system documentation
+3. Check [CHANGELOG.md](CHANGELOG.md) for recent changes
+4. Reference [Phase_Implementation.md](Phase_Implementation.md) for architecture
+5. For frontend CSS (variables, module prefixes, loading order), see [frontend/CSS_ARCHITECTURE_STRATEGY.md](frontend/CSS_ARCHITECTURE_STRATEGY.md)
 
 **For Administrators**:
-1. Follow Quick Start guide above
-2. See [Information.md](Information.md#user-workflows) for detailed workflows
-3. Use [Information.md](Information.md#getting-started) for configuration
+1. Start with [Document.md](Document.md) for installation and daily operations
+2. Follow Quick Start guide above
+3. See [Information.md](Information.md#user-workflows) for detailed workflows
+4. Use [Information.md](Information.md#getting-started) for deeper configuration
 
 **For Researchers**:
 1. See [Information.md](Information.md#research-foundation) for academic basis
@@ -589,7 +644,7 @@ E-Botar implements a **three-tier role system**:
 - **Backend API**: `http://localhost:8000/api/`
 - **Django Admin**: `http://localhost:8000/admin/`
 - **Frontend**: `http://localhost:5173/`
-- **API Health**: `http://localhost:8000/api/auth/health/`
+- **API Health**: `http://localhost:8000/api/health/` (alias: `/api/common/health/`)
 
 ### Essential Commands
 ```powershell
@@ -623,6 +678,7 @@ locust -f locustfile.py --host=http://localhost:8000
 ```
 
 ### Key Files
+- `Document.md` (repository root) - Setup-and-use handbook
 - `.env.example` (repository root) - Template for `.env` (Django + documented Vite vars); copy to `.env` beside it
 - `backend/backend/settings.py` - Django configuration (loads root `.env` then `backend/.env`)
 - `backend/requirements.txt` - Python dependencies
@@ -631,9 +687,9 @@ locust -f locustfile.py --host=http://localhost:8000
 
 ---
 
-**E-Botar v1.0.0** | Last Updated: March 2026 | Performance Tested & Optimized  
+**E-Botar v2.1.0** | Last Updated: May 2026 | Performance Tested & Optimized  
 **Status**: Production Ready | Full Stack Complete
 
-> 📖 **For complete documentation**, see [Information.md](Information.md)
+> 📖 **Handbook**: [Document.md](Document.md) · **Technical reference**: [Information.md](Information.md)
 
 **Built with ❤️ for democratic student governance**

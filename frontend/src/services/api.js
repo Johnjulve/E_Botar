@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { STORAGE_KEYS } from '../constants';
+import { STORAGE_KEYS, APP_VERSION } from '../constants';
 
 /**
  * Get base URL for API requests
@@ -49,6 +49,7 @@ const api = axios.create({
 // Request interceptor - Add auth token
 api.interceptors.request.use(
   (config) => {
+    config.headers['X-Frontend-Version'] = APP_VERSION;
     const token = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -89,11 +90,11 @@ api.interceptors.response.use(
         try {
           const errorData = JSON.parse(text);
           error.response.data = errorData;
-        } catch (e) {
+        } catch {
           // If not JSON, keep as text
           error.response.data = text;
         }
-      } catch (blobError) {
+      } catch {
         // If we can't read the blob, create a generic error
         error.response.data = {
           error: `HTTP ${error.response.status}: ${error.response.statusText}`,

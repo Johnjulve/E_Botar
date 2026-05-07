@@ -3,12 +3,11 @@
  * Modern redesigned election results with enhanced visualization
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Container } from '../../../components/layout';
 import { LoadingSpinner, EmptyState } from '../../../components/common';
-import { electionService, votingService, authService } from '../../../services';
-import { useAuth } from '../../../hooks/useAuth';
+import { electionService, votingService } from '../../../services';
 import { formatDate, formatNumber, formatPercentage } from '../../../utils/formatters';
 import './results.css';
 
@@ -84,7 +83,6 @@ const AutoFitText = ({ children, className = '', minFontSize = 14, maxFontSize =
 
 const ResultsDetailsPage = () => {
   const { id } = useParams();
-  const { isAdmin } = useAuth();
   const [election, setElection] = useState(null);
   const [results, setResults] = useState([]);
   const [statistics, setStatistics] = useState(null);
@@ -96,25 +94,8 @@ const ResultsDetailsPage = () => {
   const [resultsLocked, setResultsLocked] = useState(false);
   const [availableAfter, setAvailableAfter] = useState('');
   const [totalStudents, setTotalStudents] = useState(0);
-  const [studentsByDept, setStudentsByDept] = useState({});
 
-  useEffect(() => {
-    fetchResults();
-    
-    // Auto-refresh every 10 seconds if election is active
-    let interval;
-    if (autoRefresh && isActive) {
-      interval = setInterval(() => {
-        fetchResults();
-      }, 10000); // Refresh every 10 seconds
-    }
-    
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [id, autoRefresh, isActive]);
-
-  const fetchResults = async () => {
+  const fetchResults = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
@@ -146,10 +127,6 @@ const ResultsDetailsPage = () => {
         // Use total_eligible_students from results data (calculated on backend)
         // This ensures accurate count based on election eligibility rules
         setTotalStudents(resultsData.total_eligible_students || resultsData.total_voters || 0);
-        
-        // Note: We don't fetch all profiles anymore since non-admin users can't access them
-        // The backend calculates eligible students based on election type and eligibility rules
-        setStudentsByDept({});
       } catch (resultsError) {
         const status = resultsError.response?.status;
         if (status === 403) {
@@ -172,7 +149,23 @@ const ResultsDetailsPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    fetchResults();
+    
+    // Auto-refresh every 10 seconds if election is active
+    let interval;
+    if (autoRefresh && isActive) {
+      interval = setInterval(() => {
+        fetchResults();
+      }, 10000); // Refresh every 10 seconds
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [fetchResults, autoRefresh, isActive]);
 
   if (loading) {
     return <LoadingSpinner fullScreen text="Loading results..." />;

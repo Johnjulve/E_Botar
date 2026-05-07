@@ -3,6 +3,8 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 
+from apps.accounts.models import UserProfile
+
 
 class Party(models.Model):
     """Model for political parties"""
@@ -123,24 +125,33 @@ class SchoolElection(models.Model):
         now = timezone.now()
         return now > self.end_date
     
+    def user_matches_department_election_rules(self, user):
+        """Department elections require a profile with department matching ``allowed_department``."""
+        try:
+            profile = user.profile
+        except UserProfile.DoesNotExist:
+            return False
+        if not profile.department:
+            return False
+        return (
+            bool(self.allowed_department)
+            and self.allowed_department.code == profile.department.code
+        )
+
     def is_user_eligible(self, user):
         """Check if user is eligible to vote in this election"""
         if self.election_type == 'university':
-            return True  # All students can vote in USC elections
-        elif self.election_type == 'department':
-            if not hasattr(user, 'profile') or not user.profile.department:
-                return False
-            return self.allowed_department and self.allowed_department.code == user.profile.department.code
+            return True
+        if self.election_type == 'department':
+            return self.user_matches_department_election_rules(user)
         return False
-    
+
     def is_user_eligible_to_apply(self, user):
         """Check if user is eligible to apply as candidate in this election"""
         if self.election_type == 'university':
-            return True  # All students can apply for USC elections
-        elif self.election_type == 'department':
-            if not hasattr(user, 'profile') or not user.profile.department:
-                return False
-            return self.allowed_department and self.allowed_department.code == user.profile.department.code
+            return True
+        if self.election_type == 'department':
+            return self.user_matches_department_election_rules(user)
         return False
     
     def auto_reject_pending_applications(self):

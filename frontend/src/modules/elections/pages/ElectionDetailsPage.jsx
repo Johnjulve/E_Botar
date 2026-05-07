@@ -3,39 +3,21 @@
  * Show election details with positions and candidates
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Container } from '../../../components/layout';
 import { LoadingSpinner, EmptyState } from '../../../components/common';
 import { electionService, candidateService } from '../../../services';
 import { formatDate, getElectionStatus } from '../../../utils/formatters';
-import { useAuth } from '../../../hooks/useAuth';
 import '../elections.css';
 
 const ElectionDetailsPage = () => {
   const { id } = useParams();
-  const { user } = useAuth();
   const [election, setElection] = useState(null);
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
-  
-  // Check if user is eligible to vote
-  const isEligible = () => {
-    if (!election || !user) return false;
-    if (election.election_type === 'university') return true;
-    if (election.election_type === 'department') {
-      const userDeptCode = user?.profile?.department?.code;
-      const allowedDeptCode = election.allowed_department?.code || election.allowed_department;
-      return allowedDeptCode && allowedDeptCode === userDeptCode;
-    }
-    return false;
-  };
 
-  useEffect(() => {
-    fetchElectionDetails();
-  }, [id]);
-
-  const fetchElectionDetails = async () => {
+  const fetchElectionDetails = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -51,7 +33,11 @@ const ElectionDetailsPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    fetchElectionDetails();
+  }, [fetchElectionDetails]);
 
   const groupCandidatesByPosition = () => {
     const grouped = {};

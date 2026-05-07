@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // Load environment variables from repo root (E_Botar/.env)
+  envDir: '..',
   plugins: [react()],
   server: {
     port: 5173,

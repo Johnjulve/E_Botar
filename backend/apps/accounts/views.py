@@ -1,320 +1,404 @@
+"""
+Accounts API: auth, profiles, programs registry, directory, and aggregates.
+
+Sections: helpers → JWT & registration → profile ViewSet → directory &
+read-only programs → superuser ProgramViewSet → simple count/current-user endpoints.
+"""
 import logging
 import csv
 import io
+import re
+import requests
+
+from django.db import IntegrityError, transaction
 from django.db.models import Q
-from rest_framework import generics, status, viewsets
-from rest_framework.decorators import api_view, permission_classes, action
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework_simplejwt.views import TokenObtainPairView
 from django.contrib.auth.models import User
 from django.http import HttpResponse
+from django.contrib.sites.shortcuts import get_current_site
+from rest_framework import generics, status, viewsets
+from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.tokens import RefreshToken
+from allauth.socialaccount.models import SocialAccount, SocialApp
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token as google_id_token
 
-from .models import UserProfile, Program
-from .utils import staff_can_manage_student_profile
+from apps.common.feature_flags import load_feature_flags
 from apps.common.models import ActivityLog
-from apps.common.permissions import IsSuperUser, IsStaffOrSuperUser
+from apps.common.permissions import IsStaffOrSuperUser, IsSuperUser
 from apps.common.throttling import enforce_scope_throttle
+from apps.common.utils import get_client_ip
+
+from .models import Program, UserProfile
 from .serializers import (
-    UserSerializer, UserProfileSerializer, UserRegistrationSerializer,
-    DepartmentSerializer, CourseSerializer, ProgramSerializer,
-    CustomTokenObtainPairSerializer
+    CourseSerializer,
+    CustomTokenObtainPairSerializer,
+    DepartmentSerializer,
+    ProgramSerializer,
+    UserProfileSerializer,
+    UserRegistrationSerializer,
+    UserSerializer,
 )
+from .utils import staff_can_manage_student_profile
+
 
 logger = logging.getLogger(__name__)
 
+_PROFILE_EDIT_DENIED = (
+    'You do not have permission to edit this profile. '
+    'Staff may only edit student profiles at or below their own year level.'
+)
+
+
+def _get_google_client_id_from_social_app(request):
+    current_site = get_current_site(request)
+    site_specific_social_app = (
+        SocialApp.objects.filter(provider='google', sites=current_site)
+        .order_by('id')
+        .first()
+    )
+    if site_specific_social_app:
+        return site_specific_social_app.client_id
+
+    fallback_social_app = SocialApp.objects.filter(provider='google').order_by('id').first()
+    return fallback_social_app.client_id if fallback_social_app else None
+
+
+def _build_unique_username_from_email(email_value):
+    local_part = (email_value or "").split("@")[0]
+    normalized_base = re.sub(r"[^a-zA-Z0-9_]", "", local_part).lower() or "google_user"
+    candidate_username = normalized_base[:150]
+    sequence = 1
+    while User.objects.filter(username=candidate_username).exists():
+        suffix = f"_{sequence}"
+        candidate_username = f"{normalized_base[: max(150 - len(suffix), 1)]}{suffix}"
+        sequence += 1
+    return candidate_username
+
+
+def handle_current_user_password_change(request):
+    if request.method != 'POST' or 'change_password' not in request.data:
+        return None
+
+    old_password = request.data.get('old_password')
+    new_password = request.data.get('new_password')
+    if not old_password or not new_password:
+        return Response(
+            {'error': 'Both old_password and new_password are required'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if len(new_password) < 8:
+        return Response(
+            {'error': 'New password must be at least 8 characters long'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    user = User.objects.get(pk=request.user.pk)
+    if not user.check_password(old_password):
+        return Response(
+            {'error': 'Current password is incorrect'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    user.set_password(new_password)
+    user.save()
+    user = User.objects.get(pk=request.user.pk)
+
+    verified = user.check_password(new_password)
+    logger.info(
+        'Password change attempt for user %s (%s): verification=%s',
+        user.id,
+        user.username,
+        verified,
+    )
+    if not verified:
+        logger.error(
+            'Password change verification failed for user %s (%s)',
+            user.id,
+            user.username,
+        )
+        return Response(
+            {'error': 'Password change failed verification. Please try again.'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    logger.info(
+        'Password successfully changed and verified for user %s (%s)',
+        user.id,
+        user.username,
+    )
+    try:
+        ActivityLog.objects.create(
+            user=request.user,
+            action='update',
+            resource_type='User',
+            resource_id=request.user.id,
+            description=f'User {request.user.username} changed their password',
+            ip_address=get_client_ip(request),
+            metadata={
+                'action_type': 'password_change',
+                'user_id': request.user.id,
+                'username': request.user.username,
+            },
+        )
+    except Exception as exc:
+        logger.error('Error logging password change activity: %s', exc)
+
+    return Response({'message': 'Password changed successfully'}, status=status.HTTP_200_OK)
+
+
+# --- JWT ----------------------------------------------------------------------
+
 
 class CustomTokenObtainPairView(TokenObtainPairView):
-    """Custom token view that accepts either email or username"""
     serializer_class = CustomTokenObtainPairSerializer
 
 
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def health_check(request):
-    """Health check endpoint for accounts service"""
-    return Response({
-        'status': 'healthy',
-        'service': 'accounts',
-        'message': 'Accounts service is running'
-    })
-
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def student_count(request):
-    """Get total count of students (non-staff, non-superuser, active users)"""
-    # Count User objects directly (more accurate than counting profiles)
-    # Only count active users who are not staff and not superuser
-    # This ensures we count all students regardless of profile completeness
-    total_students = User.objects.filter(
-        is_staff=False,
-        is_superuser=False,
-        is_active=True
-    ).count()
-    
-    return Response({
-        'total_students': total_students
-    })
-
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated, IsStaffOrSuperUser])
-def user_count(request):
-    """Get total count of registered users (active + inactive). Staff/Admin only."""
-    total_users = User.objects.count()
-    total_active_users = User.objects.filter(is_active=True).count()
-    total_inactive_users = total_users - total_active_users
-
-    return Response({
-        'total_users': total_users,
-        'total_active_users': total_active_users,
-        'total_inactive_users': total_inactive_users,
-    })
-
-
-@api_view(['GET', 'PATCH', 'PUT', 'POST'])
-@permission_classes([IsAuthenticated])
-def current_user(request):
-    """Get or update current authenticated user's profile"""
-    if request.method == 'POST' and 'change_password' in request.data:
-        # Handle password change
-        old_password = request.data.get('old_password')
-        new_password = request.data.get('new_password')
-        
-        if not old_password or not new_password:
-            return Response({
-                'error': 'Both old_password and new_password are required'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Validate new password length
-        if len(new_password) < 8:
-            return Response({
-                'error': 'New password must be at least 8 characters long'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Get a fresh user instance from the database to avoid any caching issues
-        from django.contrib.auth import get_user_model
-        User = get_user_model()
-        user = User.objects.get(pk=request.user.pk)
-        
-        # Verify old password with the fresh user instance
-        if not user.check_password(old_password):
-            return Response({
-                'error': 'Current password is incorrect'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Set new password (this automatically hashes it)
-        user.set_password(new_password)
-        # Save the user - save all fields to ensure password is committed
-        user.save()
-        
-        # Force database commit by getting a completely fresh instance
-        # This ensures the password was actually written to the database
-        user = User.objects.get(pk=request.user.pk)
-        
-        # Verify the new password works by checking it
-        password_verified = user.check_password(new_password)
-        logger.info(f"Password change attempt for user {user.id} ({user.username}): verification={password_verified}")
-        
-        if not password_verified:
-            logger.error(f"Password change verification failed for user {user.id} ({user.username})")
-            return Response({
-                'error': 'Password change failed verification. Please try again.'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-        # Log the successful password change
-        logger.info(f"Password successfully changed and verified for user {user.id} ({user.username})")
-        
-        # Log the activity
-        try:
-            from apps.common.models import ActivityLog
-            x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-            if x_forwarded_for:
-                ip_address = x_forwarded_for.split(',')[0]
-            else:
-                ip_address = request.META.get('REMOTE_ADDR')
-            
-            ActivityLog.objects.create(
-                user=request.user,
-                action='update',
-                resource_type='User',
-                resource_id=request.user.id,
-                description=f"User {request.user.username} changed their password",
-                ip_address=ip_address,
-                metadata={
-                    'action_type': 'password_change',
-                    'user_id': request.user.id,
-                    'username': request.user.username
-                }
-            )
-        except Exception as e:
-            logger.error(f"Error logging password change activity: {str(e)}")
-        
-        return Response({
-            'message': 'Password changed successfully'
-        }, status=status.HTTP_200_OK)
-    
-    if request.method == 'GET':
-        try:
-            user_serializer = UserSerializer(request.user, context={'request': request})
-            try:
-                profile = request.user.profile
-            except UserProfile.DoesNotExist:
-                # Create profile if it doesn't exist
-                profile = UserProfile.objects.create(user=request.user)
-            
-            # Serialize profile with proper error handling
-            try:
-                profile_serializer = UserProfileSerializer(profile, context={'request': request})
-                return Response({
-                    'user': user_serializer.data,
-                    'profile': profile_serializer.data
-                })
-            except Exception as e:
-                # Log the error for debugging
-                logger.error(f"Error serializing profile for user {request.user.id}: {str(e)}", exc_info=True)
-                return Response(
-                    {'error': 'Error retrieving profile data', 'detail': str(e)},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
-        except Exception as e:
-            # Log the error for debugging
-            logger.error(f"Error in current_user view for user {request.user.id}: {str(e)}", exc_info=True)
-            return Response(
-                {'error': 'Error retrieving user data', 'detail': str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-    
-    elif request.method in ['PATCH', 'PUT']:
-        # Update user and profile data
-        user = request.user
-        profile = user.profile
-        
-        # Update user fields (first_name, last_name, email)
-        user_data = {}
-        if 'first_name' in request.data:
-            user_data['first_name'] = request.data['first_name']
-        if 'last_name' in request.data:
-            user_data['last_name'] = request.data['last_name']
-        if 'email' in request.data:
-            # Only allow email update if it's empty
-            if not user.email or user.email.strip() == '':
-                user_data['email'] = request.data['email']
-        
-        if user_data:
-            user_serializer = UserSerializer(user, data=user_data, partial=True, context={'request': request})
-            if user_serializer.is_valid():
-                user_serializer.save()
-            else:
-                return Response(user_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Check if user is admin/staff (academic fields optional)
-        is_admin_or_staff = user.is_staff or user.is_superuser
-        
-        # Update profile fields
-        profile_data = {}
-        profile_fields = ['middle_name', 'student_id', 'year_level', 'section']
-        for field in profile_fields:
-            if field in request.data:
-                # For admins, allow empty strings to clear the field
-                if is_admin_or_staff:
-                    profile_data[field] = request.data[field] if request.data[field] else None
-                elif request.data[field]:  # For regular users, only set if value provided
-                    profile_data[field] = request.data[field]
-        
-        # Handle department and course separately - convert to department_code and course_code
-        if 'department' in request.data:
-            if is_admin_or_staff and (not request.data['department'] or request.data['department'] == ''):
-                # Allow admins to clear department
-                profile_data['department_code'] = None
-            elif request.data['department']:
-                # Accept either code directly or as department_code
-                dept_value = request.data.get('department_code') or request.data['department']
-                profile_data['department_code'] = str(dept_value).strip()
-        
-        if 'course' in request.data:
-            if is_admin_or_staff and (not request.data['course'] or request.data['course'] == ''):
-                # Allow admins to clear course
-                profile_data['course_code'] = None
-            elif request.data['course']:
-                # Accept either code directly or as course_code
-                course_value = request.data.get('course_code') or request.data['course']
-                profile_data['course_code'] = str(course_value).strip()
-        
-        # Handle avatar file from request.FILES
-        if 'avatar' in request.FILES:
-            # Delete old avatar if exists
-            if profile.avatar:
-                profile.avatar.delete(save=False)
-            profile_data['avatar'] = request.FILES['avatar']
-        
-        # Handle avatar removal
-        if request.data.get('remove_avatar') == 'true':
-            if profile.avatar:
-                profile.avatar.delete(save=False)
-            profile_data['avatar'] = None
-        
-        if profile_data:
-            profile_serializer = UserProfileSerializer(profile, data=profile_data, partial=True)
-            if profile_serializer.is_valid():
-                profile_serializer.save()
-            else:
-                return Response(profile_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Refresh from database to get updated relationships
-        profile.refresh_from_db()
-        
-        # Return updated data with request context for avatar URL
-        user_serializer = UserSerializer(user, context={'request': request})
-        profile_serializer = UserProfileSerializer(profile, context={'request': request})
-        
-        return Response({
-            'user': user_serializer.data,
-            'profile': profile_serializer.data,
-            'message': 'Profile updated successfully'
-        })
-
-
 class UserRegistrationView(generics.CreateAPIView):
-    """User registration endpoint"""
     queryset = User.objects.all()
     serializer_class = UserRegistrationSerializer
     permission_classes = [AllowAny]
-    
+
     def create(self, request, *args, **kwargs):
         enforce_scope_throttle(
             request,
             self,
             scope='registration_submit',
-            message='You are submitting registrations too quickly. Please wait a moment before trying again.'
+            message='You are submitting registrations too quickly. Please wait a moment before trying again.',
         )
-
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        
-        return Response({
-            'message': 'User registered successfully',
-            'user': UserSerializer(user, context={'request': request}).data
-        }, status=status.HTTP_201_CREATED)
+        return Response(
+            {
+                'message': 'User registered successfully',
+                'user': UserSerializer(user, context={'request': request}).data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def google_login(request):
+    enforce_scope_throttle(
+        request,
+        google_login,
+        scope='google_auth_submit',
+        message=(
+            'Too many Google sign-in attempts in a short time. '
+            'Please wait a moment before trying again.'
+        ),
+    )
+
+    if not load_feature_flags().get('google_login', True):
+        return Response(
+            {'error': 'Google sign-in is temporarily disabled.'},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    google_credential = request.data.get('credential')
+    google_access_token = request.data.get('access_token')
+    existing_account_password = request.data.get('password', '')
+
+    if not google_credential and not google_access_token:
+        return Response(
+            {'error': 'Google credential or access token is required.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    google_client_id = _get_google_client_id_from_social_app(request)
+    if not google_client_id:
+        return Response(
+            {'error': 'Google Social App is not configured on the server.'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    if google_credential:
+        try:
+            token_payload = google_id_token.verify_oauth2_token(
+                google_credential,
+                google_requests.Request(),
+                google_client_id,
+            )
+        except Exception:
+            return Response(
+                {'error': 'Invalid Google credential.'},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+    else:
+        try:
+            userinfo_response = requests.get(
+                'https://openidconnect.googleapis.com/v1/userinfo',
+                headers={'Authorization': f'Bearer {google_access_token}'},
+                timeout=10,
+            )
+            if userinfo_response.status_code != 200:
+                return Response(
+                    {'error': 'Invalid Google access token.'},
+                    status=status.HTTP_401_UNAUTHORIZED,
+                )
+            token_payload = userinfo_response.json()
+        except requests.RequestException:
+            return Response(
+                {'error': 'Unable to verify Google access token.'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+    email_value = (token_payload.get('email') or '').strip().lower()
+    email_verified = str(token_payload.get('email_verified')).lower() == 'true'
+    google_subject = token_payload.get('sub')
+
+    if not email_value or not google_subject:
+        return Response(
+            {'error': 'Google account payload is missing required identity fields.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if not email_verified:
+        return Response(
+            {'error': 'Google email must be verified before sign in.'},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    existing_social_account = SocialAccount.objects.filter(
+        provider='google',
+        uid=str(google_subject),
+    ).select_related('user').first()
+    if existing_social_account:
+        user = existing_social_account.user
+    else:
+        conflicting_email_accounts = User.objects.filter(email__iexact=email_value)
+        ambiguous_email_conflict_count = conflicting_email_accounts.count()
+        if ambiguous_email_conflict_count > 1:
+            return Response(
+                {
+                    'error': (
+                        'Several local accounts share this verified email. '
+                        'Contact an administrator to resolve duplicate accounts.'
+                    ),
+                    'code': 'ambiguous_email_accounts',
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+        matching_user = conflicting_email_accounts.first()
+
+        if matching_user:
+            if not existing_account_password:
+                return Response(
+                    {
+                        'error': 'Password confirmation is required before linking this Google account.',
+                        'requires_password': True,
+                        'email': email_value,
+                    },
+                    status=status.HTTP_409_CONFLICT,
+                )
+            if not matching_user.check_password(existing_account_password):
+                return Response(
+                    {'error': 'Invalid password for existing account.'},
+                    status=status.HTTP_401_UNAUTHORIZED,
+                )
+            if not matching_user.is_active:
+                return Response(
+                    {'error': 'This account is inactive and cannot be linked.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            try:
+                SocialAccount.objects.create(
+                    user=matching_user,
+                    provider='google',
+                    uid=str(google_subject),
+                    extra_data=token_payload,
+                )
+            except IntegrityError:
+                raced_social_link = SocialAccount.objects.filter(
+                    provider='google',
+                    uid=str(google_subject),
+                ).select_related('user').first()
+                if raced_social_link:
+                    user = raced_social_link.user
+                else:
+                    logger.exception('Google linking IntegrityError without recoverable SocialAccount')
+                    return Response(
+                        {'error': 'Unable to link Google account (database conflict). Please try again shortly.'},
+                        status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    )
+            else:
+                user = matching_user
+        else:
+            first_name = (token_payload.get('given_name') or '').strip()
+            last_name = (token_payload.get('family_name') or '').strip()
+            unique_username = _build_unique_username_from_email(email_value)
+            try:
+                with transaction.atomic():
+                    user = User.objects.create_user(
+                        username=unique_username,
+                        email=email_value,
+                        password=None,
+                        first_name=first_name,
+                        last_name=last_name,
+                    )
+                    SocialAccount.objects.create(
+                        user=user,
+                        provider='google',
+                        uid=str(google_subject),
+                        extra_data=token_payload,
+                    )
+                    UserProfile.objects.get_or_create(user=user)
+            except IntegrityError:
+                raced_google_user_flow = SocialAccount.objects.filter(
+                    provider='google',
+                    uid=str(google_subject),
+                ).select_related('user').first()
+                if raced_google_user_flow:
+                    user = raced_google_user_flow.user
+                else:
+                    logger.exception('Google new-user IntegrityError without matching SocialAccount')
+                    return Response(
+                        {
+                            'error': (
+                                'Unable to finalize Google sign-in because of an account naming conflict '
+                                '(try again shortly or contact support).'
+                            ),
+                        },
+                        status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    )
+
+    if not user.is_active:
+        return Response(
+            {'error': 'This account is inactive.'},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    jwt_refresh_token = RefreshToken.for_user(user)
+    return Response(
+        {
+            'access': str(jwt_refresh_token.access_token),
+            'refresh': str(jwt_refresh_token),
+        },
+        status=status.HTTP_200_OK,
+    )
+
+
+# --- Profiles -----------------------------------------------------------------
 
 
 class UserProfileViewSet(viewsets.ModelViewSet):
-    """ViewSet for managing user profiles"""
     queryset = UserProfile.objects.all()
     serializer_class = UserProfileSerializer
     permission_classes = [IsAuthenticated]
-    
-    def get_queryset(self):
-        # Users can only access their own profile unless staff or superuser
-        if self.request.user.is_staff or self.request.user.is_superuser:
-            return UserProfile.objects.all()
-        return UserProfile.objects.filter(user=self.request.user)
 
-    def _can_edit_profile(self, request, profile):
-        """Superuser: all. Own profile: yes. Staff: students at/below staff year level only."""
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_staff or user.is_superuser:
+            return UserProfile.objects.all()
+        return UserProfile.objects.filter(user=user)
+
+    @staticmethod
+    def user_can_edit_profile(request, profile):
         if request.user.is_superuser:
             return True
         if profile.user_id == request.user.id:
@@ -323,256 +407,198 @@ class UserProfileViewSet(viewsets.ModelViewSet):
             return True
         return False
 
-    def update(self, request, *args, **kwargs):
+    def enforce_profile_editor_permission(self):
         profile = self.get_object()
-        if not self._can_edit_profile(request, profile):
-            raise PermissionDenied(
-                'You do not have permission to edit this profile. '
-                'Staff may only edit student profiles at or below their own year level.'
-            )
+        if not self.user_can_edit_profile(self.request, profile):
+            raise PermissionDenied(_PROFILE_EDIT_DENIED)
+
+    def update(self, request, *args, **kwargs):
+        self.enforce_profile_editor_permission()
         return super().update(request, *args, **kwargs)
 
     def partial_update(self, request, *args, **kwargs):
-        profile = self.get_object()
-        if not self._can_edit_profile(request, profile):
-            raise PermissionDenied(
-                'You do not have permission to edit this profile. '
-                'Staff may only edit student profiles at or below their own year level.'
-            )
+        self.enforce_profile_editor_permission()
         return super().partial_update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
         if not request.user.is_superuser:
             raise PermissionDenied('Only administrators can delete user profiles.')
         return super().destroy(request, *args, **kwargs)
-    
+
     @action(detail=True, methods=['post'], permission_classes=[IsStaffOrSuperUser])
     def toggle_active(self, request, pk=None):
-        """Toggle user's active status (admin: any user; staff: students in year scope only)."""
         profile = self.get_object()
-        user = profile.user
+        user_obj = profile.user
 
         if not request.user.is_superuser:
-            if user.is_superuser or user.is_staff:
+            if user_obj.is_superuser or user_obj.is_staff:
                 raise PermissionDenied('Staff cannot change active status for administrators or staff.')
             if not staff_can_manage_student_profile(request.user, profile):
                 raise PermissionDenied(
                     'You can only change active status for students at or below your own year level.'
                 )
-        
-        # Get client IP
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            ip_address = x_forwarded_for.split(',')[0]
-        else:
-            ip_address = request.META.get('REMOTE_ADDR')
-        
-        # Store old status for logging
-        old_status = user.is_active
-        
-        # Toggle the is_active status
-        user.is_active = not user.is_active
-        user.save()
 
-        # Results/statistics cache may include vote counts; refresh after activation changes
+        old_status = user_obj.is_active
+        user_obj.is_active = not user_obj.is_active
+        user_obj.save()
+
         try:
             from apps.voting.services import VotingDataService
+
             VotingDataService.invalidate_voting_cache()
         except Exception:
             pass
-        
-        # Log the activity
+
         student_id = getattr(profile, 'student_id', None)
-        target_identifier = student_id if student_id else user.username
-        action_word = 'activated' if user.is_active else 'deactivated'
-        
+        target_identifier = student_id if student_id else user_obj.username
         actor_label = 'Admin' if request.user.is_superuser else 'Staff'
+        action_word = 'activated' if user_obj.is_active else 'deactivated'
+
         ActivityLog.objects.create(
             user=request.user,
             action='update',
             resource_type='User',
-            resource_id=user.id,
-            description=f"{actor_label} {request.user.username} {action_word} user {target_identifier} ({user.get_full_name()})",
-            ip_address=ip_address,
+            resource_id=user_obj.id,
+            description=(
+                f'{actor_label} {request.user.username} {action_word} user '
+                f'{target_identifier} ({user_obj.get_full_name()})'
+            ),
+            ip_address=get_client_ip(request),
             metadata={
-                'target_user_id': user.id,
+                'target_user_id': user_obj.id,
                 'target_student_id': student_id,
-                'target_username': user.username,
+                'target_username': user_obj.username,
                 'old_status': 'active' if old_status else 'inactive',
-                'new_status': 'active' if user.is_active else 'inactive',
-                'admin_username': request.user.username
-            }
+                'new_status': 'active' if user_obj.is_active else 'inactive',
+                'admin_username': request.user.username,
+            },
         )
-        
-        # Return updated profile with user data
+
         serializer = self.get_serializer(profile, context={'request': request})
-        
-        return Response({
-            'message': f"User {'activated' if user.is_active else 'deactivated'} successfully",
-            'profile': serializer.data
-        }, status=status.HTTP_200_OK)
-    
+        return Response(
+            {
+                'message': f"User {'activated' if user_obj.is_active else 'deactivated'} successfully",
+                'profile': serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
     @action(detail=True, methods=['post'], permission_classes=[IsSuperUser])
     def update_role(self, request, pk=None):
-        """Update user's role (admin only)"""
         profile = self.get_object()
-        user = profile.user
-        
-        # Get new role from request
+        user_obj = profile.user
         new_role = request.data.get('role')
-        
+
         if not new_role:
-            return Response({
-                'error': 'role is required'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
+            return Response({'error': 'role is required'}, status=status.HTTP_400_BAD_REQUEST)
         if new_role not in ['student', 'staff', 'admin']:
-            return Response({
-                'error': 'Invalid role. Must be one of: student, staff, admin'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Prevent changing own role
-        if user == request.user:
-            return Response({
-                'error': 'You cannot change your own role'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Get client IP
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            ip_address = x_forwarded_for.split(',')[0]
-        else:
-            ip_address = request.META.get('REMOTE_ADDR')
-        
-        # Store old role for logging
-        old_role = 'admin' if user.is_superuser else ('staff' if user.is_staff else 'student')
-        
-        # Update role based on new_role
+            return Response(
+                {'error': 'Invalid role. Must be one of: student, staff, admin'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if user_obj == request.user:
+            return Response({'error': 'You cannot change your own role'}, status=status.HTTP_400_BAD_REQUEST)
+
+        old_role = 'admin' if user_obj.is_superuser else ('staff' if user_obj.is_staff else 'student')
+
         if new_role == 'admin':
-            user.is_superuser = True
-            user.is_staff = True
+            user_obj.is_superuser = True
+            user_obj.is_staff = True
         elif new_role == 'staff':
-            user.is_superuser = False
-            user.is_staff = True
-        else:  # student
-            user.is_superuser = False
-            user.is_staff = False
-        
-        user.save()
-        
-        # Log the activity
+            user_obj.is_superuser = False
+            user_obj.is_staff = True
+        else:
+            user_obj.is_superuser = False
+            user_obj.is_staff = False
+
+        user_obj.save()
+
         student_id = getattr(profile, 'student_id', None)
-        target_identifier = student_id if student_id else user.username
-        
+        target_identifier = student_id if student_id else user_obj.username
+
         ActivityLog.objects.create(
             user=request.user,
             action='update',
             resource_type='User',
-            resource_id=user.id,
-            description=f"Admin {request.user.username} changed role for user {target_identifier} ({user.get_full_name()}) from {old_role} to {new_role}",
-            ip_address=ip_address,
+            resource_id=user_obj.id,
+            description=(
+                f'Admin {request.user.username} changed role for user {target_identifier} '
+                f'({user_obj.get_full_name()}) from {old_role} to {new_role}'
+            ),
+            ip_address=get_client_ip(request),
             metadata={
-                'target_user_id': user.id,
+                'target_user_id': user_obj.id,
                 'target_student_id': student_id,
-                'target_username': user.username,
+                'target_username': user_obj.username,
                 'old_role': old_role,
                 'new_role': new_role,
                 'admin_username': request.user.username,
-                'action_type': 'role_update'
-            }
+                'action_type': 'role_update',
+            },
         )
-        
-        # Return updated profile with user data
+
         serializer = self.get_serializer(profile, context={'request': request})
-        
-        return Response({
-            'message': f"User role updated to {new_role} successfully",
-            'profile': serializer.data
-        }, status=status.HTTP_200_OK)
-    
+        return Response(
+            {'message': f'User role updated to {new_role} successfully', 'profile': serializer.data},
+            status=status.HTTP_200_OK,
+        )
+
     @action(detail=True, methods=['post'], permission_classes=[IsSuperUser])
     def reset_password(self, request, pk=None):
-        """Reset user's password (admin only)"""
         profile = self.get_object()
-        user = profile.user
-        
-        # Get new password from request
+        user_obj = profile.user
         new_password = request.data.get('new_password')
-        
+
         if not new_password:
-            return Response({
-                'error': 'new_password is required'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Validate password length
+            return Response({'error': 'new_password is required'}, status=status.HTTP_400_BAD_REQUEST)
         if len(new_password) < 8:
-            return Response({
-                'error': 'Password must be at least 8 characters long'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Get client IP
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            ip_address = x_forwarded_for.split(',')[0]
-        else:
-            ip_address = request.META.get('REMOTE_ADDR')
-        
-        # Set the new password
-        user.set_password(new_password)
-        user.save()
-        
-        # Log the activity
+            return Response(
+                {'error': 'Password must be at least 8 characters long'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user_obj.set_password(new_password)
+        user_obj.save()
+
         student_id = getattr(profile, 'student_id', None)
-        target_identifier = student_id if student_id else user.username
-        
+        target_identifier = student_id if student_id else user_obj.username
+
         ActivityLog.objects.create(
             user=request.user,
             action='update',
             resource_type='User',
-            resource_id=user.id,
-            description=f"Admin {request.user.username} reset password for user {target_identifier} ({user.get_full_name()})",
-            ip_address=ip_address,
+            resource_id=user_obj.id,
+            description=(
+                f'Admin {request.user.username} reset password for user {target_identifier} '
+                f'({user_obj.get_full_name()})'
+            ),
+            ip_address=get_client_ip(request),
             metadata={
-                'target_user_id': user.id,
+                'target_user_id': user_obj.id,
                 'target_student_id': student_id,
-                'target_username': user.username,
+                'target_username': user_obj.username,
                 'admin_username': request.user.username,
-                'action_type': 'password_reset'
-            }
+                'action_type': 'password_reset',
+            },
         )
-        
-        return Response({
-            'message': 'Password reset successfully'
-        }, status=status.HTTP_200_OK)
+
+        return Response({'message': 'Password reset successfully'}, status=status.HTTP_200_OK)
 
 
 class UserDirectoryView(generics.ListAPIView):
-    """Read-only unified directory for students and staff/admin users."""
     serializer_class = UserProfileSerializer
     permission_classes = [IsAuthenticated, IsStaffOrSuperUser]
 
     def get_queryset(self):
-        request = self.request
-        query_params = request.query_params
-
-        # Base queryset: always join related user/program data
+        query_params = self.request.query_params
         queryset = UserProfile.objects.select_related('user', 'department', 'course')
 
-        # Filter by type: students (default) or staff (staff/admin)
         directory_type = (query_params.get('type') or 'students').lower()
         if directory_type == 'staff':
-            # Staff/Admin users
-            queryset = queryset.filter(
-                Q(user__is_staff=True) | Q(user__is_superuser=True)
-            )
+            queryset = queryset.filter(Q(user__is_staff=True) | Q(user__is_superuser=True))
         else:
-            # Students (non-staff, non-superuser)
-            queryset = queryset.filter(
-                user__is_staff=False,
-                user__is_superuser=False
-            )
+            queryset = queryset.filter(user__is_staff=False, user__is_superuser=False)
 
-        # Optional filters
         department_code = query_params.get('department_code') or query_params.get('college')
         if department_code:
             queryset = queryset.filter(department__code=department_code)
@@ -606,281 +632,457 @@ class UserDirectoryView(generics.ListAPIView):
         if search:
             search = search.strip()
             queryset = queryset.filter(
-                Q(user__username__icontains=search) |
-                Q(user__first_name__icontains=search) |
-                Q(user__last_name__icontains=search) |
-                Q(student_id__icontains=search)
+                Q(user__username__icontains=search)
+                | Q(user__first_name__icontains=search)
+                | Q(user__last_name__icontains=search)
+                | Q(student_id__icontains=search)
             )
 
         return queryset.order_by('user__last_name', 'user__first_name', 'user__username')
 
 
 class DepartmentViewSet(viewsets.ReadOnlyModelViewSet):
-    """ViewSet for listing departments"""
     serializer_class = DepartmentSerializer
     permission_classes = [AllowAny]
-    
+
     def get_queryset(self):
         return Program.objects.filter(
             program_type=Program.ProgramType.DEPARTMENT,
-            is_active=True
+            is_active=True,
         )
 
 
 class CourseViewSet(viewsets.ReadOnlyModelViewSet):
-    """ViewSet for listing courses"""
     serializer_class = CourseSerializer
     permission_classes = [AllowAny]
-    
+
     def get_queryset(self):
-        queryset = Program.objects.filter(
-            program_type=Program.ProgramType.COURSE,
-            is_active=True
-        )
-        department_code = self.request.query_params.get('department', None)
+        queryset = Program.objects.filter(program_type=Program.ProgramType.COURSE, is_active=True)
+        department_code = self.request.query_params.get('department')
         if department_code:
             queryset = queryset.filter(department__code=department_code)
         return queryset
 
 
 class ProgramViewSet(viewsets.ModelViewSet):
-    """ViewSet for managing programs (departments and courses)"""
     serializer_class = ProgramSerializer
     permission_classes = [IsSuperUser]
-    
+
     def get_queryset(self):
-        """Filter by program_type if provided"""
         queryset = Program.objects.all()
-        program_type = self.request.query_params.get('program_type', None)
+        program_type = self.request.query_params.get('program_type')
         if program_type:
             queryset = queryset.filter(program_type=program_type)
         return queryset.order_by('program_type', 'name')
 
-    def create(self, request, *args, **kwargs):
+    @staticmethod
+    def throttle_program_writes(request, view, gerund_noun_phrase: str):
         enforce_scope_throttle(
             request,
-            self,
+            view,
             scope='program_submit',
-            message='You are creating programs too quickly. Please wait a moment before trying again.'
+            message=(
+                f'You are {gerund_noun_phrase} too quickly. '
+                'Please wait a moment before trying again.'
+            ),
         )
+
+    def create(self, request, *args, **kwargs):
+        self.throttle_program_writes(request, self, 'creating programs')
         return super().create(request, *args, **kwargs)
 
     def update(self, request, *args, **kwargs):
-        enforce_scope_throttle(
-            request,
-            self,
-            scope='program_submit',
-            message='You are updating programs too quickly. Please wait a moment before trying again.'
-        )
+        self.throttle_program_writes(request, self, 'updating programs')
         return super().update(request, *args, **kwargs)
 
     def partial_update(self, request, *args, **kwargs):
-        enforce_scope_throttle(
-            request,
-            self,
-            scope='program_submit',
-            message='You are updating programs too quickly. Please wait a moment before trying again.'
-        )
+        self.throttle_program_writes(request, self, 'updating programs')
         return super().partial_update(request, *args, **kwargs)
-    
+
+    @staticmethod
+    def csv_missing_required_fields_error(row, required_fields, row_num):
+        missing = [
+            field
+            for field in required_fields
+            if row.get(field) is None or not str(row.get(field)).strip()
+        ]
+        if not missing:
+            return None
+        return {
+            'row': row_num,
+            'error': f'Missing required fields: {", ".join(missing)}',
+        }
+
     @action(detail=False, methods=['post'], url_path='import-csv')
     def import_csv(self, request):
-        """Import programs from CSV file"""
         enforce_scope_throttle(
             request,
             self,
             scope='program_import',
-            message='You are importing programs too quickly. Please wait a moment before trying again.'
+            message='You are importing programs too quickly. Please wait a moment before trying again.',
         )
 
         if 'file' not in request.FILES:
-            return Response(
-                {'error': 'No file provided'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        file = request.FILES['file']
-        if not file.name.endswith('.csv'):
-            return Response(
-                {'error': 'File must be a CSV file'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
+            return Response({'error': 'No file provided'}, status=status.HTTP_400_BAD_REQUEST)
+
+        uploaded = request.FILES['file']
+        if not uploaded.name.endswith('.csv'):
+            return Response({'error': 'File must be a CSV file'}, status=status.HTTP_400_BAD_REQUEST)
+
+        preview_only = str(request.query_params.get('preview_only', 'false')).lower() == 'true'
+
         try:
-            # Read CSV file
-            # Use utf-8-sig to safely strip BOM characters that Excel adds to the first column header
-            # This prevents issues where the first header becomes "\ufeffname" and appears as missing.
-            decoded_file = file.read().decode('utf-8-sig')
+            decoded_file = uploaded.read().decode('utf-8-sig')
             csv_reader = csv.DictReader(io.StringIO(decoded_file))
-            
+
             required_fields = ['name', 'code', 'program_type']
-            imported = []
-            updated = []
-            created = []
             errors = []
-            
-            for row_num, row in enumerate(csv_reader, start=2):  # Start at 2 (header is row 1)
+            parsed_rows = []
+            department_codes_in_csv = set()
+            planned_actions = []
+
+            for row_num, row in enumerate(csv_reader, start=2):
                 try:
-                    # Validate required fields
-                    missing_fields = []
-                    for field in required_fields:
-                        if field not in row or not row[field].strip():
-                            missing_fields.append(field)
-                    
-                    if missing_fields:
-                        errors.append({
-                            'row': row_num,
-                            'error': f'Missing required fields: {", ".join(missing_fields)}'
-                        })
+                    field_error = self.csv_missing_required_fields_error(row, required_fields, row_num)
+                    if field_error:
+                        errors.append(field_error)
                         continue
-                    
+
                     name = row['name'].strip()
                     code = row['code'].strip()
                     program_type = row['program_type'].strip().lower()
-                    
-                    # Validate program_type
+                    description = (row.get('description') or '').strip()
+                    department_code_row = (row.get('department_code') or '').strip()
+
                     if program_type not in ['department', 'course']:
                         errors.append({
                             'row': row_num,
-                            'error': f'Invalid program_type: {program_type}. Must be "department" or "course"'
+                            'error': (
+                                f'Invalid program_type: {program_type}. '
+                                'Must be "department" or "course"'
+                            ),
                         })
                         continue
-                    
-                    # Handle department link for courses using department code
-                    department = None
-                    if program_type == 'course':
-                        dept_code = row.get('department_code', '').strip()
-                        
-                        if dept_code:
-                            # Look up department by its program code (e.g., CCIS)
-                            department = Program.objects.filter(
-                                program_type=Program.ProgramType.DEPARTMENT,
-                                code=dept_code
-                            ).first()
-                            if not department:
-                                errors.append({
-                                    'row': row_num,
-                                    'error': f'Department with code "{dept_code}" does not exist (expected an existing department program with that code)'
-                                })
-                                continue
-                        else:
-                            errors.append({
-                                'row': row_num,
-                                'error': 'Courses must include a department_code'
-                            })
-                            continue
-                    
-                    # Prepare program data
-                    program_data = {
+
+                    if program_type == 'department':
+                        department_codes_in_csv.add(code)
+
+                    existing_program = Program.objects.filter(
+                        program_type=program_type,
+                        code=code,
+                    ).first()
+                    action = 'updated' if existing_program else 'created'
+
+                    parsed_rows.append({
+                        'row_num': row_num,
                         'name': name,
                         'code': code,
                         'program_type': program_type,
-                        'description': row.get('description', '').strip(),
-                        'is_active': True
+                        'description': description,
+                        'department_code': department_code_row,
+                    })
+                    planned_actions.append({
+                        'row_num': row_num,
+                        'name': name,
+                        'code': code,
+                        'program_type': program_type,
+                        'action': action,
+                    })
+                except Exception as exc:
+                    errors.append({'row': row_num, 'error': str(exc)})
+
+            existing_departments = Program.objects.filter(
+                program_type=Program.ProgramType.DEPARTMENT,
+            )
+            existing_department_map = {dept.code: dept for dept in existing_departments}
+
+            for row in parsed_rows:
+                if row['program_type'] != 'course':
+                    continue
+                dept_code = row['department_code']
+                if not dept_code:
+                    continue
+                if dept_code in existing_department_map:
+                    continue
+                if dept_code in department_codes_in_csv:
+                    continue
+                errors.append({
+                    'row': row['row_num'],
+                    'error': (
+                        f'Department with code "{dept_code}" does not exist in database '
+                        'or this CSV file'
+                    ),
+                })
+
+            created_preview = [item for item in planned_actions if item['action'] == 'created']
+            updated_preview = [item for item in planned_actions if item['action'] == 'updated']
+            summary = {
+                'total_rows': len(parsed_rows),
+                'created_count': len(created_preview),
+                'updated_count': len(updated_preview),
+                'error_count': len(errors),
+                'preview_only': preview_only,
+            }
+
+            if preview_only:
+                return Response(
+                    {
+                        'message': (
+                            'Validation completed successfully. Ready to import.'
+                            if not errors else
+                            f'Validation failed with {len(errors)} error(s). Fix errors before importing.'
+                        ),
+                        'summary': summary,
+                        'created': created_preview,
+                        'updated': updated_preview,
+                        'errors': errors,
+                    },
+                    status=status.HTTP_200_OK,
+                )
+
+            if errors:
+                return Response(
+                    {
+                        'message': f'Import blocked. Found {len(errors)} validation error(s).',
+                        'summary': summary,
+                        'created': [],
+                        'updated': [],
+                        'errors': errors,
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            imported = []
+            created = []
+            updated = []
+            department_map = dict(existing_department_map)
+
+            with transaction.atomic():
+                for row in parsed_rows:
+                    program_data = {
+                        'name': row['name'],
+                        'code': row['code'],
+                        'program_type': row['program_type'],
+                        'description': row['description'],
+                        'is_active': True,
                     }
-                    
-                    # Check if program already exists (by code and program_type)
-                    existing_program = Program.objects.filter(
-                        program_type=program_type,
-                        code=code
+
+                    existing = Program.objects.filter(
+                        program_type=row['program_type'],
+                        code=row['code'],
                     ).first()
-                    
-                    if existing_program:
-                        # Update existing program (overwrite)
+                    write_action = 'updated' if existing else 'created'
+
+                    if existing:
                         for key, value in program_data.items():
-                            setattr(existing_program, key, value)
-                        if department is not None:
-                            existing_program.department = department
-                        existing_program.save()
-                        program = existing_program
-                        action = 'updated'
+                            setattr(existing, key, value)
+                        program = existing
                     else:
-                        # Create new program
                         program = Program.objects.create(**program_data)
-                        if department is not None:
-                            program.department = department
-                            program.save()
-                        action = 'created'
-                    
-                    imported.append({
+
+                    if row['program_type'] == 'course':
+                        program.department = department_map.get(row['department_code'])
+                        program.save()
+                    else:
+                        department_map[row['code']] = program
+                        program.save()
+
+                    imported_item = {
                         'id': program.id,
                         'name': program.name,
                         'code': program.code,
                         'program_type': program.program_type,
-                        'action': action
-                    })
-                    
-                    if action == 'updated':
-                        updated.append({
-                            'id': program.id,
-                            'name': program.name,
-                            'code': program.code,
-                            'program_type': program.program_type
-                        })
+                        'action': write_action,
+                    }
+                    imported.append(imported_item)
+                    if write_action == 'created':
+                        created.append(imported_item)
                     else:
-                        created.append({
-                            'id': program.id,
-                            'name': program.name,
-                            'code': program.code,
-                            'program_type': program.program_type
-                        })
-                    
-                except Exception as e:
-                    errors.append({
-                        'row': row_num,
-                        'error': str(e)
-                    })
-            
-            return Response({
-                'message': f'Import completed. {len(created)} created, {len(updated)} updated, {len(errors)} errors',
-                'imported': imported,
-                'created': created,
-                'updated': updated,
-                'errors': errors
-            }, status=status.HTTP_200_OK)
-            
-        except Exception as e:
+                        updated.append(imported_item)
+
             return Response(
-                {'error': f'Error processing CSV file: {str(e)}'}, 
-                status=status.HTTP_400_BAD_REQUEST
+                {
+                    'message': f'Import completed. {len(created)} created, {len(updated)} updated, 0 errors',
+                    'summary': {**summary, 'preview_only': False},
+                    'imported': imported,
+                    'created': created,
+                    'updated': updated,
+                    'errors': [],
+                },
+                status=status.HTTP_200_OK,
             )
-    
+
+        except Exception as exc:
+            return Response(
+                {'error': f'Error processing CSV file: {str(exc)}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
     @action(detail=False, methods=['get'], url_path='export-csv')
     def export_csv(self, request):
-        """Export programs to CSV file (exports template if no data)"""
         try:
-            program_type = request.query_params.get('program_type', None)
-            
+            program_type_filter = request.query_params.get('program_type')
             queryset = self.get_queryset().select_related('department')
-            if program_type:
-                queryset = queryset.filter(program_type=program_type)
-            
-            # Create CSV response
+            if program_type_filter:
+                queryset = queryset.filter(program_type=program_type_filter)
+
             response = HttpResponse(content_type='text/csv; charset=utf-8')
-            filename = f"programs_export{('_' + program_type) if program_type else ''}.csv"
+            filename = f"programs_export{('_' + program_type_filter) if program_type_filter else ''}.csv"
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
-            
-            # Add BOM for Excel compatibility with UTF-8
             response.write('\ufeff')
-            
+
             writer = csv.writer(response)
-            # Always write header
             writer.writerow(['name', 'code', 'program_type', 'department_code'])
-            
-            # Write data (if any)
+
             for program in queryset:
-                department_code = program.department.code if program.department else ''
-                writer.writerow([
-                    program.name,
-                    program.code,
-                    program.program_type,
-                    department_code
-                ])
-            
+                dept_code = program.department.code if program.department else ''
+                writer.writerow([program.name, program.code, program.program_type, dept_code])
+
             return response
-        except Exception as e:
-            logger.error(f'Error exporting CSV: {str(e)}', exc_info=True)
+        except Exception as exc:
+            logger.error('Error exporting CSV: %s', exc, exc_info=True)
             return Response(
-                {'error': f'Error exporting CSV: {str(e)}'}, 
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {'error': f'Error exporting CSV: {str(exc)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+
+# --- Simple metrics & current user ------------------------------------------
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def student_count(request):
+    total_students = User.objects.filter(
+        is_staff=False,
+        is_superuser=False,
+        is_active=True,
+    ).count()
+    return Response({'total_students': total_students})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsStaffOrSuperUser])
+def user_count(request):
+    total_users = User.objects.count()
+    total_active_users = User.objects.filter(is_active=True).count()
+    return Response({
+        'total_users': total_users,
+        'total_active_users': total_active_users,
+        'total_inactive_users': total_users - total_active_users,
+    })
+
+
+@api_view(['GET', 'PATCH', 'PUT', 'POST'])
+@permission_classes([IsAuthenticated])
+def current_user(request):
+    password_response = handle_current_user_password_change(request)
+    if password_response is not None:
+        return password_response
+
+    if request.method == 'GET':
+        try:
+            user_serializer = UserSerializer(request.user, context={'request': request})
+            try:
+                profile = request.user.profile
+            except UserProfile.DoesNotExist:
+                profile = UserProfile.objects.create(user=request.user)
+            try:
+                profile_serializer = UserProfileSerializer(profile, context={'request': request})
+                return Response({'user': user_serializer.data, 'profile': profile_serializer.data})
+            except Exception as exc:
+                logger.error(
+                    'Error serializing profile for user %s: %s',
+                    request.user.id,
+                    exc,
+                    exc_info=True,
+                )
+                return Response(
+                    {'error': 'Error retrieving profile data', 'detail': str(exc)},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+        except Exception as exc:
+            logger.error('Error in current_user GET for user %s: %s', request.user.id, exc, exc_info=True)
+            return Response(
+                {'error': 'Error retrieving user data', 'detail': str(exc)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    if request.method in ['PATCH', 'PUT']:
+        user = request.user
+        profile = user.profile
+
+        user_data = {}
+        if 'first_name' in request.data:
+            user_data['first_name'] = request.data['first_name']
+        if 'last_name' in request.data:
+            user_data['last_name'] = request.data['last_name']
+        if 'email' in request.data:
+            if not user.email or user.email.strip() == '':
+                user_data['email'] = request.data['email']
+
+        if user_data:
+            user_serializer = UserSerializer(user, data=user_data, partial=True, context={'request': request})
+            if user_serializer.is_valid():
+                user_serializer.save()
+            else:
+                return Response(user_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        is_admin_or_staff = user.is_staff or user.is_superuser
+        profile_data = {}
+
+        profile_fields = ['middle_name', 'student_id', 'year_level', 'section']
+        for field in profile_fields:
+            if field not in request.data:
+                continue
+            if is_admin_or_staff:
+                profile_data[field] = request.data[field] if request.data[field] else None
+            elif request.data[field]:
+                profile_data[field] = request.data[field]
+
+        if 'department' in request.data:
+            if is_admin_or_staff and (not request.data['department'] or request.data['department'] == ''):
+                profile_data['department_code'] = None
+            elif request.data['department']:
+                dept_value = request.data.get('department_code') or request.data['department']
+                profile_data['department_code'] = str(dept_value).strip()
+
+        if 'course' in request.data:
+            if is_admin_or_staff and (not request.data['course'] or request.data['course'] == ''):
+                profile_data['course_code'] = None
+            elif request.data['course']:
+                course_value = request.data.get('course_code') or request.data['course']
+                profile_data['course_code'] = str(course_value).strip()
+
+        if 'avatar' in request.FILES:
+            if profile.avatar:
+                profile.avatar.delete(save=False)
+            profile_data['avatar'] = request.FILES['avatar']
+
+        if request.data.get('remove_avatar') == 'true':
+            if profile.avatar:
+                profile.avatar.delete(save=False)
+            profile_data['avatar'] = None
+
+        if profile_data:
+            profile_serializer = UserProfileSerializer(profile, data=profile_data, partial=True)
+            if profile_serializer.is_valid():
+                profile_serializer.save()
+            else:
+                return Response(profile_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        profile.refresh_from_db()
+
+        return Response({
+            'user': UserSerializer(user, context={'request': request}).data,
+            'profile': UserProfileSerializer(profile, context={'request': request}).data,
+            'message': 'Profile updated successfully',
+        })
+
+    if request.method == 'POST':
+        return Response(
+            {'error': 'POST is only supported with change_password in the body.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    return Response({'error': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)

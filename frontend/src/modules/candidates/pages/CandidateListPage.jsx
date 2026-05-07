@@ -8,7 +8,6 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Container } from '../../../components/layout';
 import { LoadingSpinner } from '../../../components/common';
 import { candidateService, electionService } from '../../../services';
-import { getInitials } from '../../../utils/helpers';
 import '../candidates.css';
 
 const CandidateListPage = () => {
@@ -183,21 +182,6 @@ const CandidateListPage = () => {
       )}
     </Container>
   );
-};
-
-// Helper function to get gradient colors based on ID
-const getGradientColors = (id) => {
-  const gradients = [
-    '#667eea 0%, #764ba2 100%',
-    '#f093fb 0%, #f5576c 100%',
-    '#4facfe 0%, #00f2fe 100%',
-    '#43e97b 0%, #38f9d7 100%',
-    '#fa709a 0%, #fee140 100%',
-    '#30cfd0 0%, #330867 100%',
-    '#a8edea 0%, #fed6e3 100%',
-    '#ff9a9e 0%, #fecfef 100%',
-  ];
-  return gradients[id % gradients.length];
 };
 
 export default CandidateListPage;

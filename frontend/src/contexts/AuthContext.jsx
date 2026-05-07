@@ -3,12 +3,11 @@
  * Manages authentication state across the app
  */
 
-import React, { createContext, useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { authService } from '../services';
 import { STORAGE_KEYS } from '../constants';
 import useInactivity from '../hooks/useInactivity';
-
-export const AuthContext = createContext();
+import { AuthContext } from './AuthContextObject';
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -16,11 +15,11 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   // Handle logout function
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     authService.logout(); // Clears local storage
     setUser(null);
     setIsAuthenticated(false);
-  };
+  }, []);
 
   // Auto-logout on inactivity (5 minutes)
   // Always call the hook (React rules), but enable/disable based on auth state
@@ -41,11 +40,7 @@ export const AuthProvider = ({ children }) => {
   );
 
   // Initialize auth state from local storage
-  useEffect(() => {
-    initializeAuth();
-  }, []);
-
-  const initializeAuth = async () => {
+  const initializeAuth = useCallback(async () => {
     try {
       const token = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
       const storedUser = localStorage.getItem(STORAGE_KEYS.USER);
@@ -59,7 +54,7 @@ export const AuthProvider = ({ children }) => {
           const response = await authService.getCurrentUser();
           setUser(response.data);
           localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(response.data));
-        } catch (error) {
+        } catch {
           // Token is invalid, clear auth
           handleLogout();
         }
@@ -70,7 +65,11 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [handleLogout]);
+
+  useEffect(() => {
+    initializeAuth();
+  }, [initializeAuth]);
 
   const login = async (credentials) => {
     try {
@@ -99,9 +98,36 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const loginWithGoogle = async ({ credential, accessToken, password } = {}) => {
+    try {
+      const response = await authService.loginWithGoogle({ credential, accessToken, password });
+      const { access, refresh } = response.data;
+
+      localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, access);
+      localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, refresh);
+
+      const userResponse = await authService.getCurrentUser();
+      const userData = userResponse.data;
+
+      setUser(userData);
+      setIsAuthenticated(true);
+      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(userData));
+
+      return { success: true, user: userData };
+    } catch (error) {
+      const requiresPassword = Boolean(error?.response?.data?.requires_password);
+      return {
+        success: false,
+        requiresPassword,
+        email: error?.response?.data?.email || '',
+        error: error?.response?.data?.error || 'Google sign-in failed. Please try again.',
+      };
+    }
+  };
+
   const register = async (userData) => {
     try {
-      const response = await authService.register(userData);
+      await authService.register(userData);
       
       // After successful registration, automatically log in
       const loginResult = await login({
@@ -145,9 +171,29 @@ export const AuthProvider = ({ children }) => {
       return { success: true, user: updatedUser };
     } catch (error) {
       console.error('Update profile error:', error);
+      const errorData = error?.response?.data;
+      let errorMessage = 'Update failed. Please try again.';
+      if (errorData) {
+        if (typeof errorData === 'string') {
+          errorMessage = errorData;
+        } else if (typeof errorData === 'object') {
+          if (errorData.detail) {
+            errorMessage = errorData.detail;
+          } else {
+            errorMessage = Object.entries(errorData)
+              .map(([fieldName, fieldValue]) => {
+                if (Array.isArray(fieldValue)) {
+                  return `${fieldName}: ${fieldValue.join(', ')}`;
+                }
+                return `${fieldName}: ${fieldValue}`;
+              })
+              .join('\n');
+          }
+        }
+      }
       return { 
         success: false, 
-        error: error.response?.data?.detail || 'Update failed. Please try again.' 
+        error: errorMessage
       };
     }
   };
@@ -175,6 +221,7 @@ export const AuthProvider = ({ children }) => {
     isStaff: isStaff(),
     isStaffOrAdmin: isStaffOrAdmin(),
     login,
+    loginWithGoogle,
     register,
     logout,
     updateUser
@@ -186,6 +233,4 @@ export const AuthProvider = ({ children }) => {
     </AuthContext.Provider>
   );
 };
-
-export default AuthContext;
 

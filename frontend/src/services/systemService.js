@@ -1,13 +1,21 @@
 import api from './api';
 
 /** Default branding when API is unavailable (template fallback) */
-export const DEFAULT_BRANDING = {
+export const DEFAULT_FEATURE_FLAGS = Object.freeze({
+  data_export: true,
+  user_registration: true,
+  google_login: true,
+  staff_preview_disabled_features: true,
+});
+
+export const DEFAULT_BRANDING = Object.freeze({
   institution_name: 'SURIGAO DEL NORTE',
   institution_name_line2: 'STATE UNIVERSITY',
   institution_logo_url: null,
   app_name: 'E-Botar',
-  institution_full_name: 'SURIGAO DEL NORTE STATE UNIVERSITY'
-};
+  institution_full_name: 'SURIGAO DEL NORTE STATE UNIVERSITY',
+  feature_flags: DEFAULT_FEATURE_FLAGS,
+});
 
 /**
  * System Service - Handles system-wide settings and configurations
@@ -20,11 +28,25 @@ const systemService = {
   async getBranding() {
     try {
       const response = await api.get('/common/branding/');
-      return response.data;
+      const data = response.data || {};
+      return {
+        ...DEFAULT_BRANDING,
+        ...data,
+        feature_flags: {
+          ...DEFAULT_FEATURE_FLAGS,
+          ...(data.feature_flags || {}),
+        },
+      };
     } catch (error) {
       console.error('Error fetching branding:', error);
-      return DEFAULT_BRANDING;
+      return { ...DEFAULT_BRANDING };
     }
+  },
+
+  /** Superuser PATCH for temporary feature disables (stored in backend SystemSettings). */
+  async patchFeatureFlags(partialFlagPayload) {
+    const response = await api.patch('/common/feature-flags/', partialFlagPayload);
+    return response.data;
   },
 
   /**

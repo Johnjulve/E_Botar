@@ -1,8 +1,10 @@
-﻿asgiref
+asgiref
 certifi
 charset-normalizer
+cryptography
 Django
 django-cors-headers
+django-allauth
 djangorestframework
 djangorestframework_simplejwt
 idna
@@ -16,4 +18,5 @@ sqlparse
 tzdata
 urllib3
 gunicorn
+google-auth
 whitenoise

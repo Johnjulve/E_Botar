@@ -5,17 +5,31 @@ from django.conf import settings
 from django.db.models import Q
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
+from rest_framework import status
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework import status
 
 from .models import SecurityEvent, ActivityLog, SystemSettings
-from .permissions import IsStaffOrSuperUser
+from .feature_flags import load_feature_flags, merge_and_save_feature_flags
+from .permissions import IsStaffOrSuperUser, IsSuperUser
 from .serializers import AcademicYearSerializer
+from .serializers import FeatureFlagsPatchSerializer
 
 
-def _parse_datetime_param(value):
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def health_check(request):
+    """Public health check for load balancers and monitoring (single monolith process)."""
+    return Response({
+        'status': 'healthy',
+        'service': 'ebotar-api',
+        'message': 'E-Botar API is running',
+    })
+
+
+def parse_datetime_filter(value):
     """Parse ISO datetime string into aware datetime or return None."""
     if not value:
         return None
@@ -27,7 +41,7 @@ def _parse_datetime_param(value):
     return dt
 
 
-def _map_security_severity(level):
+def category_for_security_severity(level):
     """Map model severity levels to UI categories."""
     mapping = {
         'low': 'success',
@@ -38,7 +52,7 @@ def _map_security_severity(level):
     return mapping.get(level, 'info')
 
 
-def _map_activity_severity(action):
+def category_for_activity_action(action):
     """Map activity actions to UI severity categories."""
     success_actions = {'create', 'update', 'approve', 'vote', 'apply'}
     warning_actions = {'delete', 'reject'}
@@ -69,10 +83,10 @@ class SystemLogListView(APIView):
         log_type = request.query_params.get('log_type', 'all').lower()
         severity_filter = request.query_params.get('severity')
         search = request.query_params.get('search', '').strip()
-        limit = self._validate_limit(request.query_params.get('limit'))
+        limit = self.clamped_list_limit(request.query_params.get('limit'))
 
-        date_from = _parse_datetime_param(request.query_params.get('date_from'))
-        date_to = _parse_datetime_param(request.query_params.get('date_to')) or timezone.now()
+        date_from = parse_datetime_filter(request.query_params.get('date_from'))
+        date_to = parse_datetime_filter(request.query_params.get('date_to')) or timezone.now()
 
         if date_from is None:
             # Default window: last 30 days
@@ -82,10 +96,10 @@ class SystemLogListView(APIView):
         activity_logs = []
 
         if log_type in ['all', 'security']:
-            security_logs = self._get_security_logs(date_from, date_to, severity_filter, search, limit)
+            security_logs = self.security_log_rows_for_query(date_from, date_to, severity_filter, search, limit)
 
         if log_type in ['all', 'activity']:
-            activity_logs = self._get_activity_logs(date_from, date_to, severity_filter, search, limit)
+            activity_logs = self.activity_log_rows_for_query(date_from, date_to, severity_filter, search, limit)
 
         combined = sorted(
             security_logs + activity_logs,
@@ -93,7 +107,7 @@ class SystemLogListView(APIView):
             reverse=True
         )[:limit]
 
-        summary = self._build_summary(combined)
+        summary = self.severity_summary_from_rows(combined)
 
         return Response({
             'logs': [
@@ -115,7 +129,7 @@ class SystemLogListView(APIView):
             }
         })
 
-    def _validate_limit(self, value):
+    def clamped_list_limit(self, value):
         try:
             limit = int(value)
             if limit < 10:
@@ -126,7 +140,7 @@ class SystemLogListView(APIView):
         except (TypeError, ValueError):
             return self.DEFAULT_LIMIT
 
-    def _get_security_logs(self, date_from, date_to, severity_filter, search, limit):
+    def security_log_rows_for_query(self, date_from, date_to, severity_filter, search, limit):
         queryset = SecurityEvent.objects.filter(
             created_at__range=(date_from, date_to)
         )
@@ -151,7 +165,7 @@ class SystemLogListView(APIView):
 
         logs = []
         for event in queryset:
-            severity = _map_security_severity(event.severity)
+            severity = category_for_security_severity(event.severity)
             logs.append({
                 'id': f'sec_{event.id}',
                 'source': 'security',
@@ -159,13 +173,13 @@ class SystemLogListView(APIView):
                 'event_type': event.event_type,
                 'event_label': event.get_event_type_display(),
                 'message': event.description,
-                'user': self._format_user(event.user),
+                'user': self.display_name_for_log_user(event.user),
                 'ip_address': event.ip_address,
                 'timestamp': event.created_at,
             })
         return logs
 
-    def _get_activity_logs(self, date_from, date_to, severity_filter, search, limit):
+    def activity_log_rows_for_query(self, date_from, date_to, severity_filter, search, limit):
         queryset = ActivityLog.objects.filter(
             created_at__range=(date_from, date_to)
         )
@@ -191,7 +205,7 @@ class SystemLogListView(APIView):
 
         logs = []
         for log in queryset:
-            severity = _map_activity_severity(log.action)
+            severity = category_for_activity_action(log.action)
             message = log.description or f"{log.get_action_display()} {log.resource_type}"
             logs.append({
                 'id': f'act_{log.id}',
@@ -202,21 +216,21 @@ class SystemLogListView(APIView):
                 'event_label': log.get_action_display(),
                 'message': message,
                 'resource_type': log.resource_type,  # Include resource_type for filtering
-                'user': self._format_user(log.user),
+                'user': self.display_name_for_log_user(log.user),
                 'ip_address': log.ip_address,
                 'timestamp': log.created_at,
             })
         return logs
 
     @staticmethod
-    def _format_user(user):
+    def display_name_for_log_user(user):
         if not user:
             return 'System'
         full_name = f"{user.first_name} {user.last_name}".strip()
         return full_name or user.username
 
     @staticmethod
-    def _build_summary(logs):
+    def severity_summary_from_rows(logs):
         counts = Counter()
         for log in logs:
             severity = log.get('severity', 'info') or 'info'
@@ -304,5 +318,45 @@ class BrandingView(APIView):
             'institution_logo_url': logo_url,
             'app_name': app_name,
             'institution_full_name': f"{institution_name} {institution_name_line2}".strip(),
+            # Public read so nav can hide/disable registration and auth entry points consistently.
+            'feature_flags': load_feature_flags(),
+        })
+
+
+class FeatureFlagsMaintenanceView(APIView):
+    """
+    Superusers update temporary feature availability (persisted via SystemSettings JSON).
+
+    GET returns current flags for the maintenance SPA (authenticated superuser).
+    PATCH merges booleans onto stored flags.
+    """
+    permission_classes = [IsAuthenticated, IsSuperUser]
+
+    def get(self, request):
+        return Response(load_feature_flags())
+
+    def patch(self, request):
+        serializer = FeatureFlagsPatchSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        if not serializer.validated_data:
+            return Response(load_feature_flags())
+
+        merged_flags = merge_and_save_feature_flags(
+            dict(serializer.validated_data),
+            request.user,
+        )
+        return Response(merged_flags)
+
+
+class VersionView(APIView):
+    """Public API endpoint for backend/frontend version coordination."""
+
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        return Response({
+            'api_version': getattr(settings, 'API_VERSION', 'v1'),
+            'backend_version': getattr(settings, 'BACKEND_VERSION', '1.1.0'),
+            'min_frontend_version': getattr(settings, 'MIN_FRONTEND_VERSION', '1.1.0'),
         })
 

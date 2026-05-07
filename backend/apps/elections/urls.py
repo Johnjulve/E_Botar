@@ -10,9 +10,6 @@ router.register(r'positions', views.SchoolPositionViewSet, basename='position')
 router.register(r'elections', views.SchoolElectionViewSet, basename='election')
 
 urlpatterns = [
-    # Health check
-    path('health/', views.health_check, name='health'),
-    
     # ViewSet routes
     path('', include(router.urls)),
 ]

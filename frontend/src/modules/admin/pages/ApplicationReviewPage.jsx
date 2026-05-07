@@ -65,9 +65,11 @@ const ApplicationReviewPage = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [showModal, setShowModal] = useState(false);
-  const [reviewAction, setReviewAction] = useState(''); // 'approve' or 'reject'
-  const [reviewNotes, setReviewNotes] = useState('');
+  const [reviewModal, setReviewModal] = useState({
+    showModal: false,
+    action: '', // 'approve' or 'reject'
+    notes: '',
+  });
 
   useEffect(() => {
     if (id) {
@@ -89,13 +91,16 @@ const ApplicationReviewPage = () => {
   };
 
   const handleReview = (action) => {
-    setReviewAction(action);
-    setShowModal(true);
+    setReviewModal((prev) => ({
+      ...prev,
+      action,
+      showModal: true,
+    }));
   };
 
   const submitReview = async () => {
     // Validate review notes for rejection
-    if (reviewAction === 'reject' && !reviewNotes.trim()) {
+    if (reviewModal.action === 'reject' && !reviewModal.notes.trim()) {
       setError('Review notes are required when rejecting an application.');
       return;
     }
@@ -107,8 +112,8 @@ const ApplicationReviewPage = () => {
       setError('');
 
       await candidateService.reviewApplication(id, {
-        action: reviewAction,
-        review_notes: reviewNotes.trim() || ''
+        action: reviewModal.action,
+        review_notes: reviewModal.notes.trim() || ''
       });
 
       // Redirect back to applications list on success
@@ -145,7 +150,7 @@ const ApplicationReviewPage = () => {
       setSubmitting(false);
       // Don't close modal on error so user can fix and retry
       if (!hasError) {
-      setShowModal(false);
+        setReviewModal((prev) => ({ ...prev, showModal: false }));
       }
     }
   };
@@ -328,18 +333,18 @@ const ApplicationReviewPage = () => {
 
       {/* Review Modal */}
       <Modal
-        show={showModal}
-        onHide={() => setShowModal(false)}
-        title={`${reviewAction === 'approve' ? 'Approve' : 'Reject'} Application`}
-        confirmText={reviewAction === 'approve' ? 'Approve' : 'Reject'}
+        show={reviewModal.showModal}
+        onHide={() => setReviewModal((prev) => ({ ...prev, showModal: false }))}
+        title={`${reviewModal.action === 'approve' ? 'Approve' : 'Reject'} Application`}
+        confirmText={reviewModal.action === 'approve' ? 'Approve' : 'Reject'}
         cancelText="Cancel"
         onConfirm={submitReview}
-        confirmVariant={reviewAction === 'approve' ? 'success' : 'danger'}
+        confirmVariant={reviewModal.action === 'approve' ? 'success' : 'danger'}
         confirmLoading={submitting}
       >
-        <Alert variant={reviewAction === 'approve' ? 'success' : 'warning'}>
+        <Alert variant={reviewModal.action === 'approve' ? 'success' : 'warning'}>
           <strong>
-            {reviewAction === 'approve'
+            {reviewModal.action === 'approve'
               ? 'Approve this candidate application?'
               : 'Reject this candidate application?'}
           </strong>
@@ -348,21 +353,21 @@ const ApplicationReviewPage = () => {
         <div className="admin-review-modal-field">
           <label className="admin-modal-label">
             Review Notes
-            {reviewAction === 'reject' && (
+            {reviewModal.action === 'reject' && (
               <span className="admin-modal-required">*</span>
             )}
           </label>
           <textarea
             className="admin-modal-textarea"
             rows="4"
-            value={reviewNotes}
-            onChange={(e) => setReviewNotes(e.target.value)}
-            placeholder={reviewAction === 'reject' 
+            value={reviewModal.notes}
+            onChange={(e) => setReviewModal((prev) => ({ ...prev, notes: e.target.value }))}
+            placeholder={reviewModal.action === 'reject' 
               ? 'Please provide a reason for rejecting this application (required)...'
               : `Add notes about why you approved this application (optional)...`}
-            required={reviewAction === 'reject'}
+            required={reviewModal.action === 'reject'}
           />
-          {reviewAction === 'reject' && (
+          {reviewModal.action === 'reject' && (
             <p className="admin-modal-help-text">
               Review notes are required when rejecting an application.
             </p>

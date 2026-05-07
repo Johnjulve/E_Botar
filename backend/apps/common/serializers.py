@@ -11,6 +11,14 @@ class SystemSettingsSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'updated_at', 'updated_by']
 
 
+class FeatureFlagsPatchSerializer(serializers.Serializer):
+    """Partial PATCH for `/api/common/feature-flags/` (superuser only)."""
+    data_export = serializers.BooleanField(required=False)
+    user_registration = serializers.BooleanField(required=False)
+    google_login = serializers.BooleanField(required=False)
+    staff_preview_disabled_features = serializers.BooleanField(required=False)
+
+
 class AcademicYearSerializer(serializers.Serializer):
     """Serializer for academic year setting"""
     academic_year = serializers.CharField(max_length=20, help_text="Academic year in format YYYY-YYYY (e.g., 2025-2026)")

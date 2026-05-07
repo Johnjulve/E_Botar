@@ -5,8 +5,13 @@ import os
 import sys
 import django
 
-# Setup Django
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Setup Django — project root is backend/ (parent of apps/), not this file's directory
+_BACKEND_ROOT = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), '..', '..', '..', '..')
+)
+if _BACKEND_ROOT not in sys.path:
+    sys.path.insert(0, _BACKEND_ROOT)
+
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
 django.setup()
 
@@ -14,9 +19,8 @@ from apps.common.algorithms import (
     SortingAlgorithm,
     SearchingAlgorithm,
     CryptographicAlgorithm,
-    DataGroupingAlgorithm,
     AggregationAlgorithm,
-    MemoizationAlgorithm
+    MemoizationAlgorithm,
 )
 
 def test_sorting():
@@ -103,7 +107,34 @@ def test_cryptographic():
     assert key1 == key2, "SHA-256 cache key should be deterministic"
     assert len(key1) == 64
     print("✓ SHA-256 cache key test passed")
-    
+
+    # RSA: keygen, sign/verify, encrypt/decrypt
+    priv_pem, pub_pem = CryptographicAlgorithm.generate_rsa_keypair(key_size=2048)
+    assert "BEGIN PRIVATE KEY" in priv_pem or "BEGIN RSA PRIVATE KEY" in priv_pem
+    assert "BEGIN PUBLIC KEY" in pub_pem
+    print("✓ RSA key pair generation test passed")
+
+    msg = "vote_receipt_payload_v1"
+    sig = CryptographicAlgorithm.rsa_sign(priv_pem, msg)
+    assert CryptographicAlgorithm.rsa_verify(pub_pem, msg, sig) is True
+    assert CryptographicAlgorithm.rsa_verify(pub_pem, msg + "x", sig) is False
+    print("✓ RSA PSS-SHA256 sign/verify test passed")
+
+    secret = "short-token-for-oauth-state"
+    ct = CryptographicAlgorithm.rsa_encrypt(pub_pem, secret)
+    pt = CryptographicAlgorithm.rsa_decrypt(priv_pem, ct)
+    assert pt == secret
+    print("✓ RSA-OAEP encrypt/decrypt test passed")
+
+    max_b = CryptographicAlgorithm.rsa_max_encrypt_bytes(2048)
+    too_long = "x" * (max_b + 1)
+    try:
+        CryptographicAlgorithm.rsa_encrypt(pub_pem, too_long)
+        assert False, "Expected ValueError for oversized plaintext"
+    except ValueError as e:
+        assert "too long" in str(e).lower() or "Plaintext" in str(e)
+    print("✓ RSA plaintext length guard test passed")
+
     print("All cryptographic tests passed!\n")
 
 
@@ -118,11 +149,12 @@ def test_grouping():
         {'name': 'David', 'department': 'CS', 'year': 1},
     ]
     
-    grouped = DataGroupingAlgorithm.group_by(
+    grouped = AggregationAlgorithm.aggregate(
         students,
-        key_func=lambda s: s['department']
+        key_func=lambda s: s['department'],
+        operation='list',
     )
-    
+
     assert 'CS' in grouped, "Grouping failed - CS department not found"
     assert len(grouped['CS']) == 3, f"Grouping failed - expected 3 CS students, got {len(grouped['CS'])}"
     assert len(grouped['Math']) == 1, f"Grouping failed - expected 1 Math student, got {len(grouped['Math'])}"

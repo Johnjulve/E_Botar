@@ -32,8 +32,9 @@ from apps.candidates.models import Candidate
 from apps.voting.models import Ballot, VoteChoice, VoteReceipt
 from apps.accounts.models import UserProfile
 from apps.common.algorithms import (
-    SortingAlgorithm, AggregationAlgorithm, 
-    SearchingAlgorithm, DataGroupingAlgorithm
+    SortingAlgorithm,
+    AggregationAlgorithm,
+    SearchingAlgorithm,
 )
 
 
@@ -278,7 +279,7 @@ class APIPerformanceTester:
         # Public endpoints (test without authentication)
         print("\n--- Public Endpoints ---")
         try:
-            results['health_check'] = self.test_endpoint('GET', '/api/auth/health/', iterations=iterations)
+            results['health_check'] = self.test_endpoint('GET', '/api/health/', iterations=iterations)
         except Exception as e:
             print(f"  ⚠️  Health check failed: {e}")
             results['health_check'] = {}

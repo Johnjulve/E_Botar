@@ -5,6 +5,13 @@
 
 import api from './api';
 
+const normalizeBulkReviewAction = (value) => {
+  const actionValue = String(value || '').toLowerCase().trim();
+  if (actionValue === 'approved') return 'approve';
+  if (actionValue === 'rejected') return 'reject';
+  return actionValue;
+};
+
 export const candidateService = {
   // === Candidates ===
   
@@ -21,6 +28,12 @@ export const candidateService = {
   // Get candidates by election
   getByElection: (electionId) => {
     return api.get(`/candidates/candidates/by_election/?election_id=${electionId}`);
+  },
+
+  getByElectionCompact: (electionId) => {
+    return api.get('/candidates/candidates/by_election/', {
+      params: { election_id: electionId, compact: true }
+    });
   },
 
   // === Applications ===
@@ -82,10 +95,10 @@ export const candidateService = {
   },
 
   // Bulk review applications (admin only)
-  bulkReview: (applicationIds, status, reviewNotes = '') => {
+  bulkReview: (applicationIds, action, reviewNotes = '') => {
     return api.post('/candidates/applications/bulk_review/', {
       application_ids: applicationIds,
-      status: status,
+      action: normalizeBulkReviewAction(action),
       review_notes: reviewNotes
     });
   },
