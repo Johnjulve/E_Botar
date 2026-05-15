@@ -43,11 +43,19 @@ def cache_result(timeout):
 
             # Add keyword arguments
             key_parts.extend([f"{k}:{v}" for k, v in sorted(kwargs.items())])
+<<<<<<< HEAD
 
             # Generate hash for cache key using SHA-256
             key_string = '|'.join(key_parts)
             cache_key = f"election_service_{CryptographicAlgorithm.sha256_hash(key_string)}"
 
+=======
+            
+            # Generate hash for cache key using SHA-256
+            key_string = '|'.join(key_parts)
+            cache_key = f"election_service_{CryptographicAlgorithm.sha256_hash(key_string)}"
+            
+>>>>>>> main
             # Try to get from cache
             result = cache.get(cache_key)
 
@@ -82,8 +90,100 @@ class ElectionDataService:
         ).prefetch_related(
             'applications'
         ).order_by('-start_date')
+<<<<<<< HEAD
         return annotate_election_list_metrics(base)
 
+=======
+    
+    @staticmethod
+    @cache_result(30)  # Cache for 30 seconds
+    def get_election_statistics(election_id):
+        """
+        Get comprehensive election statistics
+        
+        Args:
+            election_id: ID of the election
+            
+        Returns:
+            Dictionary with election statistics
+        """
+        from apps.voting.models import Ballot, VoteChoice
+        
+        try:
+            election = SchoolElection.objects.get(id=election_id)
+        except SchoolElection.DoesNotExist:
+            return {
+                'election_id': election_id,
+                'total_votes': 0,
+                'total_voters': 0,
+                'total_candidates': 0,
+                'total_positions': 0,
+                'candidates_by_position': [],
+                'turnout_percentage': 0
+            }
+        
+        # Count total votes (only ballots cast by active users)
+        total_votes = VoteChoice.objects.filter(
+            ballot__election=election,
+            ballot__user__is_active=True,
+        ).count()
+        
+        # Count unique voters (active accounts only)
+        total_voters = Ballot.objects.filter(election=election, user__is_active=True).count()
+        
+        # Count candidates by position
+        candidates_by_position = Candidate.objects.filter(
+            election=election,
+            is_active=True
+        ).values('position__name').annotate(
+            count=Count('id')
+        )
+        
+        # Count total candidates
+        total_candidates = Candidate.objects.filter(
+            election=election,
+            is_active=True
+        ).count()
+        
+        # Count total positions in this election
+        total_positions = election.election_positions.filter(is_enabled=True).count()
+        
+        # Count eligible students based on election type
+        from apps.accounts.models import UserProfile
+        if election.election_type == 'university':
+            total_eligible_students = UserProfile.objects.filter(
+                user__is_active=True,
+                user__is_staff=False,
+                user__is_superuser=False
+            ).count()
+        elif election.election_type == 'department' and election.allowed_department:
+            total_eligible_students = UserProfile.objects.filter(
+                department=election.allowed_department,
+                user__is_active=True,
+                user__is_staff=False,
+                user__is_superuser=False
+            ).count()
+        else:
+            # Fallback: use total voters as estimate
+            total_eligible_students = total_voters
+        
+        # Calculate turnout safely using memoized function
+        ballots_count = Ballot.objects.filter(election=election, user__is_active=True).count()
+        from apps.voting.services import VotingDataService
+        turnout_percentage = VotingDataService.calculate_turnout_percentage(total_voters, total_eligible_students)
+        
+        return {
+            'election_id': election_id,
+            'total_votes': total_votes,
+            'total_voters': total_voters,
+            'total_eligible_students': total_eligible_students,
+            'total_candidates': total_candidates,
+            'total_positions': total_positions,
+            'candidates_by_position': list(candidates_by_position),
+            'turnout_percentage': round(turnout_percentage, 2)
+        }
+    
+>>>>>>> main
     @staticmethod
     @cache_result(180)  # Cache for 3 minutes
     def get_upcoming_elections():

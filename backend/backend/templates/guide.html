@@ -151,7 +151,11 @@ Content-Type: application/json
           <tr><td><code>/api/voting/receipts/my_receipts/</code></td><td><span class="method method-get">GET</span></td><td>Authenticated</td><td>User's receipts</td></tr>
           <tr><td><code>/api/voting/receipts/verify/</code></td><td><span class="method method-post">POST</span></td><td>Authenticated</td><td>Verify receipt code</td></tr>
           <tr><td><code>/api/voting/voting-status/</code></td><td><span class="method method-get">GET</span></td><td>Staff/Admin</td><td>Per-election voting status (requires <code>election_id</code>)</td></tr>
+<<<<<<< HEAD
           <tr><td><code>/api/voting/results/election_results/</code></td><td><span class="method method-get">GET</span></td><td>Public*</td><td>Election results (locked for non-admin users while election is active)</td></tr>
+=======
+          <tr><td><code>/api/voting/results/election_results/</code></td><td><span class="method method-get">GET</span></td><td>Public*</td><td>Election results</td></tr>
+>>>>>>> main
           <tr><td><code>/api/voting/results/my_vote_status/</code></td><td><span class="method method-get">GET</span></td><td>Authenticated</td><td>Vote status</td></tr>
           <tr><td><code>/api/voting/results/export_results/</code></td><td><span class="method method-get">GET</span></td><td>Superuser</td><td>Export results (CSV/JSON)</td></tr>
           <tr><td><code>/api/voting/results/statistics/</code></td><td><span class="method method-get">GET</span></td><td>Public*</td><td>Election statistics (locked for non-admin users while election is active)</td></tr>

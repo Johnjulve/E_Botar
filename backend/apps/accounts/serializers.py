@@ -5,6 +5,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from .models import UserProfile, Program
 from .utils import parse_year_level_value, staff_can_manage_student_profile
+<<<<<<< HEAD
 
 
 def lookup_program_by_code(code, program_type, error_field):
@@ -20,6 +21,8 @@ def lookup_program_by_code(code, program_type, error_field):
 # -----------------------------------------------------------------------------
 # Programs (registry)
 # -----------------------------------------------------------------------------
+=======
+>>>>>>> main
 
 
 class DepartmentSerializer(serializers.ModelSerializer):
@@ -180,7 +183,11 @@ class UserProfileSerializer(serializers.ModelSerializer):
     course_code = serializers.CharField(write_only=True, required=False, allow_null=True)
     first_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
     last_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
+<<<<<<< HEAD
 
+=======
+    
+>>>>>>> main
     class Meta:
         model = UserProfile
         fields = [
@@ -207,10 +214,23 @@ class UserProfileSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         user = request.user if request else None
         is_admin_or_staff = user and (user.is_staff or user.is_superuser)
+<<<<<<< HEAD
 
         if not is_admin_or_staff and not self.instance:
             pass
 
+=======
+        
+        # If not admin/staff, validate required academic fields
+        if not is_admin_or_staff:
+            # For regular users, these fields should be provided if profile is being created
+            # But we'll allow them to be optional during updates
+            if not self.instance:  # Creating new profile
+                # These validations are handled at the model level or frontend
+                pass
+
+        # Staff (non-superuser) editing another user: enforce year-level ceiling
+>>>>>>> main
         if request and self.instance and user:
             editing_other = self.instance.user_id != user.id
             if editing_other and user.is_staff and not user.is_superuser:
@@ -223,6 +243,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
                     staff_prof = user.profile
                 except UserProfile.DoesNotExist:
                     staff_prof = None
+<<<<<<< HEAD
                 staff_year = parse_year_level_value(getattr(staff_prof, 'year_level', None) if staff_prof else None)
                 if 'year_level' in data and data['year_level'] is not None and staff_year is not None:
                     new_year = parse_year_level_value(data['year_level'])
@@ -231,6 +252,16 @@ class UserProfileSerializer(serializers.ModelSerializer):
                             'year_level': 'Cannot set year level above your own.',
                         })
 
+=======
+                sy = parse_year_level_value(getattr(staff_prof, 'year_level', None) if staff_prof else None)
+                if 'year_level' in data and data['year_level'] is not None and sy is not None:
+                    ny = parse_year_level_value(data['year_level'])
+                    if ny is not None and ny > sy:
+                        raise serializers.ValidationError({
+                            'year_level': 'Cannot set year level above your own.'
+                        })
+        
+>>>>>>> main
         return data
 
     def to_representation(self, instance):
@@ -262,6 +293,10 @@ class UserProfileSerializer(serializers.ModelSerializer):
             return obj.avatar.url if obj.avatar else None
 
     def update(self, instance, validated_data):
+<<<<<<< HEAD
+=======
+        """Override update to handle department_code and course_code"""
+>>>>>>> main
         if 'first_name' in validated_data or 'last_name' in validated_data:
             u = instance.user
             if 'first_name' in validated_data:
@@ -270,6 +305,10 @@ class UserProfileSerializer(serializers.ModelSerializer):
                 u.last_name = validated_data.pop('last_name') or ''
             u.save()
 
+<<<<<<< HEAD
+=======
+        # Handle department_code -> department
+>>>>>>> main
         department_code = validated_data.pop('department_code', None)
         if department_code is not None:
             instance.department = (

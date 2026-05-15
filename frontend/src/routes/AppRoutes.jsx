@@ -49,8 +49,11 @@ import PositionManagementPage from '../modules/admin/pages/PositionManagementPag
 import DataExportPage from '../modules/admin/pages/DataExportPage';
 import UserDirectoryPage from '../modules/admin/pages/UserDirectoryPage';
 import VotingStatusPage from '../modules/admin/pages/VotingStatusPage';
+<<<<<<< HEAD
 import ReceiptAuditPage from '../modules/admin/pages/ReceiptAuditPage';
 import MaintenanceFeaturesPage from '../modules/admin/pages/MaintenanceFeaturesPage';
+=======
+>>>>>>> main
 
 const AppRoutes = () => {
   return (
@@ -199,6 +202,7 @@ const AppRoutes = () => {
           </ProtectedRoute>
         } 
       />
+<<<<<<< HEAD
       <Route
         path="/admin/receipt-audit"
         element={
@@ -207,6 +211,8 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
+=======
+>>>>>>> main
       {/* Admin-only Routes - Only superusers can access */}
       <Route 
         path="/admin/users" 

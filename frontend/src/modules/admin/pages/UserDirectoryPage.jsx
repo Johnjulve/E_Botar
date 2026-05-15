@@ -7,7 +7,11 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Container } from '../../../components/layout';
 import { LoadingSpinner } from '../../../components/common';
 import { authService } from '../../../services';
+<<<<<<< HEAD
 import { getInitials, formatYearLevelNumeric } from '../../../utils/helpers';
+=======
+import { getInitials, formatYearLevelNumeric, parseYearLevelNumber } from '../../../utils/helpers';
+>>>>>>> main
 import '../admin.css';
 
 const Icon = ({ name, size = 20, className = '' }) => {

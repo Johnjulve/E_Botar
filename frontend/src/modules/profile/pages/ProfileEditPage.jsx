@@ -10,7 +10,10 @@ import { LoadingSpinner } from '../../../components/common';
 import { authService } from '../../../services';
 import { useAuth } from '../../../hooks/useAuth';
 import { getFullName, getInitials, coerceYearLevelToFormValue } from '../../../utils/helpers';
+<<<<<<< HEAD
 import { getChangedFields } from '../../../utils/patchPayload';
+=======
+>>>>>>> main
 import '../profile.css';
 
 const ProfileEditPage = () => {
@@ -103,9 +106,13 @@ const ProfileEditPage = () => {
         course: profile?.course?.code || '',
         year_level: coerceYearLevelToFormValue(profile?.year_level),
         section: profile?.section != null ? String(profile.section) : '',
+<<<<<<< HEAD
       };
       setFormData(nextFormData);
       setInitialFormData(nextFormData);
+=======
+      });
+>>>>>>> main
 
       setDepartments(departmentsResponse.data || []);
       
@@ -218,9 +225,15 @@ const ProfileEditPage = () => {
       if (!hasExistingEmail && Object.prototype.hasOwnProperty.call(changedFields, 'email')) submitData.append('email', normalizedCurrentData.email);
       
       // Append profile fields
+<<<<<<< HEAD
       if (Object.prototype.hasOwnProperty.call(changedFields, 'student_id')) submitData.append('student_id', normalizedCurrentData.student_id);
       if (Object.prototype.hasOwnProperty.call(changedFields, 'year_level')) submitData.append('year_level', normalizedCurrentData.year_level);
       if (Object.prototype.hasOwnProperty.call(changedFields, 'section')) submitData.append('section', normalizedCurrentData.section);
+=======
+      if (formData.student_id) submitData.append('student_id', formData.student_id);
+      if (formData.year_level) submitData.append('year_level', formData.year_level);
+      submitData.append('section', formData.section != null ? String(formData.section).trim() : '');
+>>>>>>> main
       
       // Append department and course as IDs (ensure they're numbers)
       if (Object.prototype.hasOwnProperty.call(changedFields, 'department')) {

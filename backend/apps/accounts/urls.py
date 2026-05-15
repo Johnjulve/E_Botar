@@ -12,6 +12,11 @@ router.register(r'courses', views.CourseViewSet, basename='course')
 router.register(r'programs', views.ProgramViewSet, basename='program')
 
 urlpatterns = [
+<<<<<<< HEAD
+=======
+    # Health check
+    path('health/', views.health_check, name='health'),
+>>>>>>> main
     # Current user
     path('me/', views.current_user, name='current-user'),
     # Student count
@@ -25,7 +30,10 @@ urlpatterns = [
     # JWT Token endpoints - using custom view that accepts email or username
     path('token/', views.CustomTokenObtainPairView.as_view(), name='token-obtain'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
+<<<<<<< HEAD
     path('google/', views.google_login, name='google-login'),
+=======
+>>>>>>> main
     # ViewSet routes
     path('', include(router.urls)),
 ]

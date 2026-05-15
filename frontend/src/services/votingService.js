@@ -54,6 +54,7 @@ export const votingService = {
     return api.get('/voting/voting-status/', { params });
   },
 
+<<<<<<< HEAD
   // Get receipt audit rows (staff/admin only)
   getReceiptAudit: (params = {}) => {
     return api.get('/voting/receipts/audit/', { params });
@@ -66,6 +67,8 @@ export const votingService = {
     });
   },
 
+=======
+>>>>>>> main
   // === Results ===
   
   // Get election results

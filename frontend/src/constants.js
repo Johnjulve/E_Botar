@@ -3,7 +3,11 @@
  * Central location for all app constants
  */
 // App version (single source of truth for UI; bump on release)
+<<<<<<< HEAD
 export const APP_VERSION = '2.1.0';
+=======
+export const APP_VERSION = '1.0.0';
+>>>>>>> main
 
 // API Configuration
 // NOTE: For actual API calls, use the api service (src/services/api.js)

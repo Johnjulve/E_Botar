@@ -65,10 +65,15 @@ const VotingStatusPage = () => {
   const [selectedElectionId, setSelectedElectionId] = useState('');
   const [summary, setSummary] = useState(null);
   const [rows, setRows] = useState([]);
+<<<<<<< HEAD
   const [pagination, setPagination] = useState({
     page: 1,
     pageSize: 20, // 20 | 50 | Infinity (All)
   });
+=======
+  const [pageSize, setPageSize] = useState(20); // 20 | 50 | Infinity (All)
+  const [currentPage, setCurrentPage] = useState(1);
+>>>>>>> main
   const [filters, setFilters] = useState({
     has_voted: '',
     search: '',
@@ -81,11 +86,17 @@ const VotingStatusPage = () => {
     studentId: true,
   });
   const [courseCatalog, setCourseCatalog] = useState([]);
+<<<<<<< HEAD
   const [courseFilters, setCourseFilters] = useState({
     courseListSearch: '',
     advancedCourseCodes: [],
     advancedYearLevels: [],
   });
+=======
+  const [courseListSearch, setCourseListSearch] = useState('');
+  const [advancedCourseCodes, setAdvancedCourseCodes] = useState([]);
+  const [advancedYearLevels, setAdvancedYearLevels] = useState([]);
+>>>>>>> main
 
   useEffect(() => {
     fetchElections();
@@ -117,15 +128,26 @@ const VotingStatusPage = () => {
   }, [selectedElectionId]);
 
   useEffect(() => {
+<<<<<<< HEAD
     setPagination((prev) => ({ ...prev, page: 1 }));
+=======
+    setCurrentPage(1);
+>>>>>>> main
   }, [
     selectedElectionId,
     filters.has_voted,
     filters.search,
+<<<<<<< HEAD
     pagination.pageSize,
     searchFields,
     courseFilters.advancedCourseCodes,
     courseFilters.advancedYearLevels,
+=======
+    pageSize,
+    searchFields,
+    advancedCourseCodes,
+    advancedYearLevels,
+>>>>>>> main
   ]);
 
   const uniqueYearLevels = useMemo(() => {
@@ -143,7 +165,11 @@ const VotingStatusPage = () => {
   }, [rows]);
 
   const filteredCourseCatalog = useMemo(() => {
+<<<<<<< HEAD
     const q = courseFilters.courseListSearch.trim().toLowerCase();
+=======
+    const q = courseListSearch.trim().toLowerCase();
+>>>>>>> main
     const list = courseCatalog.filter((c) => c.code);
     if (!q) return list;
     return list.filter((c) => {
@@ -158,7 +184,11 @@ const VotingStatusPage = () => {
         dname.includes(q)
       );
     });
+<<<<<<< HEAD
   }, [courseCatalog, courseFilters.courseListSearch]);
+=======
+  }, [courseCatalog, courseListSearch]);
+>>>>>>> main
 
   const fetchElections = async () => {
     try {
@@ -206,6 +236,7 @@ const VotingStatusPage = () => {
 
   const toggleAdvancedCourse = (code) => {
     if (!code) return;
+<<<<<<< HEAD
     setCourseFilters((prev) => ({
       ...prev,
       advancedCourseCodes: prev.advancedCourseCodes.includes(code)
@@ -230,6 +261,23 @@ const VotingStatusPage = () => {
       advancedYearLevels: [],
       courseListSearch: '',
     }));
+=======
+    setAdvancedCourseCodes((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
+    );
+  };
+
+  const toggleAdvancedYear = (yearLabel) => {
+    setAdvancedYearLevels((prev) =>
+      prev.includes(yearLabel) ? prev.filter((y) => y !== yearLabel) : [...prev, yearLabel]
+    );
+  };
+
+  const clearAdvancedAttributeFilters = () => {
+    setAdvancedCourseCodes([]);
+    setAdvancedYearLevels([]);
+    setCourseListSearch('');
+>>>>>>> main
   };
 
   const filteredRows = useMemo(() => {
@@ -237,6 +285,7 @@ const VotingStatusPage = () => {
       if (filters.has_voted === 'true' && !u.has_voted) return false;
       if (filters.has_voted === 'false' && u.has_voted) return false;
 
+<<<<<<< HEAD
       if (courseFilters.advancedCourseCodes.length > 0) {
         if (!u.course?.code || !courseFilters.advancedCourseCodes.includes(u.course.code)) {
           return false;
@@ -245,6 +294,16 @@ const VotingStatusPage = () => {
       if (courseFilters.advancedYearLevels.length > 0) {
         const yn = formatYearLevelNumeric(u.year_level);
         if (!yn || !courseFilters.advancedYearLevels.includes(yn)) {
+=======
+      if (advancedCourseCodes.length > 0) {
+        if (!u.course?.code || !advancedCourseCodes.includes(u.course.code)) {
+          return false;
+        }
+      }
+      if (advancedYearLevels.length > 0) {
+        const yn = formatYearLevelNumeric(u.year_level);
+        if (!yn || !advancedYearLevels.includes(yn)) {
+>>>>>>> main
           return false;
         }
       }
@@ -278,6 +337,7 @@ const VotingStatusPage = () => {
     filters.has_voted,
     filters.search,
     searchFields,
+<<<<<<< HEAD
   courseFilters.advancedCourseCodes,
   courseFilters.advancedYearLevels,
   ]);
@@ -288,6 +348,16 @@ const VotingStatusPage = () => {
     : totalRows || 1;
   const totalPages = Math.max(1, Math.ceil(totalRows / effectivePageSize));
   const safeCurrentPage = Math.min(Math.max(1, pagination.page), totalPages);
+=======
+    advancedCourseCodes,
+    advancedYearLevels,
+  ]);
+
+  const totalRows = filteredRows.length;
+  const effectivePageSize = Number.isFinite(pageSize) ? pageSize : totalRows || 1;
+  const totalPages = Math.max(1, Math.ceil(totalRows / effectivePageSize));
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+>>>>>>> main
   const startIndex = (safeCurrentPage - 1) * effectivePageSize;
   const endIndexExclusive = Math.min(startIndex + effectivePageSize, totalRows);
   const paginatedRows = filteredRows.slice(startIndex, endIndexExclusive);
@@ -295,7 +365,11 @@ const VotingStatusPage = () => {
   const selectedElection = elections.find((e) => String(e.id) === String(selectedElectionId));
 
   const handleExportCsv = () => {
+<<<<<<< HEAD
     const toExport = Number.isFinite(pagination.pageSize) ? paginatedRows : filteredRows;
+=======
+    const toExport = Number.isFinite(pageSize) ? paginatedRows : filteredRows;
+>>>>>>> main
     if (!toExport.length) return;
 
     const headers = [
@@ -332,10 +406,17 @@ const VotingStatusPage = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     const titleSlug = (selectedElection?.title || 'voting-status')
+<<<<<<< HEAD
       .replace(/[^\w-]+/g, '_')
       .replace(/^_+|_+$/g, '')
       .slice(0, 72);
     const scopeLabel = Number.isFinite(pagination.pageSize)
+=======
+      .replace(/[^\w\-]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .slice(0, 72);
+    const scopeLabel = Number.isFinite(pageSize)
+>>>>>>> main
       ? `page${safeCurrentPage}_of${totalPages}`
       : 'all_filtered';
     a.href = url;
@@ -440,7 +521,11 @@ const VotingStatusPage = () => {
               onClick={handleExportCsv}
               disabled={!filteredRows.length}
               title={
+<<<<<<< HEAD
                 Number.isFinite(pagination.pageSize)
+=======
+                Number.isFinite(pageSize)
+>>>>>>> main
                   ? `Export current page (${paginatedRows.length} rows) as CSV`
                   : `Export all filtered rows (${filteredRows.length}) as CSV`
               }
@@ -515,6 +600,7 @@ const VotingStatusPage = () => {
                     type="search"
                     className="admin-course-listbox-search form-control form-control-sm"
                     placeholder="Search courses by name, code, or department…"
+<<<<<<< HEAD
                     value={courseFilters.courseListSearch}
                     onChange={(e) =>
                       setCourseFilters((prev) => ({
@@ -522,6 +608,10 @@ const VotingStatusPage = () => {
                         courseListSearch: e.target.value,
                       }))
                     }
+=======
+                    value={courseListSearch}
+                    onChange={(e) => setCourseListSearch(e.target.value)}
+>>>>>>> main
                     aria-label="Filter course list"
                     disabled={courseCatalog.length === 0}
                   />
@@ -532,8 +622,13 @@ const VotingStatusPage = () => {
                       <div className="admin-course-listbox-meta">
                         <span>
                           {filteredCourseCatalog.length} of {courseCatalog.length} shown
+<<<<<<< HEAD
                           {courseFilters.advancedCourseCodes.length > 0 && (
                             <> · {courseFilters.advancedCourseCodes.length} selected</>
+=======
+                          {advancedCourseCodes.length > 0 && (
+                            <> · {advancedCourseCodes.length} selected</>
+>>>>>>> main
                           )}
                         </span>
                       </div>
@@ -548,7 +643,11 @@ const VotingStatusPage = () => {
                         ) : (
                           filteredCourseCatalog.map((c) => {
                             const code = c.code;
+<<<<<<< HEAD
                             const checked = courseFilters.advancedCourseCodes.includes(code);
+=======
+                            const checked = advancedCourseCodes.includes(code);
+>>>>>>> main
                             return (
                               <label
                                 key={code}
@@ -587,7 +686,11 @@ const VotingStatusPage = () => {
                     <span className="text-muted small">No year levels in current list</span>
                   ) : (
                     uniqueYearLevels.map((yl) => {
+<<<<<<< HEAD
                       const checked = courseFilters.advancedYearLevels.includes(yl);
+=======
+                      const checked = advancedYearLevels.includes(yl);
+>>>>>>> main
                       return (
                         <label key={yl} className={`admin-filter-chip ${checked ? 'admin-filter-chip-active' : ''}`}>
                           <input
@@ -603,7 +706,11 @@ const VotingStatusPage = () => {
                 </div>
               </div>
 
+<<<<<<< HEAD
               {(courseFilters.advancedCourseCodes.length > 0 || courseFilters.advancedYearLevels.length > 0) && (
+=======
+              {(advancedCourseCodes.length > 0 || advancedYearLevels.length > 0) && (
+>>>>>>> main
                 <div className="admin-advanced-search-actions">
                   <button
                     type="button"
@@ -689,9 +796,13 @@ const VotingStatusPage = () => {
                 <button
                   type="button"
                   className="admin-btn admin-btn-small"
+<<<<<<< HEAD
                   onClick={() =>
                     setPagination((prev) => ({ ...prev, page: Math.max(1, prev.page - 1) }))
                   }
+=======
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+>>>>>>> main
                   disabled={safeCurrentPage <= 1}
                 >
                   Prev
@@ -699,9 +810,13 @@ const VotingStatusPage = () => {
                 <button
                   type="button"
                   className="admin-btn admin-btn-small"
+<<<<<<< HEAD
                   onClick={() =>
                     setPagination((prev) => ({ ...prev, page: Math.min(totalPages, prev.page + 1) }))
                   }
+=======
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+>>>>>>> main
                   disabled={safeCurrentPage >= totalPages}
                 >
                   Next
@@ -711,6 +826,7 @@ const VotingStatusPage = () => {
                   <label className="admin-pagination-view-label">View</label>
                   <select
                     className="admin-pagination-view-select"
+<<<<<<< HEAD
                     value={Number.isFinite(pagination.pageSize) ? String(pagination.pageSize) : 'all'}
                     onChange={(e) => {
                       const value = e.target.value;
@@ -719,6 +835,13 @@ const VotingStatusPage = () => {
                       } else {
                         setPagination((prev) => ({ ...prev, pageSize: Number(value), page: 1 }));
                       }
+=======
+                    value={Number.isFinite(pageSize) ? String(pageSize) : 'all'}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === 'all') setPageSize(Infinity);
+                      else setPageSize(Number(value));
+>>>>>>> main
                     }}
                   >
                     <option value="20">20</option>

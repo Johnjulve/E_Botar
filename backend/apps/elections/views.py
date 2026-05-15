@@ -296,7 +296,16 @@ class SchoolElectionViewSet(viewsets.ModelViewSet):
         election = self.get_object()
         election.is_paused = True
         election.save(update_fields=['is_paused', 'updated_at'])
+<<<<<<< HEAD
         invalidate_election_and_related_voting_cache(election.id)
+=======
+        ElectionDataService.invalidate_election_cache(election.id)
+        try:
+            from apps.voting.services import VotingDataService
+            VotingDataService.invalidate_voting_cache()
+        except Exception:
+            pass
+>>>>>>> main
         serializer = SchoolElectionDetailSerializer(election, context={'request': request})
         return Response(serializer.data)
 
@@ -306,7 +315,16 @@ class SchoolElectionViewSet(viewsets.ModelViewSet):
         election = self.get_object()
         election.is_paused = False
         election.save(update_fields=['is_paused', 'updated_at'])
+<<<<<<< HEAD
         invalidate_election_and_related_voting_cache(election.id)
+=======
+        ElectionDataService.invalidate_election_cache(election.id)
+        try:
+            from apps.voting.services import VotingDataService
+            VotingDataService.invalidate_voting_cache()
+        except Exception:
+            pass
+>>>>>>> main
         serializer = SchoolElectionDetailSerializer(election, context={'request': request})
         return Response(serializer.data)
 

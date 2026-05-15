@@ -9,7 +9,11 @@ import { Offcanvas } from 'react-bootstrap';
 import { electionService } from '../../services';
 import { DEFAULT_FEATURE_FLAGS } from '../../services/systemService';
 import { useAuth } from '../../hooks/useAuth';
+<<<<<<< HEAD
 import { useBranding } from '../../hooks/useBranding';
+=======
+import { useBranding } from '../../contexts/BrandingContext';
+>>>>>>> main
 import { APP_VERSION } from '../../constants';
 import logoImg from '../../assets/images/logo.png';
 
@@ -238,6 +242,7 @@ const Navbar = () => {
         { key: 'admin-elections', label: 'Elections', to: '/admin/elections', icon: 'calendar' },
         { key: 'admin-applications', label: 'Applications', to: '/admin/applications', icon: 'users' },
         { key: 'admin-voting-status', label: 'Voting Status', to: '/admin/voting-status', icon: 'vote' },
+<<<<<<< HEAD
         { key: 'admin-receipt-audit', label: 'Receipt Audit', to: '/admin/receipt-audit', icon: 'activity' },
         {
           key: 'admin-data-export',
@@ -253,6 +258,17 @@ const Navbar = () => {
       if (isAdmin) {
         adminMenuItems.push(
           { key: 'admin-programs', label: 'Programs', to: '/admin/programs', icon: 'building' }
+=======
+        { key: 'admin-data-export', label: 'Data Export', to: '/admin/data-export', icon: 'download' },
+        { key: 'admin-users', label: 'Users', to: '/admin/users', icon: 'users' },
+      ];
+
+      // Admin-only extra items (superuser only)
+      if (isAdmin) {
+        adminMenuItems.push(
+          { key: 'admin-programs', label: 'Programs', to: '/admin/programs', icon: 'building' },
+          { key: 'admin-logs', label: 'System Logs', to: '/admin/logs', icon: 'activity' }
+>>>>>>> main
         );
       }
 
@@ -645,10 +661,17 @@ const Navbar = () => {
           )}
         </div>
 
+<<<<<<< HEAD
         <div className="sidebar-bottom-meta">
           <div className="sidebar-version text-selectable">
             {branding.app_name} v{APP_VERSION}
           </div>
+=======
+        {/* Sidebar version label above user pill */}
+        <div className="sidebar-version text-selectable">
+          {branding.app_name} v{APP_VERSION}
+        </div>
+>>>>>>> main
 
           {isAuthenticated && (
             <Link

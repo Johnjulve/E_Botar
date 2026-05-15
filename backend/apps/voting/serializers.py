@@ -2,11 +2,15 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from .models import VoteReceipt, AnonVote, Ballot, VoteChoice
 from apps.candidates.serializers import CandidateListSerializer
+<<<<<<< HEAD
 from apps.elections.serializers import (
     SchoolPositionMinimalSerializer,
     SchoolElectionMinimalSerializer,
 )
 from apps.accounts.models import UserProfile
+=======
+from apps.elections.serializers import SchoolPositionSerializer, SchoolElectionListSerializer
+>>>>>>> main
 from apps.accounts.serializers import UserProfileSerializer
 
 
@@ -191,6 +195,7 @@ class UserVotingStatusSerializer(UserProfileSerializer):
         fields = list(UserProfileSerializer.Meta.fields) + ['has_voted']
         read_only_fields = list(UserProfileSerializer.Meta.read_only_fields) + ['has_voted']
 
+<<<<<<< HEAD
 
 class VoteReceiptAuditSerializer(serializers.ModelSerializer):
     """Admin/staff serializer for receipt audit table."""
@@ -257,3 +262,5 @@ class VoteReceiptAuditSerializer(serializers.ModelSerializer):
         block = self._first_vote_block(obj)
         return block.previous_hash if block else None
 
+=======
+>>>>>>> main

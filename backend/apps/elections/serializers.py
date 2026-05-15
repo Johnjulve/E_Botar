@@ -159,6 +159,88 @@ class SchoolElectionListSerializer(SchoolElectionSerializerMethodMixin, serializ
             'created_at', 'updated_at'
         ]
         read_only_fields = ['created_at', 'updated_at', 'title', 'is_paused']
+<<<<<<< HEAD
+=======
+    
+    def get_status(self, obj):
+        """Return human-readable status"""
+        if obj is None:
+            return 'inactive'
+        try:
+            from django.utils import timezone
+            now = timezone.now()
+            if (
+                getattr(obj, 'is_paused', False)
+                and obj.is_active
+                and obj.start_date <= now <= obj.end_date
+            ):
+                return 'paused'
+            if obj.is_active_now():
+                return 'ongoing'
+            elif obj.is_upcoming():
+                return 'upcoming'
+            elif obj.is_finished():
+                return 'finished'
+        except Exception:
+            pass
+        return 'inactive'
+    
+    def get_is_active_now(self, obj):
+        """Return boolean indicating if election is currently active"""
+        if obj is None:
+            return False
+        try:
+            return obj.is_active_now()
+        except Exception:
+            return False
+    
+    def get_is_upcoming(self, obj):
+        """Return boolean indicating if election is upcoming"""
+        if obj is None:
+            return False
+        try:
+            return obj.is_upcoming()
+        except Exception:
+            return False
+    
+    def get_is_finished(self, obj):
+        """Return boolean indicating if election has finished"""
+        if obj is None:
+            return False
+        try:
+            return obj.is_finished()
+        except Exception:
+            return False
+    
+    def get_created_by_name(self, obj):
+        """Get created by full name safely"""
+        if obj is None or obj.created_by is None:
+            return None
+        try:
+            return obj.created_by.get_full_name() or obj.created_by.username
+        except Exception:
+            return None
+    
+    def get_total_votes(self, obj):
+        """Count of unique voters in this election"""
+        if obj is None:
+            return 0
+        try:
+            # Safely count votes, return 0 if election doesn't exist or has no votes
+            return VoteReceipt.objects.filter(election=obj).count() if (hasattr(obj, 'id') and obj.id) else 0
+        except (AttributeError, Exception):
+            return 0
+    
+    def get_total_positions(self, obj):
+        """Count of positions in this election"""
+        if obj is None:
+            return 0
+        try:
+            # Safely count positions, return 0 if election doesn't exist
+            return obj.election_positions.count() if hasattr(obj, 'election_positions') else 0
+        except (AttributeError, Exception):
+            return 0
+>>>>>>> main
 
 
 class SchoolElectionCompactSerializer(SchoolElectionSerializerMethodMixin, serializers.ModelSerializer):
@@ -202,6 +284,70 @@ class SchoolElectionDetailSerializer(SchoolElectionSerializerMethodMixin, serial
             'created_at', 'updated_at'
         ]
         read_only_fields = ['created_at', 'updated_at', 'title', 'is_paused']
+<<<<<<< HEAD
+=======
+    
+    def get_status(self, obj):
+        """Return human-readable status"""
+        if obj is None:
+            return 'inactive'
+        try:
+            from django.utils import timezone
+            now = timezone.now()
+            if (
+                getattr(obj, 'is_paused', False)
+                and obj.is_active
+                and obj.start_date <= now <= obj.end_date
+            ):
+                return 'paused'
+            if obj.is_active_now():
+                return 'ongoing'
+            elif obj.is_upcoming():
+                return 'upcoming'
+            elif obj.is_finished():
+                return 'finished'
+        except Exception:
+            pass
+        return 'inactive'
+    
+    def get_is_active_now(self, obj):
+        """Return boolean indicating if election is currently active"""
+        if obj is None:
+            return False
+        try:
+            return obj.is_active_now()
+        except Exception:
+            return False
+    
+    def get_created_by_name(self, obj):
+        """Get created by full name safely"""
+        if obj is None or obj.created_by is None:
+            return None
+        try:
+            return obj.created_by.get_full_name() or obj.created_by.username
+        except Exception:
+            return None
+    
+    def get_total_positions(self, obj):
+        """Count of positions in this election"""
+        if obj is None:
+            return 0
+        try:
+            # Safely count positions, return 0 if election doesn't exist
+            return obj.election_positions.count() if hasattr(obj, 'election_positions') else 0
+        except (AttributeError, Exception):
+            return 0
+    
+    def get_total_votes(self, obj):
+        """Count of unique voters in this election"""
+        if obj is None:
+            return 0
+        try:
+            # Safely count votes, return 0 if election doesn't exist or has no votes
+            return VoteReceipt.objects.filter(election=obj).count() if (obj.id and hasattr(obj, 'id')) else 0
+        except (AttributeError, Exception):
+            return 0
+>>>>>>> main
 
 
 class SchoolElectionCreateUpdateSerializer(serializers.ModelSerializer):

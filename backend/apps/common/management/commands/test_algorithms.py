@@ -107,6 +107,7 @@ def test_cryptographic():
     assert key1 == key2, "SHA-256 cache key should be deterministic"
     assert len(key1) == 64
     print("✓ SHA-256 cache key test passed")
+<<<<<<< HEAD
 
     # RSA: keygen, sign/verify, encrypt/decrypt
     priv_pem, pub_pem = CryptographicAlgorithm.generate_rsa_keypair(key_size=2048)
@@ -135,6 +136,9 @@ def test_cryptographic():
         assert "too long" in str(e).lower() or "Plaintext" in str(e)
     print("✓ RSA plaintext length guard test passed")
 
+=======
+    
+>>>>>>> main
     print("All cryptographic tests passed!\n")
 
 

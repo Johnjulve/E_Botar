@@ -7,6 +7,7 @@ read-only programs → superuser ProgramViewSet → simple count/current-user en
 import logging
 import csv
 import io
+<<<<<<< HEAD
 import re
 import requests
 
@@ -27,6 +28,20 @@ from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
 
 from apps.common.feature_flags import load_feature_flags
+=======
+from django.db.models import Q
+from rest_framework import generics, status, viewsets
+from rest_framework.decorators import api_view, permission_classes, action
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework_simplejwt.views import TokenObtainPairView
+from django.contrib.auth.models import User
+from django.http import HttpResponse
+from rest_framework.exceptions import PermissionDenied
+
+from .models import UserProfile, Program
+from .utils import staff_can_manage_student_profile
+>>>>>>> main
 from apps.common.models import ActivityLog
 from apps.common.permissions import IsStaffOrSuperUser, IsSuperUser
 from apps.common.throttling import enforce_scope_throttle
@@ -157,6 +172,256 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
 
+<<<<<<< HEAD
+=======
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def health_check(request):
+    """Health check endpoint for accounts service"""
+    return Response({
+        'status': 'healthy',
+        'service': 'accounts',
+        'message': 'Accounts service is running'
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def student_count(request):
+    """Get total count of students (non-staff, non-superuser, active users)"""
+    # Count User objects directly (more accurate than counting profiles)
+    # Only count active users who are not staff and not superuser
+    # This ensures we count all students regardless of profile completeness
+    total_students = User.objects.filter(
+        is_staff=False,
+        is_superuser=False,
+        is_active=True
+    ).count()
+    
+    return Response({
+        'total_students': total_students
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsStaffOrSuperUser])
+def user_count(request):
+    """Get total count of registered users (active + inactive). Staff/Admin only."""
+    total_users = User.objects.count()
+    total_active_users = User.objects.filter(is_active=True).count()
+    total_inactive_users = total_users - total_active_users
+
+    return Response({
+        'total_users': total_users,
+        'total_active_users': total_active_users,
+        'total_inactive_users': total_inactive_users,
+    })
+
+
+@api_view(['GET', 'PATCH', 'PUT', 'POST'])
+@permission_classes([IsAuthenticated])
+def current_user(request):
+    """Get or update current authenticated user's profile"""
+    if request.method == 'POST' and 'change_password' in request.data:
+        # Handle password change
+        old_password = request.data.get('old_password')
+        new_password = request.data.get('new_password')
+        
+        if not old_password or not new_password:
+            return Response({
+                'error': 'Both old_password and new_password are required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Validate new password length
+        if len(new_password) < 8:
+            return Response({
+                'error': 'New password must be at least 8 characters long'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Get a fresh user instance from the database to avoid any caching issues
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        user = User.objects.get(pk=request.user.pk)
+        
+        # Verify old password with the fresh user instance
+        if not user.check_password(old_password):
+            return Response({
+                'error': 'Current password is incorrect'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Set new password (this automatically hashes it)
+        user.set_password(new_password)
+        # Save the user - save all fields to ensure password is committed
+        user.save()
+        
+        # Force database commit by getting a completely fresh instance
+        # This ensures the password was actually written to the database
+        user = User.objects.get(pk=request.user.pk)
+        
+        # Verify the new password works by checking it
+        password_verified = user.check_password(new_password)
+        logger.info(f"Password change attempt for user {user.id} ({user.username}): verification={password_verified}")
+        
+        if not password_verified:
+            logger.error(f"Password change verification failed for user {user.id} ({user.username})")
+            return Response({
+                'error': 'Password change failed verification. Please try again.'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        # Log the successful password change
+        logger.info(f"Password successfully changed and verified for user {user.id} ({user.username})")
+        
+        # Log the activity
+        try:
+            from apps.common.models import ActivityLog
+            x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+            if x_forwarded_for:
+                ip_address = x_forwarded_for.split(',')[0]
+            else:
+                ip_address = request.META.get('REMOTE_ADDR')
+            
+            ActivityLog.objects.create(
+                user=request.user,
+                action='update',
+                resource_type='User',
+                resource_id=request.user.id,
+                description=f"User {request.user.username} changed their password",
+                ip_address=ip_address,
+                metadata={
+                    'action_type': 'password_change',
+                    'user_id': request.user.id,
+                    'username': request.user.username
+                }
+            )
+        except Exception as e:
+            logger.error(f"Error logging password change activity: {str(e)}")
+        
+        return Response({
+            'message': 'Password changed successfully'
+        }, status=status.HTTP_200_OK)
+    
+    if request.method == 'GET':
+        try:
+            user_serializer = UserSerializer(request.user, context={'request': request})
+            try:
+                profile = request.user.profile
+            except UserProfile.DoesNotExist:
+                # Create profile if it doesn't exist
+                profile = UserProfile.objects.create(user=request.user)
+            
+            # Serialize profile with proper error handling
+            try:
+                profile_serializer = UserProfileSerializer(profile, context={'request': request})
+                return Response({
+                    'user': user_serializer.data,
+                    'profile': profile_serializer.data
+                })
+            except Exception as e:
+                # Log the error for debugging
+                logger.error(f"Error serializing profile for user {request.user.id}: {str(e)}", exc_info=True)
+                return Response(
+                    {'error': 'Error retrieving profile data', 'detail': str(e)},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+        except Exception as e:
+            # Log the error for debugging
+            logger.error(f"Error in current_user view for user {request.user.id}: {str(e)}", exc_info=True)
+            return Response(
+                {'error': 'Error retrieving user data', 'detail': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    elif request.method in ['PATCH', 'PUT']:
+        # Update user and profile data
+        user = request.user
+        profile = user.profile
+        
+        # Update user fields (first_name, last_name, email)
+        user_data = {}
+        if 'first_name' in request.data:
+            user_data['first_name'] = request.data['first_name']
+        if 'last_name' in request.data:
+            user_data['last_name'] = request.data['last_name']
+        if 'email' in request.data:
+            # Only allow email update if it's empty
+            if not user.email or user.email.strip() == '':
+                user_data['email'] = request.data['email']
+        
+        if user_data:
+            user_serializer = UserSerializer(user, data=user_data, partial=True, context={'request': request})
+            if user_serializer.is_valid():
+                user_serializer.save()
+            else:
+                return Response(user_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if user is admin/staff (academic fields optional)
+        is_admin_or_staff = user.is_staff or user.is_superuser
+        
+        # Update profile fields
+        profile_data = {}
+        profile_fields = ['middle_name', 'student_id', 'year_level', 'section']
+        for field in profile_fields:
+            if field in request.data:
+                # For admins, allow empty strings to clear the field
+                if is_admin_or_staff:
+                    profile_data[field] = request.data[field] if request.data[field] else None
+                elif request.data[field]:  # For regular users, only set if value provided
+                    profile_data[field] = request.data[field]
+        
+        # Handle department and course separately - convert to department_code and course_code
+        if 'department' in request.data:
+            if is_admin_or_staff and (not request.data['department'] or request.data['department'] == ''):
+                # Allow admins to clear department
+                profile_data['department_code'] = None
+            elif request.data['department']:
+                # Accept either code directly or as department_code
+                dept_value = request.data.get('department_code') or request.data['department']
+                profile_data['department_code'] = str(dept_value).strip()
+        
+        if 'course' in request.data:
+            if is_admin_or_staff and (not request.data['course'] or request.data['course'] == ''):
+                # Allow admins to clear course
+                profile_data['course_code'] = None
+            elif request.data['course']:
+                # Accept either code directly or as course_code
+                course_value = request.data.get('course_code') or request.data['course']
+                profile_data['course_code'] = str(course_value).strip()
+        
+        # Handle avatar file from request.FILES
+        if 'avatar' in request.FILES:
+            # Delete old avatar if exists
+            if profile.avatar:
+                profile.avatar.delete(save=False)
+            profile_data['avatar'] = request.FILES['avatar']
+        
+        # Handle avatar removal
+        if request.data.get('remove_avatar') == 'true':
+            if profile.avatar:
+                profile.avatar.delete(save=False)
+            profile_data['avatar'] = None
+        
+        if profile_data:
+            profile_serializer = UserProfileSerializer(profile, data=profile_data, partial=True)
+            if profile_serializer.is_valid():
+                profile_serializer.save()
+            else:
+                return Response(profile_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Refresh from database to get updated relationships
+        profile.refresh_from_db()
+        
+        # Return updated data with request context for avatar URL
+        user_serializer = UserSerializer(user, context={'request': request})
+        profile_serializer = UserProfileSerializer(profile, context={'request': request})
+        
+        return Response({
+            'user': user_serializer.data,
+            'profile': profile_serializer.data,
+            'message': 'Profile updated successfully'
+        })
+
+
+>>>>>>> main
 class UserRegistrationView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserRegistrationSerializer
@@ -395,10 +660,17 @@ class UserProfileViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if user.is_staff or user.is_superuser:
             return UserProfile.objects.all()
+<<<<<<< HEAD
         return UserProfile.objects.filter(user=user)
 
     @staticmethod
     def user_can_edit_profile(request, profile):
+=======
+        return UserProfile.objects.filter(user=self.request.user)
+
+    def _can_edit_profile(self, request, profile):
+        """Superuser: all. Own profile: yes. Staff: students at/below staff year level only."""
+>>>>>>> main
         if request.user.is_superuser:
             return True
         if profile.user_id == request.user.id:
@@ -407,6 +679,7 @@ class UserProfileViewSet(viewsets.ModelViewSet):
             return True
         return False
 
+<<<<<<< HEAD
     def enforce_profile_editor_permission(self):
         profile = self.get_object()
         if not self.user_can_edit_profile(self.request, profile):
@@ -432,11 +705,45 @@ class UserProfileViewSet(viewsets.ModelViewSet):
 
         if not request.user.is_superuser:
             if user_obj.is_superuser or user_obj.is_staff:
+=======
+    def update(self, request, *args, **kwargs):
+        profile = self.get_object()
+        if not self._can_edit_profile(request, profile):
+            raise PermissionDenied(
+                'You do not have permission to edit this profile. '
+                'Staff may only edit student profiles at or below their own year level.'
+            )
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        profile = self.get_object()
+        if not self._can_edit_profile(request, profile):
+            raise PermissionDenied(
+                'You do not have permission to edit this profile. '
+                'Staff may only edit student profiles at or below their own year level.'
+            )
+        return super().partial_update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        if not request.user.is_superuser:
+            raise PermissionDenied('Only administrators can delete user profiles.')
+        return super().destroy(request, *args, **kwargs)
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsStaffOrSuperUser])
+    def toggle_active(self, request, pk=None):
+        """Toggle user's active status (admin: any user; staff: students in year scope only)."""
+        profile = self.get_object()
+        user = profile.user
+
+        if not request.user.is_superuser:
+            if user.is_superuser or user.is_staff:
+>>>>>>> main
                 raise PermissionDenied('Staff cannot change active status for administrators or staff.')
             if not staff_can_manage_student_profile(request.user, profile):
                 raise PermissionDenied(
                     'You can only change active status for students at or below your own year level.'
                 )
+<<<<<<< HEAD
 
         old_status = user_obj.is_active
         user_obj.is_active = not user_obj.is_active
@@ -454,16 +761,52 @@ class UserProfileViewSet(viewsets.ModelViewSet):
         actor_label = 'Admin' if request.user.is_superuser else 'Staff'
         action_word = 'activated' if user_obj.is_active else 'deactivated'
 
+=======
+        
+        # Get client IP
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip_address = x_forwarded_for.split(',')[0]
+        else:
+            ip_address = request.META.get('REMOTE_ADDR')
+        
+        # Store old status for logging
+        old_status = user.is_active
+        
+        # Toggle the is_active status
+        user.is_active = not user.is_active
+        user.save()
+
+        # Results/statistics cache may include vote counts; refresh after activation changes
+        try:
+            from apps.voting.services import VotingDataService
+            VotingDataService.invalidate_voting_cache()
+        except Exception:
+            pass
+        
+        # Log the activity
+        student_id = getattr(profile, 'student_id', None)
+        target_identifier = student_id if student_id else user.username
+        action_word = 'activated' if user.is_active else 'deactivated'
+        
+        actor_label = 'Admin' if request.user.is_superuser else 'Staff'
+>>>>>>> main
         ActivityLog.objects.create(
             user=request.user,
             action='update',
             resource_type='User',
+<<<<<<< HEAD
             resource_id=user_obj.id,
             description=(
                 f'{actor_label} {request.user.username} {action_word} user '
                 f'{target_identifier} ({user_obj.get_full_name()})'
             ),
             ip_address=get_client_ip(request),
+=======
+            resource_id=user.id,
+            description=f"{actor_label} {request.user.username} {action_word} user {target_identifier} ({user.get_full_name()})",
+            ip_address=ip_address,
+>>>>>>> main
             metadata={
                 'target_user_id': user_obj.id,
                 'target_student_id': student_id,
@@ -636,6 +979,75 @@ class UserDirectoryView(generics.ListAPIView):
                 | Q(user__first_name__icontains=search)
                 | Q(user__last_name__icontains=search)
                 | Q(student_id__icontains=search)
+            )
+
+        return queryset.order_by('user__last_name', 'user__first_name', 'user__username')
+
+
+class UserDirectoryView(generics.ListAPIView):
+    """Read-only unified directory for students and staff/admin users."""
+    serializer_class = UserProfileSerializer
+    permission_classes = [IsAuthenticated, IsStaffOrSuperUser]
+
+    def get_queryset(self):
+        request = self.request
+        query_params = request.query_params
+
+        # Base queryset: always join related user/program data
+        queryset = UserProfile.objects.select_related('user', 'department', 'course')
+
+        # Filter by type: students (default) or staff (staff/admin)
+        directory_type = (query_params.get('type') or 'students').lower()
+        if directory_type == 'staff':
+            # Staff/Admin users
+            queryset = queryset.filter(
+                Q(user__is_staff=True) | Q(user__is_superuser=True)
+            )
+        else:
+            # Students (non-staff, non-superuser)
+            queryset = queryset.filter(
+                user__is_staff=False,
+                user__is_superuser=False
+            )
+
+        # Optional filters
+        department_code = query_params.get('department_code') or query_params.get('college')
+        if department_code:
+            queryset = queryset.filter(department__code=department_code)
+
+        course_code = query_params.get('course_code') or query_params.get('course')
+        if course_code:
+            queryset = queryset.filter(course__code=course_code)
+
+        year_level = query_params.get('year_level')
+        if year_level:
+            queryset = queryset.filter(year_level=year_level)
+
+        role = query_params.get('role')
+        if role in ['student', 'staff', 'admin']:
+            if role == 'admin':
+                queryset = queryset.filter(user__is_superuser=True)
+            elif role == 'staff':
+                queryset = queryset.filter(user__is_staff=True, user__is_superuser=False)
+            else:
+                queryset = queryset.filter(user__is_staff=False, user__is_superuser=False)
+
+        is_active = query_params.get('is_active')
+        if is_active in ['true', 'false']:
+            queryset = queryset.filter(user__is_active=(is_active == 'true'))
+
+        is_verified = query_params.get('is_verified')
+        if is_verified in ['true', 'false']:
+            queryset = queryset.filter(is_verified=(is_verified == 'true'))
+
+        search = query_params.get('search')
+        if search:
+            search = search.strip()
+            queryset = queryset.filter(
+                Q(user__username__icontains=search) |
+                Q(user__first_name__icontains=search) |
+                Q(user__last_name__icontains=search) |
+                Q(student_id__icontains=search)
             )
 
         return queryset.order_by('user__last_name', 'user__first_name', 'user__username')

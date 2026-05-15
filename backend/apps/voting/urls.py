@@ -13,6 +13,9 @@ urlpatterns = [
     # Per-election voting status for students
     path('voting-status/', views.VotingStatusView.as_view(), name='voting-status'),
     
+    # Per-election voting status for students
+    path('voting-status/', views.VotingStatusView.as_view(), name='voting-status'),
+    
     # ViewSet routes
     path('', include(router.urls)),
 ]

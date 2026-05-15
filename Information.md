@@ -1,6 +1,10 @@
 # E-Botar - System Information
 
+<<<<<<< HEAD
 **Version 2.1.0** | Complete system documentation and technical details
+=======
+**Version 1.0.0** | Complete system documentation and technical details
+>>>>>>> main
 
 [![Django](https://img.shields.io/badge/Django-5.2.8-green.svg)](https://www.djangoproject.com/)
 [![DRF](https://img.shields.io/badge/DRF-3.16.1-red.svg)](https://www.django-rest-framework.org/)
@@ -11,7 +15,11 @@
 
 ## 📖 Table of Contents
 
+<<<<<<< HEAD
 - [Release Highlights (2.1.0)](#-release-highlights-210)
+=======
+- [Release Highlights (1.0.0)](#-release-highlights-100)
+>>>>>>> main
 - [Overview](#overview)
 - [Research Foundation](#research-foundation)
 - [Algorithms & Data Structures](#-algorithms--data-structures)
@@ -28,6 +36,7 @@
 
 ---
 
+<<<<<<< HEAD
 ## 🚀 Release Highlights (2.1.0)
 
 - **Major release**: **Google Sign-In**, vote-ledger integrity, receipt UX modernization, election metrics correctness, profile-edit PATCH payloads, navbar polish, and documentation handbooks.
@@ -52,6 +61,21 @@
 - **App Version Single Source of Truth**: UI version (e.g. "E-Botar v2.1.0") is driven from `frontend/src/constants.js` (`APP_VERSION`).
 - **Admin User Directory (Read-Only)**, **Voting Status (Per Election)**, **Admin metrics endpoints** (`user-count`, `directory`, `voting-status`).
 - **Admin Tables Upgrade**, **Application Pages Upgrade**, **Data Export PDF Improvements**, **Layout + Responsiveness Fixes** (see [CHANGELOG.md](CHANGELOG.md) § 1.0.0).
+=======
+## 🚀 Release Highlights (1.0.0)
+
+- **App Version Single Source of Truth**: UI version (e.g. "E-Botar v1.0.0") is driven from one constant in `frontend/src/constants.js` (`APP_VERSION`). Navbar (sidebar and mobile) imports it, so bumping the version in one place updates the label everywhere.
+- **Admin User Directory (Read-Only)**: Students/staff/admin directory with advanced multi-field filters, summary cards (colleges/courses), and client-side pagination.
+- **Voting Status (Per Election)**: Read-only per-election voting completion status page with client-side pagination.
+- **Admin Metrics + Backend Endpoints**:
+  - `GET /api/auth/user-count/` (Staff/Admin) registered users total (active/inactive)
+  - `GET /api/auth/directory/` (Staff/Admin) unified directory endpoint
+  - `GET /api/voting/voting-status/` (Staff/Admin) voting status endpoint (requires `election_id`)
+- **Admin Tables Upgrade**: Updated User Management columns plus advanced search and pagination controls.
+- **Application Pages Upgrade**: Application list pagination and cleaner Application Review layout (including consistent avatar + initials fallback).
+- **Data Export PDF Improvements**: Reorganized election results PDF hierarchy; removed export mock-student loading; fixed React event leakage.
+- **Layout + Responsiveness Fixes**: Full-width layout behavior (no boxed centering), fixed admin sidebar submenu clipping, and improved results-details container responsiveness.
+>>>>>>> main
 
 ### Documentation & environment (since 1.0.0)
 
@@ -2171,7 +2195,11 @@ python manage.py check
 
 ---
 
+<<<<<<< HEAD
 **E-Botar v2.1.0** | Last Updated: May 2026 | Performance Tested & Optimized  
+=======
+**E-Botar v1.0.0** | Last Updated: March 2026 | Performance Tested & Optimized  
+>>>>>>> main
 **Status**: Production Ready | Full Stack Complete
 
 **Built with ❤️ for democratic student governance**

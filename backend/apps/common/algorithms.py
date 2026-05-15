@@ -199,6 +199,7 @@ class CryptographicAlgorithm:
     @staticmethod
     def sha256_hash(data: str) -> str:
         return hashlib.sha256(data.encode()).hexdigest()
+<<<<<<< HEAD
 
     @staticmethod
     def _bytes_message(message: Union[str, bytes]) -> bytes:
@@ -321,6 +322,8 @@ class CryptographicAlgorithm:
 # ---------------------------------------------------------------------------
 # Memoization (cache keys + optional in-process memo decorator)
 # ---------------------------------------------------------------------------
+=======
+>>>>>>> main
 
 
 class MemoizationAlgorithm:
@@ -341,6 +344,7 @@ class MemoizationAlgorithm:
         return decorator
     
     @staticmethod
+<<<<<<< HEAD
     def generate_hash_key(*args: Any, **kwargs: Any) -> str:
         key_parts = [str(arg) for arg in args]
         key_parts.extend([f"{k}:{v}" for k, v in sorted(kwargs.items())])
@@ -351,6 +355,23 @@ class MemoizationAlgorithm:
 # ---------------------------------------------------------------------------
 # Sorting (election results, candidate lists)
 # ---------------------------------------------------------------------------
+=======
+    def generate_hash_key(*args, **kwargs) -> str:
+        """
+        Generate a hash-based cache key from arguments
+        
+        Args:
+            *args: Positional arguments
+            **kwargs: Keyword arguments
+        
+        Returns:
+            SHA-256 hash string (hex)
+        """
+        key_parts = [str(arg) for arg in args]
+        key_parts.extend([f"{k}:{v}" for k, v in sorted(kwargs.items())])
+        key_string = '|'.join(key_parts)
+        return CryptographicAlgorithm.sha256_hash(key_string)
+>>>>>>> main
 
 
 class SortingAlgorithm:

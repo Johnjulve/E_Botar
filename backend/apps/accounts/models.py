@@ -127,13 +127,60 @@ class UserProfile(models.Model):
     def is_profile_complete(self):
         if self.user.is_staff or self.user.is_superuser:
             return True
+<<<<<<< HEAD
         return all(ok for _, ok in check_profile(self))
 
+=======
+        
+        # For regular users, check required fields
+        required_fields = [
+            self.student_id,  # Student ID (can be auto-generated)
+            self.department,  # Department
+            self.course,      # Course
+            self.year_level,  # Year level
+            self.section,
+        ]
+        
+        # Check if all required fields are filled
+        return all(field is not None and str(field).strip() != '' for field in required_fields)
+    
+>>>>>>> main
     def get_missing_fields(self):
         if self.user.is_staff or self.user.is_superuser:
+<<<<<<< HEAD
             return []
         return [label for label, ok in check_profile(self) if not ok]
 
+=======
+            return missing
+        
+        if not self.student_id or not str(self.student_id).strip():
+            missing.append('Student ID')
+        if not self.department:
+            missing.append('Department')
+        if not self.course:
+            missing.append('Course')
+        if not self.year_level or not str(self.year_level).strip():
+            missing.append('Year Level')
+        if not self.section or not str(self.section).strip():
+            missing.append('Section')
+        
+        return missing
+    
+    def clean(self):
+        """Validate profile data"""
+        # For staff/admin users, academic fields are optional
+        is_admin_or_staff = self.user.is_staff or self.user.is_superuser
+        
+        if not is_admin_or_staff:
+            # For regular users, validate that academic fields are provided
+            # Note: These validations are soft - we allow None for flexibility
+            # Frontend validation will enforce required fields for students
+            pass
+        
+        super().clean()
+    
+>>>>>>> main
     class Meta:
         db_table = 'accounts_userprofile'
         verbose_name = 'User Profile'

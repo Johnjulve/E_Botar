@@ -97,7 +97,11 @@ const VerifyReceiptPage = () => {
                 type="text"
                 value={receiptCode}
                 onChange={(e) => setReceiptCode(e.target.value)}
+<<<<<<< HEAD
                 placeholder="ABCD-EFGH"
+=======
+                placeholder="VR-XXXX-XXXX-XXXX-XXXX"
+>>>>>>> main
                 disabled={verifying || result}
                 className="verify-form-input"
                 autoComplete="off"
