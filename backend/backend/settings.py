@@ -264,8 +264,8 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 BACKEND_BASE_URL = os.getenv('BACKEND_BASE_URL', None)
 API_VERSION = os.getenv('API_VERSION', 'v1')
-BACKEND_VERSION = os.getenv('BACKEND_VERSION', '1.1.0')
-MIN_FRONTEND_VERSION = os.getenv('MIN_FRONTEND_VERSION', '1.1.0')
+BACKEND_VERSION = os.getenv('BACKEND_VERSION', '2.1.0')
+MIN_FRONTEND_VERSION = os.getenv('MIN_FRONTEND_VERSION', '2.1.0')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
