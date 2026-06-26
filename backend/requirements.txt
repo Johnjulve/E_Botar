@@ -1,8 +1,10 @@
 asgiref
 certifi
 charset-normalizer
+cloudinary
 cryptography
 Django
+django-cloudinary-storage
 django-cors-headers
 django-allauth
 djangorestframework

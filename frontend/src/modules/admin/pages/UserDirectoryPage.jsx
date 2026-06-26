@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Container } from '../../../components/layout';
-import { LoadingSpinner } from '../../../components/common';
+import { LoadingSpinner, SearchBar } from '../../../components/common';
 import { authService } from '../../../services';
 import { getInitials, formatYearLevelNumeric } from '../../../utils/helpers';
 import '../admin.css';
@@ -72,8 +72,13 @@ const UserDirectoryPage = () => {
       const params = {
         type,
       };
-      const response = await authService.getDirectory(params);
-      setUsers(Array.isArray(response.data) ? response.data : response.data?.results || []);
+      const response = await authService.getDirectory({
+        ...params,
+        page: 1,
+        page_size: 100,
+      });
+      const payload = response.data || {};
+      setUsers(Array.isArray(payload.results) ? payload.results : (Array.isArray(payload) ? payload : []));
     } catch (error) {
       console.error('Error fetching user directory:', error);
       setUsers([]);
@@ -244,27 +249,17 @@ const UserDirectoryPage = () => {
         </button>
       </div>
 
-      <div className="admin-search-container">
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          <div style={{ flex: 1, minWidth: '220px' }}>
-            <input
-              type="text"
-              placeholder="Search by name, email, username, or student ID..."
-              value={filters.search}
-              onChange={(e) => handleFilterChange('search', e.target.value)}
-              className="admin-search-input"
-            />
-          </div>
-          <button
-            type="button"
-            className="admin-btn secondary"
-            onClick={() => setShowSearchFilters((prev) => !prev)}
-          >
-            Advanced Search
-          </button>
-        </div>
+      <SearchBar
+        value={filters.search}
+        onChange={(value) => handleFilterChange('search', value)}
+        placeholder="Search by name, email, username, or student ID..."
+        onAdvancedToggle={() => setShowSearchFilters((prev) => !prev)}
+        advancedOpen={showSearchFilters}
+        alignActions="center"
+      />
 
-        {showSearchFilters && (
+      {showSearchFilters && (
+        <div className="admin-search-container">
           <div
             style={{
               marginTop: '0.75rem',
@@ -340,8 +335,8 @@ const UserDirectoryPage = () => {
               <span>Role</span>
             </label>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {filteredUsers.length > 0 && (
         <div className="admin-stats-grid" style={{ marginBottom: '1.5rem' }}>

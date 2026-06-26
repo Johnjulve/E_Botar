@@ -3,7 +3,7 @@
  * Main landing page showing current administration and election info
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Container } from '../../../components/layout';
 import { Card, Button, Badge, LoadingSpinner, EmptyState } from '../../../components/common';
@@ -45,54 +45,27 @@ const DashboardPage = () => {
   const [academicYear, setAcademicYear] = useState('2025-2026'); // Current academic year
   const [academicYearDisplay, setAcademicYearDisplay] = useState('A.Y 2025-2026'); // Display format
   const [isUpdatingAcademicYear, setIsUpdatingAcademicYear] = useState(false);
-  const [isAdministrationSectionVisible, setIsAdministrationSectionVisible] = useState(false);
   const [loadedAdministrationElectionId, setLoadedAdministrationElectionId] = useState(null);
-  const administrationSectionRef = useRef(null);
 
   useEffect(() => {
     fetchDashboardData();
   }, [isAuthenticated]);
 
+  // Fetch the Current Administration winners eagerly as soon as the
+  // previous election is known. The payload is small and gating it behind
+  // an IntersectionObserver caused the section to render empty when the
+  // observer didn't fire (e.g. when the page loaded already scrolled to
+  // that section).
   useEffect(() => {
-    if (!previousElection || !administrationSectionRef.current) {
-      return;
-    }
-
-    const sectionElement = administrationSectionRef.current;
-    const sectionBounds = sectionElement.getBoundingClientRect();
-    const isAlreadyInView =
-      sectionBounds.top <= window.innerHeight + 120 && sectionBounds.bottom >= -120;
-    if (isAlreadyInView) {
-      setIsAdministrationSectionVisible(true);
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const hasIntersectingEntry = entries.some((entry) => entry.isIntersecting);
-        if (hasIntersectingEntry) {
-          setIsAdministrationSectionVisible(true);
-          observer.disconnect();
-        }
-      },
-      { root: null, rootMargin: '120px 0px', threshold: 0.1 }
-    );
-
-    observer.observe(sectionElement);
-    return () => observer.disconnect();
-  }, [previousElection?.id]);
-
-  useEffect(() => {
-    if (!previousElection || !isAdministrationSectionVisible) {
+    if (!previousElection) {
       return;
     }
     if (loadedAdministrationElectionId === previousElection.id) {
       return;
     }
-
     fetchWinnersForElection(previousElection);
     setLoadedAdministrationElectionId(previousElection.id);
-  }, [previousElection, isAdministrationSectionVisible, loadedAdministrationElectionId]);
+  }, [previousElection, loadedAdministrationElectionId]);
 
   const fetchWinnersForElection = async (election) => {
     if (!election) {
@@ -396,7 +369,6 @@ const DashboardPage = () => {
 
         {/* Current Administration (Winners from finished election for selected A.Y.) */}
         {previousElection && (
-          <div ref={administrationSectionRef}>
           <Card className="dashboard-winners-card">
             <div className="dashboard-card-header-custom">
               <div className="dashboard-header-icon dashboard-winner-icon">
@@ -415,7 +387,7 @@ const DashboardPage = () => {
               </div>
             </div>
             <div className="dashboard-card-body-custom">
-              {isAdministrationSectionVisible && currentAdministration.length > 0 ? (
+              {currentAdministration.length > 0 ? (
                 <>
                   <p className="dashboard-text-muted-custom">
                     Current officers serving from the recently concluded election
@@ -465,7 +437,6 @@ const DashboardPage = () => {
               )}
             </div>
           </Card>
-          </div>
         )}
 
         {/* Candidates - below Current Administration when there is an active election */}

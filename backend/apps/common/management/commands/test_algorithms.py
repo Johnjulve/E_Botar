@@ -15,7 +15,7 @@ if _BACKEND_ROOT not in sys.path:
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
 django.setup()
 
-from apps.common.algorithms import (
+from apps.common.core.algorithms import (
     SortingAlgorithm,
     SearchingAlgorithm,
     CryptographicAlgorithm,

@@ -31,7 +31,7 @@ from apps.elections.models import SchoolElection, SchoolPosition
 from apps.candidates.models import Candidate
 from apps.voting.models import Ballot, VoteChoice, VoteReceipt
 from apps.accounts.models import UserProfile
-from apps.common.algorithms import (
+from apps.common.core.algorithms import (
     SortingAlgorithm,
     AggregationAlgorithm,
     SearchingAlgorithm,

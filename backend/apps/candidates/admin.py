@@ -3,7 +3,7 @@ from django.utils.html import format_html
 import logging
 from .models import Candidate, CandidateApplication
 from apps.common.models import ActivityLog
-from apps.common.utils import get_client_ip
+from apps.common.core.utils import get_client_ip
 
 logger = logging.getLogger(__name__)
 

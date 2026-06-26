@@ -16,7 +16,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
 django.setup()
 
 from django.core.management.base import BaseCommand
-from apps.common.algorithms import SortingAlgorithm, AggregationAlgorithm, SearchingAlgorithm
+from apps.common.core.algorithms import SortingAlgorithm, AggregationAlgorithm, SearchingAlgorithm
 
 
 def test_api_endpoint(url: str, method: str = 'GET', data: Dict = None, headers: Dict = None, iterations: int = 10):

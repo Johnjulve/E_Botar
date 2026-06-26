@@ -259,20 +259,33 @@ const ProfileEditPage = () => {
     } catch (error) {
       console.error('Error updating profile:', error);
       
-      // Display detailed error messages
       if (error.response?.data) {
         const errorData = error.response.data;
         if (typeof errorData === 'object') {
-          // Combine all error messages
-          const errorMessages = Object.entries(errorData)
-            .map(([field, messages]) => {
-              if (Array.isArray(messages)) {
-                return `${field}: ${messages.join(', ')}`;
-              }
-              return `${field}: ${messages}`;
-            })
-            .join('\n');
-          setError(errorMessages || 'Failed to update profile');
+          // Prefer top-level message keys (e.g. 503 Service Unavailable from the
+          // media storage exception handler returns { detail, code }).
+          if (errorData.detail) {
+            setError(typeof errorData.detail === 'string' ? errorData.detail : 'Failed to update profile');
+          } else if (errorData.error) {
+            setError(typeof errorData.error === 'string' ? errorData.error : 'Failed to update profile');
+          } else if (errorData.non_field_errors) {
+            setError(
+              Array.isArray(errorData.non_field_errors)
+                ? errorData.non_field_errors.join(', ')
+                : String(errorData.non_field_errors)
+            );
+          } else {
+            const errorMessages = Object.entries(errorData)
+              .filter(([key]) => key !== 'code')
+              .map(([field, messages]) => {
+                if (Array.isArray(messages)) {
+                  return `${field}: ${messages.join(', ')}`;
+                }
+                return `${field}: ${messages}`;
+              })
+              .join('\n');
+            setError(errorMessages || 'Failed to update profile');
+          }
         } else {
           setError(error.response?.data?.message || 'Failed to update profile');
         }

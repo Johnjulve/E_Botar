@@ -6,11 +6,13 @@ from rest_framework.response import Response
 
 from apps.accounts.models import UserProfile
 from apps.common.models import ActivityLog
-from apps.common.permissions import IsStaffOrSuperUser, IsSuperUser
-from apps.common.throttling import enforce_scope_throttle
-from apps.common.utils import get_client_ip
+from apps.common.http.permissions import IsStaffOrSuperUser, IsSuperUser
+from apps.common.http.throttling import enforce_scope_throttle
+from apps.common.core.utils import get_client_ip
 
 from .models import Candidate, CandidateApplication
+
+BULK_APPLICATION_REVIEW_MAX_IDS = 50
 from .serializers import (
     CandidateCompactSerializer,
     CandidateApplicationCreateSerializer,
@@ -263,6 +265,22 @@ class CandidateApplicationViewSet(viewsets.ModelViewSet):
             return Response(
                 {'detail': 'application_ids and action are required'},
                 status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not isinstance(application_ids, list):
+            return Response(
+                {'detail': 'application_ids must be a list'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if len(application_ids) > BULK_APPLICATION_REVIEW_MAX_IDS:
+            return Response(
+                {
+                    'detail': (
+                        f'Cannot review more than {BULK_APPLICATION_REVIEW_MAX_IDS} '
+                        'applications at once'
+                    ),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
             )
         
         if action_type not in ['approve', 'reject']:

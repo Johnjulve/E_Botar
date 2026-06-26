@@ -1367,21 +1367,15 @@ button:hover,
   border-color: var(--success-color);
 }
 
+/* Card-like wrapper used to box the advanced-filter panel that opens
+   beneath the SearchBar. The search-input itself now lives in the
+   <SearchBar> component (see components/common/SearchBar.css). */
 .admin-search-container {
   background: var(--white);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-xl);
   padding: var(--spacing-md);
   margin-bottom: var(--spacing-lg);
-}
-
-.admin-search-input {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid var(--gray-300);
-  border-radius: var(--radius-md);
-  font-size: 0.95rem;
-  font-family: inherit;
 }
 
 .admin-filter-chip {
@@ -1588,6 +1582,9 @@ button:hover,
 .admin-table th.text-right {
   text-align: right;
 }
+
+/* Sortable column-header styles moved to
+   components/common/SortableHeader.css (component owns its visual contract). */
 
 .admin-table tbody tr {
   border-bottom: 1px solid var(--border-color);

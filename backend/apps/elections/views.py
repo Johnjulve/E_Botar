@@ -8,8 +8,8 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from apps.common.models import ActivityLog
-from apps.common.permissions import IsStaffOrSuperUser, IsSuperUser
-from apps.common.utils import get_client_ip
+from apps.common.http.permissions import IsStaffOrSuperUser, IsSuperUser
+from apps.common.core.utils import get_client_ip
 
 from .models import ElectionPosition, Party, SchoolElection, SchoolPosition
 from .serializers import (

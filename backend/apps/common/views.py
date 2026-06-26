@@ -1,5 +1,7 @@
+import logging
 from collections import Counter
 from datetime import timedelta
+from pathlib import Path
 
 from django.conf import settings
 from django.db.models import Q
@@ -11,9 +13,71 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+
+_branding_logger = logging.getLogger(__name__)
+
+
+def _resolve_institution_logo_url(raw_value, request):
+    """Build the public URL for the institution logo.
+
+    Resolution order:
+      1. ``None`` / empty / whitespace → ``None``.
+      2. Absolute URL (``http://`` / ``https://``) → returned unchanged so an
+         operator can paste a Cloudinary or CDN URL directly.
+      3. Relative path that exists on the local filesystem
+         (``MEDIA_ROOT/<path>``) → local URL via ``BACKEND_BASE_URL`` /
+         request host.
+      4. Relative path with Cloudinary configured
+         (``settings.USE_CLOUDINARY_MEDIA``) → URL produced by
+         ``default_storage`` (Cloudinary).
+      5. Otherwise → ``None`` (frontend falls back to bundled default).
+    """
+    if not raw_value or not str(raw_value).strip():
+        return None
+
+    raw = str(raw_value).strip()
+
+    if raw.lower().startswith(("http://", "https://")):
+        return raw
+
+    relative_path = raw.lstrip("/")
+    media_segment = settings.MEDIA_URL.strip("/")
+
+    media_root = getattr(settings, "MEDIA_ROOT", None)
+    if media_root is not None:
+        try:
+            local_file = Path(media_root) / relative_path
+            if local_file.is_file():
+                backend_base = getattr(settings, "BACKEND_BASE_URL", None)
+                if backend_base:
+                    return f"{backend_base.rstrip('/')}/{media_segment}/{relative_path}"
+                if request is not None:
+                    try:
+                        return request.build_absolute_uri(
+                            f"/{media_segment}/{relative_path}"
+                        )
+                    except Exception:
+                        pass
+        except (OSError, ValueError):
+            pass
+
+    if getattr(settings, "USE_CLOUDINARY_MEDIA", False):
+        try:
+            from django.core.files.storage import default_storage
+
+            return default_storage.url(relative_path)
+        except Exception:
+            _branding_logger.warning(
+                "Cloudinary URL build failed for institution_logo=%s",
+                relative_path,
+                exc_info=True,
+            )
+
+    return None
+
 from .models import SecurityEvent, ActivityLog, SystemSettings
-from .feature_flags import load_feature_flags, merge_and_save_feature_flags
-from .permissions import IsStaffOrSuperUser, IsSuperUser
+from .core.feature_flags import load_feature_flags, merge_and_save_feature_flags
+from .http.permissions import IsStaffOrSuperUser, IsSuperUser
 from .serializers import AcademicYearSerializer
 from .serializers import FeatureFlagsPatchSerializer
 
@@ -300,17 +364,7 @@ class BrandingView(APIView):
         institution_logo = SystemSettings.get_value('institution_logo', default='')
         app_name = SystemSettings.get_value('app_name', default='E-Botar')
 
-        logo_url = None
-        if institution_logo and institution_logo.strip():
-            path = institution_logo.strip().lstrip('/')
-            base = getattr(settings, 'BACKEND_BASE_URL', None)
-            if base:
-                logo_url = f"{base.rstrip('/')}/{settings.MEDIA_URL.rstrip('/')}/{path}"
-            else:
-                try:
-                    logo_url = request.build_absolute_uri(f"/{settings.MEDIA_URL.rstrip('/')}/{path}")
-                except Exception:
-                    logo_url = None
+        logo_url = _resolve_institution_logo_url(institution_logo, request)
 
         return Response({
             'institution_name': institution_name,

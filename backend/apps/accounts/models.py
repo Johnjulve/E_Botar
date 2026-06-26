@@ -1,9 +1,12 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.core.files.base import ContentFile
 from django.core.validators import RegexValidator
 from django.utils import timezone
 import random
 import string
+
+from apps.common.files.upload_paths import avatar_upload_path, safe_extension
 
 
 def check_profile(profile):
@@ -98,7 +101,7 @@ class UserProfile(models.Model):
         blank=True,
         help_text='Class section (e.g. A, B, or block code)',
     )
-    avatar = models.ImageField(upload_to='profile_photos/', blank=True, null=True)
+    avatar = models.ImageField(upload_to=avatar_upload_path, blank=True, null=True)
     is_verified = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -107,22 +110,94 @@ class UserProfile(models.Model):
         return f"{self.user.get_full_name()} ({self.student_id})"
 
     def save(self, *args, **kwargs):
-        # Delete old avatar file when avatar is being changed or cleared (avoids orphaned files)
+        # Capture pre-save state so we can detect a student_id change and
+        # clean up the previous avatar file when its path is replaced.
+        old_student_id = None
+        old_avatar_name = None
+        old = None
         if self.pk:
             try:
                 old = UserProfile.objects.get(pk=self.pk)
-                if old.avatar and (self.avatar is None or self.avatar is not old.avatar):
-                    try:
-                        old.avatar.delete(save=False)
-                    except (OSError, ValueError):
-                        pass
+                old_student_id = old.student_id
+                old_avatar_name = old.avatar.name if old.avatar else None
             except UserProfile.DoesNotExist:
-                pass
+                old = None
+
         if not self.student_id and not (self.user.is_staff or self.user.is_superuser):
             year = timezone.now().year
             random_digits = ''.join(random.choices(string.digits, k=5))
             self.student_id = f"{year}-{random_digits}"
+
+        student_id_changed = (
+            old_student_id is not None and old_student_id != self.student_id
+        )
+
+        # When the student_id changed but the avatar file itself was not
+        # touched, re-feed the existing bytes as a fresh upload. Django's
+        # FileField pipeline (upload_to → storage.save) then names the new
+        # file after the new student_id without any custom rename plumbing.
+        if (
+            student_id_changed
+            and self.avatar
+            and old_avatar_name
+            and self.avatar.name == old_avatar_name
+        ):
+            try:
+                with self.avatar.open('rb') as source:
+                    avatar_bytes = source.read()
+                self.avatar = ContentFile(
+                    avatar_bytes,
+                    name=f"avatar{safe_extension(old_avatar_name)}",
+                )
+            except FileNotFoundError:
+                pass
+
+        # Delete the previously-stored avatar file when its path differs from
+        # what's about to be saved (replaced, cleared, or rebadged for the
+        # new student_id above). FieldFile object identity is unreliable
+        # across instances, so we compare the storage paths directly.
+        if old and old.avatar:
+            current_name = self.avatar.name if self.avatar else None
+            if current_name != old_avatar_name:
+                try:
+                    old.avatar.delete(save=False)
+                except (OSError, ValueError):
+                    pass
+
         super().save(*args, **kwargs)
+
+        if student_id_changed:
+            self._propagate_student_id_to_candidate_photos()
+
+    def _propagate_student_id_to_candidate_photos(self):
+        """Re-upload each candidate photo for this user so its name follows
+        the current ``student_id``. Each photo is read once, the existing
+        storage object is deleted, then re-saved through Django's normal
+        FileField pipeline (which routes through ``upload_to`` and so picks
+        up the new student_id automatically).
+        """
+        if not self.student_id:
+            return
+        from apps.candidates.models import Candidate, CandidateApplication
+
+        for model_cls in (Candidate, CandidateApplication):
+            queryset = (
+                model_cls.objects
+                .filter(user=self.user)
+                .exclude(photo='')
+                .exclude(photo__isnull=True)
+            )
+            for obj in queryset:
+                if not obj.photo:
+                    continue
+                try:
+                    with obj.photo.open('rb') as source:
+                        photo_bytes = source.read()
+                except FileNotFoundError:
+                    continue
+                ext = safe_extension(obj.photo.name)
+                obj.photo.delete(save=False)
+                obj.photo.save(f"photo{ext}", ContentFile(photo_bytes), save=True)
 
     def is_profile_complete(self):
         if self.user.is_staff or self.user.is_superuser:

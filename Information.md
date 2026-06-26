@@ -1102,7 +1102,7 @@ This design ensures:
 - **Web Server**: Nginx (reverse proxy)
 - **Database**: PostgreSQL (production)
 - **Static Files**: WhiteNoise or Nginx
-- **Media Files**: Local storage or S3-compatible
+- **Media Files**: Local filesystem (development) or **Cloudinary** (production-recommended; auto-detected via `CLOUDINARY_URL`)
 - **Environment**: .env configuration
 - **Containerization**: Docker-ready architecture
 
@@ -1395,6 +1395,7 @@ The E-Botar system supports configurable institution branding so the same codeba
 | `app_name` | Application name shown in UI | `E-Botar` |
 
 3. **Logo file**: To use a custom logo, upload the image to your media root under a path like `institution/logo.png`, then set `institution_logo` to `institution/logo.png`. Ensure `BACKEND_BASE_URL` (or your frontend API base) points to the backend so the logo URL is correct.
+   - Tip: `institution_logo` may also be a full **absolute URL** (e.g. a Cloudinary or CDN URL like `https://res.cloudinary.com/<cloud>/image/upload/v.../logo.png`). When the value starts with `http://` or `https://`, the API returns it unchanged.
 
 ## Defaults
 
@@ -1422,6 +1423,102 @@ Common toggles:
 - **Staff preview** (`staff_preview_disabled_features`): when enabled, staff can still *see* muted (disabled) navigation entries while actual route access remains blocked.
 
 Note: username/password sign-in remains available; this maintenance screen is intended for safe temporary access control during incidents or rehearsals.
+
+## Media storage (uploads)
+
+E-Botar accepts user-uploaded media in four places:
+
+| Field | Model | Folder / public_id prefix | Filename |
+|-------|-------|---------------------------|----------|
+| `avatar` | `apps.accounts.UserProfile` | `profile_photos/` | `<student_id>.<ext>` |
+| `photo` | `apps.candidates.Candidate`, `apps.candidates.CandidateApplication` | `candidate_photos/` | `<student_id>.<ext>` |
+| `supporting_documents` | `apps.candidates.CandidateApplication` | `candidate_docs/` | original filename |
+| `logo` | `apps.elections.Party` | `party_logos/` | original filename |
+
+### Avatar / candidate photo filenames follow the student ID
+
+Avatars and candidate photos are automatically renamed to match the user's
+**`student_id`** on every upload. The path generators live in
+[`apps.common.files.upload_paths`](backend/apps/common/files/upload_paths.py):
+
+| Source | Resolved path |
+|--------|---------------|
+| `UserProfile.avatar` | `profile_photos/<student_id>.<ext>` |
+| `Candidate.photo`, `CandidateApplication.photo` | `candidate_photos/<student_id>.<ext>` |
+
+If `student_id` is empty (typical for staff / superuser accounts), the
+filename falls back to the user's slugified `username`, then their `pk`.
+
+**When `student_id` changes**, `UserProfile.save()` re-feeds each affected
+file's bytes through Django's normal `FileField` pipeline. The avatar is
+reassigned as a fresh `ContentFile` and saved; each candidate photo is
+deleted and re-saved. Because both paths route through `upload_to` again,
+the new file lands at `<folder>/<new_student_id>.<ext>` automatically — no
+custom rename plumbing is involved. Works identically on the local
+filesystem in development and on Cloudinary (inside the configured
+`CLOUDINARY_FOLDER`) in production.
+
+Because each user has exactly one avatar path (`<student_id>.jpg`),
+re-uploads naturally overwrite the previous file instead of leaving orphans.
+
+### Local development (default)
+
+No configuration needed. Files are written to **`backend/media/`** and served by Django at `MEDIA_URL = /media/` while `DEBUG=True`. The path is gitignored.
+
+### Production: Cloudinary (recommended)
+
+Most low-cost hosts (e.g. Railway free/hobby) use **ephemeral filesystems** — anything written to `backend/media/` disappears on the next redeploy. To keep uploads persistent, configure **Cloudinary**:
+
+1. Create a free account at <https://cloudinary.com> and copy your **API Environment variable** from the dashboard. It looks like:
+   ```
+   CLOUDINARY_URL=cloudinary://<API_KEY>:<API_SECRET>@<CLOUD_NAME>
+   ```
+2. Set it in your deployment environment (Railway → *Variables*, or a `.env` for self-hosting). Alternatively, set the three values separately:
+   ```
+   CLOUDINARY_CLOUD_NAME=...
+   CLOUDINARY_API_KEY=...
+   CLOUDINARY_API_SECRET=...
+   ```
+3. *(Optional)* Choose the **folder name** inside your Cloudinary Media Library where E-Botar uploads should land. The default is **`E-Botar`** (matching the project name). To override, set:
+   ```
+   CLOUDINARY_FOLDER=E-Botar
+   ```
+   Leave blank to upload to the cloud root. Final Cloudinary public IDs follow the pattern `media/<CLOUDINARY_FOLDER>/<upload_to>/<student_id>` — for example `media/E-Botar/profile_photos/2024-12345`. The leading `media/` is the default `django-cloudinary-storage` `PREFIX` (it mirrors Django's `MEDIA_URL`), and is kept on purpose so the Cloudinary layout matches the local-filesystem layout — flipping the project back to local storage requires no rename. Cloudinary creates the folders implicitly on first upload, so no manual folder setup is required.
+4. Redeploy. Django automatically detects the env vars and switches the **default file storage** to `apps.common.files.storage.ResilientMediaCloudinaryStorage`. New uploads (avatars, candidate photos, supporting documents, party logos) go to your Cloudinary account inside the configured folder; URLs returned by API serializers point to `https://res.cloudinary.com/...`.
+5. Existing files already on disk are **not** auto-migrated. Re-upload through the app, or write a one-off script if you need to bring historical media across.
+
+When Cloudinary is configured, the public branding logo (`SystemSettings.institution_logo`) can be set to either a Cloudinary URL directly, a media-relative path, or left empty. The branding API (`GET /api/common/branding/`) auto-resolves the URL in this order:
+
+1. Empty value → `null` (frontend uses the bundled default logo).
+2. Absolute URL (`http://` / `https://`) → returned unchanged.
+3. Relative path **that exists on the local filesystem** (`MEDIA_ROOT/<path>`) → returned as a local URL using `BACKEND_BASE_URL` + `MEDIA_URL`.
+4. Relative path with **Cloudinary configured** → returned as the Cloudinary URL via `default_storage`.
+5. Otherwise → `null`.
+
+In other words: the branding API picks **whichever source actually has the file** — local or Cloudinary — depending on which is available.
+
+### When Cloudinary is unavailable
+
+If Cloudinary is configured but a user's upload attempt fails (network outage, wrong credentials, Cloudinary downtime, rate-limited API), E-Botar **does not** show a server error. The DRF exception handler in [`apps/common/http/exception_handlers.py`](backend/apps/common/http/exception_handlers.py) returns a clean response:
+
+```http
+HTTP/1.1 503 Service Unavailable
+Content-Type: application/json
+
+{
+  "detail": "Unavailable at the moment.",
+  "code": "media_upload_unavailable"
+}
+```
+
+The existing frontend forms (`ProfileEditPage`, `ApplicationFormPage`) read `detail` first and display it in their alert / inline error UI — users see exactly **"Unavailable at the moment."** Read operations (showing existing avatars, candidate photos) keep their default behavior; the frontend already falls back to bundled placeholders when an image URL fails to load.
+
+To diagnose Cloudinary failures, check the backend logs for entries from `apps.common.files.storage` (`Cloudinary media upload failed for ...`).
+
+### Operations
+
+- **Cleanup orphans**: `python manage.py cleanup_unused_media` (supports `--dry-run`) deletes files in `profile_photos/` and `candidate_photos/` that are no longer referenced by any model. Works on both local filesystem and Cloudinary because it operates through Django's `default_storage`.
+- **Backups**: Cloudinary keeps its own asset history; the management command only removes orphans, never referenced media.
 
 *Public after election ends, Admin anytime
 

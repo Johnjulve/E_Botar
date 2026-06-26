@@ -11,18 +11,22 @@ from apps.accounts.serializers import UserProfileSerializer
 
 
 class VoteReceiptSerializer(serializers.ModelSerializer):
-    """Serializer for vote receipts"""
+    """List/detail serializer for vote receipts (masked code only).
+
+    Full ``receipt_code`` is returned only once at ballot submit and via the
+    audited staff ``reveal_receipt`` action — not on list/retrieve.
+    """
     user_name = serializers.CharField(source='user.get_full_name', read_only=True)
     election = SchoolElectionMinimalSerializer(read_only=True)
     masked_receipt_code = serializers.CharField(source='get_masked_receipt', read_only=True)
-    
+
     class Meta:
         model = VoteReceipt
         fields = [
             'id', 'user', 'user_name', 'election',
-            'receipt_code', 'masked_receipt_code', 'created_at'
+            'masked_receipt_code', 'created_at',
         ]
-        read_only_fields = ['id', 'receipt_code', 'created_at']
+        read_only_fields = fields
 
 
 class VoteReceiptVerifySerializer(serializers.Serializer):
@@ -181,15 +185,6 @@ class MyVoteStatusSerializer(serializers.Serializer):
     has_voted = serializers.BooleanField()
     voted_at = serializers.DateTimeField(allow_null=True)
     receipt_code = serializers.CharField(allow_null=True)
-
-
-class UserVotingStatusSerializer(UserProfileSerializer):
-    """Serializer for per-election voting status, extending the user profile serializer."""
-    has_voted = serializers.BooleanField()
-
-    class Meta(UserProfileSerializer.Meta):
-        fields = list(UserProfileSerializer.Meta.fields) + ['has_voted']
-        read_only_fields = list(UserProfileSerializer.Meta.read_only_fields) + ['has_voted']
 
 
 class VoteReceiptAuditSerializer(serializers.ModelSerializer):

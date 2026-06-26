@@ -73,6 +73,27 @@ export const votingService = {
     return api.get(`/voting/results/election_results/?election_id=${electionId}`);
   },
 
+  // Aggregated breakdown for the data-export page (staff/admin only).
+  // Replaces the previous client-side aggregation that pulled every ballot
+  // to the browser. Returns counts grouped by candidate × dept × course ×
+  // year_level plus a per-bucket student roster — never per-user choices.
+  getResultsBreakdown: (electionId) => {
+    return api.get(`/voting/results/breakdown/?election_id=${electionId}`);
+  },
+
+  // Per-student voting status for a single (election, dept, course) drill.
+  // The only path that ever returns individual names to staff/admin in the
+  // export flow — the response carries name/section/year_level/has_voted
+  // and never vote choices. Each call is audit-logged on the backend.
+  getStudentRoster: (electionId, departmentCode, courseCode) => {
+    const params = new URLSearchParams({
+      election_id: electionId,
+      department_code: departmentCode,
+      course_code: courseCode,
+    });
+    return api.get(`/voting/results/student_roster/?${params.toString()}`);
+  },
+
   // Get election statistics
   getStatistics: (electionId) => {
     return api.get(`/voting/results/statistics/?election_id=${electionId}`);

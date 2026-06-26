@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from apps.elections.models import SchoolPosition, SchoolElection, Party
+from apps.common.files.upload_paths import candidate_photo_upload_path
 
 
 class CandidateApplication(models.Model):
@@ -19,7 +20,7 @@ class CandidateApplication(models.Model):
     election = models.ForeignKey(SchoolElection, on_delete=models.CASCADE, related_name='applications')
     party = models.ForeignKey(Party, on_delete=models.SET_NULL, null=True, blank=True, related_name='applications')
     manifesto = models.TextField(help_text="Campaign manifesto and goals")
-    photo = models.ImageField(upload_to='candidate_photos/', blank=True, null=True)
+    photo = models.ImageField(upload_to=candidate_photo_upload_path, blank=True, null=True)
     supporting_documents = models.FileField(upload_to='candidate_docs/', blank=True, null=True, help_text="Optional supporting documents")
     status = models.CharField(max_length=20, choices=APPLICATION_STATUS, default='pending')
     submitted_at = models.DateTimeField(auto_now_add=True)
@@ -131,7 +132,7 @@ class Candidate(models.Model):
     election = models.ForeignKey(SchoolElection, on_delete=models.CASCADE, related_name='candidates')
     party = models.ForeignKey(Party, on_delete=models.SET_NULL, null=True, blank=True, related_name='candidates')
     manifesto = models.TextField(help_text="Campaign manifesto and goals")
-    photo = models.ImageField(upload_to='candidate_photos/', blank=True, null=True)
+    photo = models.ImageField(upload_to=candidate_photo_upload_path, blank=True, null=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

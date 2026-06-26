@@ -54,6 +54,9 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
+    # Convert Cloudinary upload failures to a friendly 503 with
+    # detail = "Unavailable at the moment." (see apps.common.http.exception_handlers).
+    "EXCEPTION_HANDLER": "apps.common.http.exception_handlers.media_aware_exception_handler",
     # DRF Throttling (used for sensitive endpoints like vote submission and form posts)
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.UserRateThrottle",
@@ -69,6 +72,8 @@ REST_FRAMEWORK = {
         "application_submit": "6/minute",
         "program_submit": "15/minute",
         "program_import": "3/minute",
+        "login_submit": "10/minute",
+        "receipt_verify": "15/minute",
     },
 }
 
@@ -104,7 +109,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.middleware.gzip.GZipMiddleware',
-    'apps.common.middleware.DynamicAllowedHostsMiddleware',  # Handle ALLOWED_HOSTS dynamically (platform-agnostic)
+    'apps.common.http.middleware.DynamicAllowedHostsMiddleware',  # Handle ALLOWED_HOSTS dynamically (platform-agnostic)
     'whitenoise.middleware.WhiteNoiseMiddleware',  # Serve static files efficiently
     'django.contrib.sessions.middleware.SessionMiddleware',
     "corsheaders.middleware.CorsMiddleware",
@@ -114,7 +119,7 @@ MIDDLEWARE = [
     'allauth.account.middleware.AccountMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'apps.common.middleware.SecurityLoggingMiddleware',  # Security logging
+    'apps.common.http.middleware.SecurityLoggingMiddleware',  # Security logging
 ]
 
 ROOT_URLCONF = 'backend.urls'
@@ -255,17 +260,57 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# WhiteNoise configuration for static files
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-
 # Media files (User uploads)
-MEDIA_URL = 'media/'
+MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# ---------------------------------------------------------------------------
+# Storage backends
+# ---------------------------------------------------------------------------
+# Default media storage is local filesystem. When Cloudinary credentials are
+# present (CLOUDINARY_URL or CLOUDINARY_CLOUD_NAME), uploads are stored on
+# Cloudinary so they survive ephemeral redeploys (e.g., Railway).
+# ---------------------------------------------------------------------------
+CLOUDINARY_URL = os.getenv('CLOUDINARY_URL', '').strip()
+CLOUDINARY_CLOUD_NAME = os.getenv('CLOUDINARY_CLOUD_NAME', '').strip()
+USE_CLOUDINARY_MEDIA = bool(CLOUDINARY_URL or CLOUDINARY_CLOUD_NAME)
+
+# Cloudinary folder that all E-Botar uploads are placed under, so the project's
+# assets stay grouped (e.g. "E-Botar/profile_photos/...") instead of polluting
+# the root of the Cloudinary Media Library. Set to empty to disable prefixing.
+CLOUDINARY_MEDIA_FOLDER = os.getenv('CLOUDINARY_FOLDER', 'E-Botar').strip()
+
+if USE_CLOUDINARY_MEDIA:
+    INSTALLED_APPS += ['cloudinary', 'cloudinary_storage']
+    if not CLOUDINARY_URL:
+        CLOUDINARY_STORAGE = {
+            'CLOUD_NAME': CLOUDINARY_CLOUD_NAME,
+            'API_KEY': os.getenv('CLOUDINARY_API_KEY', ''),
+            'API_SECRET': os.getenv('CLOUDINARY_API_SECRET', ''),
+        }
+    # Resilient wrapper converts Cloudinary upload errors into MediaUploadUnavailable
+    # so the DRF exception handler can return a friendly 503 instead of a 500.
+    # django-cloudinary-storage keeps its default PREFIX (= settings.MEDIA_URL,
+    # i.e. "media/") so the public IDs mirror the local-filesystem layout and
+    # the project can be flipped back to local storage without renaming
+    # anything in Cloudinary.
+    _DEFAULT_FILE_STORAGE_BACKEND = 'apps.common.files.storage.ResilientMediaCloudinaryStorage'
+else:
+    _DEFAULT_FILE_STORAGE_BACKEND = 'django.core.files.storage.FileSystemStorage'
+
+STORAGES = {
+    'default': {
+        'BACKEND': _DEFAULT_FILE_STORAGE_BACKEND,
+    },
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+}
 
 BACKEND_BASE_URL = os.getenv('BACKEND_BASE_URL', None)
 API_VERSION = os.getenv('API_VERSION', 'v1')
-BACKEND_VERSION = os.getenv('BACKEND_VERSION', '1.1.0')
-MIN_FRONTEND_VERSION = os.getenv('MIN_FRONTEND_VERSION', '1.1.0')
+BACKEND_VERSION = os.getenv('BACKEND_VERSION', '3.0')
+MIN_FRONTEND_VERSION = os.getenv('MIN_FRONTEND_VERSION', '3.0')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

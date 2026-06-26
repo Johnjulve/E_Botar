@@ -10,4 +10,6 @@ export { default as Alert } from './Alert';
 export { default as LoadingSpinner } from './LoadingSpinner';
 export { default as Modal } from './Modal';
 export { default as EmptyState } from './EmptyState';
+export { default as SortableHeader } from './SortableHeader';
+export { default as SearchBar } from './SearchBar';
 

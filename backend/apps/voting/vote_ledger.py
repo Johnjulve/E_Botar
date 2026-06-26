@@ -17,7 +17,7 @@ from django.db import transaction
 from django.db.models import Max
 from django.utils import timezone
 
-from apps.common.algorithms import CryptographicAlgorithm
+from apps.common.core.algorithms import CryptographicAlgorithm
 from apps.elections.models import SchoolElection
 
 from .models import VoteBlock, VoteChoice
