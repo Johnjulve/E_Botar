@@ -8,5 +8,5 @@ class CommonConfig(AppConfig):
     
     def ready(self):
         """Import signal handlers when app is ready"""
-        import apps.common.middleware  # noqa
+        import apps.common.http.middleware  # noqa
 

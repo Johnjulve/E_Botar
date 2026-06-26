@@ -12,13 +12,16 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from apps.accounts.models import UserProfile
+from apps.accounts.models import Program, UserProfile
+from apps.accounts.profile_list_filters import apply_profile_list_filters
+from apps.accounts.serializers import UserVotingStatusListSerializer
+from apps.common.http.pagination import StandardResultsSetPagination
 from apps.candidates.models import Candidate
-from apps.common.algorithms import AggregationAlgorithm, SortingAlgorithm
+from apps.common.core.algorithms import AggregationAlgorithm, SortingAlgorithm
 from apps.common.models import ActivityLog
-from apps.common.permissions import IsStaffOrSuperUser, IsSuperUser
-from apps.common.throttling import enforce_scope_throttle
-from apps.common.utils import get_client_ip
+from apps.common.http.permissions import IsStaffOrSuperUser, IsSuperUser
+from apps.common.http.throttling import enforce_scope_throttle
+from apps.common.core.utils import get_client_ip
 from apps.elections.models import SchoolElection, SchoolPosition
 
 from .models import Ballot, VoteChoice, VoteReceipt, VoteBlock
@@ -27,7 +30,6 @@ from .serializers import (
     BallotSubmissionSerializer,
     MyVoteStatusSerializer,
     PositionResultSerializer,
-    UserVotingStatusSerializer,
     VoteReceiptAuditSerializer,
     VoteReceiptSerializer,
     VoteReceiptVerifySerializer,
@@ -40,25 +42,22 @@ logger = logging.getLogger(__name__)
 
 
 class BallotViewSet(viewsets.ReadOnlyModelViewSet):
-    """ViewSet for viewing ballots (read-only)"""
+    """Owner-only read access to ballots.
+
+    Vote choices are personal data: the only person who may read a ballot's
+    ``choices`` is the user who cast it. Staff and admin can never list or
+    retrieve someone else's ballot through this viewset — they get the same
+    queryset as anyone else, filtered to ``user=request.user``. Aggregated
+    analytics for staff/admin are available through
+    ``ResultsViewSet.breakdown``, which returns counts only and never
+    per-user data.
+    """
     queryset = Ballot.objects.select_related('user', 'election', 'receipt').prefetch_related('choices').all()
     serializer_class = BallotSerializer
-    
-    def get_permissions(self):
-        if self.action in ['list', 'retrieve', 'my_ballot', 'submit']:
-            return [IsAuthenticated()]
-        # Only superusers can access admin actions on ballots
-        return [IsSuperUser()]
-    
+    permission_classes = [IsAuthenticated]
+
     def get_queryset(self):
-        queryset = super().get_queryset()
-        user = self.request.user
-        
-        # Non-staff/non-superuser users can only see their own ballots
-        if not (user.is_staff or user.is_superuser):
-            queryset = queryset.filter(user=user)
-        
-        return queryset
+        return super().get_queryset().filter(user=self.request.user)
     
     @action(detail=False, methods=['get'])
     def my_ballot(self, request):
@@ -195,10 +194,11 @@ class BallotViewSet(viewsets.ReadOnlyModelViewSet):
 class VotingStatusView(generics.ListAPIView):
     """
     Read-only per-election voting status for students.
-    Returns student profiles plus a has_voted flag for the selected election.
+    Returns paginated lean profile rows plus a has_voted flag for the selected election.
     """
-    serializer_class = UserVotingStatusSerializer
+    serializer_class = UserVotingStatusListSerializer
     permission_classes = [IsAuthenticated, IsStaffOrSuperUser]
+    pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
         request = self.request
@@ -213,31 +213,21 @@ class VotingStatusView(generics.ListAPIView):
         except SchoolElection.DoesNotExist:
             raise ValidationError({'election_id': 'Election not found.'})
 
-        # Base queryset: active student profiles only
         queryset = UserProfile.objects.select_related('user', 'department', 'course').filter(
             user__is_active=True,
             user__is_staff=False,
             user__is_superuser=False,
         )
 
-        # Restrict by election type (university vs department)
         if election.election_type == 'department' and election.allowed_department:
             queryset = queryset.filter(department=election.allowed_department)
 
-        # Filters
-        department_code = query_params.get('department_code') or query_params.get('college')
-        if department_code:
-            queryset = queryset.filter(department__code=department_code)
+        queryset = apply_profile_list_filters(
+            queryset,
+            query_params,
+            include_email_search=True,
+        )
 
-        course_code = query_params.get('course_code') or query_params.get('course')
-        if course_code:
-            queryset = queryset.filter(course__code=course_code)
-
-        year_level = query_params.get('year_level')
-        if year_level:
-            queryset = queryset.filter(year_level=year_level)
-
-        # Annotate has_voted per election using VoteReceipt
         vote_subquery = VoteReceipt.objects.filter(
             user=OuterRef('user'),
             election_id=election_id,
@@ -245,33 +235,30 @@ class VotingStatusView(generics.ListAPIView):
         queryset = queryset.annotate(has_voted=Exists(vote_subquery))
 
         has_voted_param = query_params.get('has_voted')
-        if has_voted_param in ['true', 'false']:
+        if has_voted_param in ('true', 'false'):
             queryset = queryset.filter(has_voted=(has_voted_param == 'true'))
-
-        search = query_params.get('search')
-        if search:
-            search = search.strip()
-            queryset = queryset.filter(
-                Q(user__username__icontains=search) |
-                Q(user__first_name__icontains=search) |
-                Q(user__last_name__icontains=search) |
-                Q(student_id__icontains=search)
-            )
 
         return queryset.order_by('user__last_name', 'user__first_name', 'user__username')
 
     def list(self, request, *args, **kwargs):
-        """
-        Override list to include simple summary counts alongside the data.
-        """
-        queryset = self.get_queryset()
+        queryset = self.filter_queryset(self.get_queryset())
 
         total_eligible = queryset.count()
         total_voted = queryset.filter(has_voted=True).count()
         total_not_voted = total_eligible - total_voted
 
-        serializer = self.get_serializer(queryset, many=True, context={'request': request})
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True, context={'request': request})
+            response = self.get_paginated_response(serializer.data)
+            response.data['summary'] = {
+                'total_eligible_students': total_eligible,
+                'total_voted': total_voted,
+                'total_not_voted': total_not_voted,
+            }
+            return response
 
+        serializer = self.get_serializer(queryset, many=True, context={'request': request})
         return Response({
             'summary': {
                 'total_eligible_students': total_eligible,
@@ -315,6 +302,12 @@ class VoteReceiptViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=False, methods=['post'])
     def verify(self, request):
         """Verify a vote receipt"""
+        enforce_scope_throttle(
+            request,
+            self,
+            scope='receipt_verify',
+            message='Too many receipt verification attempts. Please wait a moment before trying again.',
+        )
         serializer = VoteReceiptVerifySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
@@ -344,6 +337,12 @@ class VoteReceiptViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=False, methods=['post'])
     def get_votes(self, request):
         """Get votes associated with a receipt code (requires receipt code for privacy)"""
+        enforce_scope_throttle(
+            request,
+            self,
+            scope='receipt_verify',
+            message='Too many receipt lookup attempts. Please wait a moment before trying again.',
+        )
         receipt_code = request.data.get('receipt_code')
         
         if not receipt_code:
@@ -749,6 +748,252 @@ class ResultsViewSet(viewsets.ViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
     
+    @action(detail=False, methods=['get'], permission_classes=[IsStaffOrSuperUser])
+    def breakdown(self, request):
+        """Aggregated vote breakdown for the data-export page.
+
+        Replaces the previous client-side aggregation that pulled every
+        ballot to the browser. Returns counts only — never per-user choices —
+        so this endpoint preserves ballot secrecy while supporting the same
+        analytics the page used to compute by hand.
+        """
+        election_id = request.query_params.get('election_id')
+        if not election_id:
+            return Response(
+                {'detail': 'election_id parameter is required'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            election = (
+                SchoolElection.objects
+                .select_related('allowed_department')
+                .get(id=election_id)
+            )
+        except SchoolElection.DoesNotExist:
+            return Response(
+                {'detail': 'Election not found'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Single SQL aggregation: counts per (candidate, position, dept, course, year).
+        aggregation_rows = (
+            VoteChoice.objects
+            .filter(
+                ballot__election_id=election.id,
+                ballot__user__is_active=True,
+            )
+            .values(
+                'candidate_id',
+                'candidate__user__first_name',
+                'candidate__user__last_name',
+                'position_id',
+                'position__name',
+                'ballot__user__profile__department__code',
+                'ballot__user__profile__department__name',
+                'ballot__user__profile__course__code',
+                'ballot__user__profile__course__name',
+                'ballot__user__profile__year_level',
+            )
+            .annotate(count=Count('id'))
+        )
+
+        breakdown_by_candidate = {}
+        for row in aggregation_rows:
+            candidate_id = row['candidate_id']
+            if candidate_id is None:
+                continue
+            first_name = row.get('candidate__user__first_name') or ''
+            last_name = row.get('candidate__user__last_name') or ''
+            candidate_name = f"{first_name} {last_name}".strip() or f"Candidate {candidate_id}"
+
+            entry = breakdown_by_candidate.setdefault(candidate_id, {
+                'candidate_id': candidate_id,
+                'candidate_name': candidate_name,
+                'position_id': row.get('position_id'),
+                'position_name': row.get('position__name') or 'Unknown Position',
+                'groups': [],
+            })
+            entry['groups'].append({
+                'department_code': row.get('ballot__user__profile__department__code') or 'N/A',
+                'department_name': row.get('ballot__user__profile__department__name') or 'Unassigned College',
+                'course_code': row.get('ballot__user__profile__course__code') or 'N/A',
+                'course_name': row.get('ballot__user__profile__course__name') or 'Unassigned Course',
+                'year_level': row.get('ballot__user__profile__year_level') or 'N/A',
+                'count': row.get('count') or 0,
+            })
+
+        # Student roster aggregation: per (dept, course, year_level) totals + voted counts.
+        is_department_election = (
+            election.election_type == 'department'
+            and election.allowed_department_id is not None
+        )
+        profile_filter = Q(
+            user__is_active=True,
+            user__is_staff=False,
+            user__is_superuser=False,
+        )
+        if is_department_election:
+            profile_filter &= Q(department=election.allowed_department)
+
+        # Use Exists() so the GROUP BY isn't inflated by unrelated ballots
+        # this user may have cast in other elections.
+        voted_subquery = Ballot.objects.filter(
+            user_id=OuterRef('user_id'),
+            election_id=election.id,
+        )
+        roster_rows = (
+            UserProfile.objects
+            .filter(profile_filter)
+            .annotate(has_voted_in_election=Exists(voted_subquery))
+            .values(
+                'department__code',
+                'department__name',
+                'course__code',
+                'course__name',
+                'year_level',
+            )
+            .annotate(
+                total_count=Count('id'),
+                voted_count=Count('id', filter=Q(has_voted_in_election=True)),
+            )
+        )
+
+        student_roster = []
+        for row in roster_rows:
+            total = row['total_count'] or 0
+            voted = row['voted_count'] or 0
+            student_roster.append({
+                'department_code': row.get('department__code') or 'N/A',
+                'department_name': row.get('department__name') or 'Unassigned College',
+                'course_code': row.get('course__code') or 'N/A',
+                'course_name': row.get('course__name') or 'Unassigned Course',
+                'year_level': row.get('year_level') or 'N/A',
+                'total_count': total,
+                'voted_count': voted,
+                'not_voted_count': max(0, total - voted),
+            })
+
+        return Response({
+            'election': {
+                'id': election.id,
+                'title': election.title,
+                'election_type': election.election_type,
+                'allowed_department': (
+                    {
+                        'code': election.allowed_department.code,
+                        'name': election.allowed_department.name,
+                    }
+                    if election.allowed_department_id else None
+                ),
+            },
+            'totals': {
+                'eligible_voters': sum(row['total_count'] for row in student_roster),
+                'actual_voters': sum(row['voted_count'] for row in student_roster),
+            },
+            'vote_breakdown': list(breakdown_by_candidate.values()),
+            'student_roster': student_roster,
+        })
+
+    @action(detail=False, methods=['get'], permission_classes=[IsStaffOrSuperUser])
+    def student_roster(self, request):
+        """Per-student voting status for a specific (election, dept, course).
+
+        This is the **only** path that exposes individual student names to
+        staff/admin in the export flow, and it's deliberately narrow: the
+        caller MUST drill into a specific (department_code, course_code)
+        before names are returned, the response carries voting
+        participation status only (never vote choices), and every access
+        is recorded in ``ActivityLog`` so the lookup is traceable.
+
+        Used by the Data Export page when the operator opts in to the
+        "Show Student Names" toggle so they can record who has and hasn't
+        voted yet for a given course.
+        """
+        election_id = request.query_params.get('election_id')
+        department_code = request.query_params.get('department_code')
+        course_code = request.query_params.get('course_code')
+
+        if not (election_id and department_code and course_code):
+            return Response(
+                {'detail': 'election_id, department_code, and course_code are all required'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            election = SchoolElection.objects.get(id=election_id)
+        except SchoolElection.DoesNotExist:
+            return Response({'detail': 'Election not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            course = Program.objects.select_related('department').get(
+                code=course_code,
+                program_type=Program.ProgramType.COURSE,
+                department__code=department_code,
+            )
+        except Program.DoesNotExist:
+            return Response(
+                {'detail': 'Course not found within the given department'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        voted_subquery = Ballot.objects.filter(
+            user_id=OuterRef('user_id'),
+            election_id=election.id,
+        )
+        profiles = (
+            UserProfile.objects
+            .filter(
+                user__is_active=True,
+                user__is_staff=False,
+                user__is_superuser=False,
+                department__code=department_code,
+                course__code=course_code,
+            )
+            .select_related('user')
+            .annotate(has_voted=Exists(voted_subquery))
+            .order_by('year_level', 'user__last_name', 'user__first_name')
+        )
+
+        students = []
+        for profile in profiles:
+            full_name = (
+                f"{profile.user.first_name} {profile.user.last_name}".strip()
+                or profile.user.username
+            )
+            students.append({
+                'full_name': full_name,
+                'section': profile.section or '',
+                'year_level': profile.year_level or '',
+                'has_voted': bool(profile.has_voted),
+            })
+
+        ActivityLog.objects.create(
+            user=request.user,
+            action='view_student_roster',
+            resource_type='Election',
+            resource_id=election.id,
+            description=(
+                f"Staff {request.user.username} viewed student roster for election "
+                f"'{election.title}' (dept={department_code}, course={course_code}, "
+                f"count={len(students)})"
+            ),
+            ip_address=get_client_ip(request),
+            metadata={
+                'election_id': election.id,
+                'department_code': department_code,
+                'course_code': course_code,
+                'student_count': len(students),
+            },
+        )
+
+        return Response({
+            'election': {'id': election.id, 'title': election.title},
+            'department': {'code': course.department.code, 'name': course.department.name},
+            'course': {'code': course.code, 'name': course.name},
+            'students': students,
+        })
+
     @action(detail=False, methods=['get'], permission_classes=[IsSuperUser])
     def export_results(self, request):
         """Export election results in various formats"""

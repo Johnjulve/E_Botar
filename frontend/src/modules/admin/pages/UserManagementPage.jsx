@@ -3,11 +3,12 @@
  * View and manage all users in table format
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Container } from '../../../components/layout';
-import { LoadingSpinner, Modal, Button } from '../../../components/common';
+import { LoadingSpinner, Modal, Button, SortableHeader, SearchBar } from '../../../components/common';
 import { authService } from '../../../services';
 import { useAuth } from '../../../hooks/useAuth';
+import { useTableSort } from '../../../hooks/useTableSort';
 import { getInitials, parseYearLevelNumber, formatYearLevelNumeric, coerceYearLevelToFormValue } from '../../../utils/helpers';
 import { formatDate } from '../../../utils/formatters';
 import '../admin.css';
@@ -128,7 +129,7 @@ const UserManagementPage = () => {
   const { isAdmin, isStaffOrAdmin, user: authUser } = useAuth();
   const isStaffOnly = isStaffOrAdmin && !isAdmin;
   const [users, setUsers] = useState([]);
-  const [filteredUsers, setFilteredUsers] = useState([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all, admin, staff, student, verified
   const [selectedUser, setSelectedUser] = useState(null);
@@ -168,12 +169,57 @@ const UserManagementPage = () => {
   const [advancedCourseCodes, setAdvancedCourseCodes] = useState([]);
   const [advancedYearLevels, setAdvancedYearLevels] = useState([]);
   const [advancedRoles, setAdvancedRoles] = useState([]);
-  const [pageSize, setPageSize] = useState(20); // 20 | 50 | Infinity (All)
+  const [pageSize, setPageSize] = useState(50);
   const [currentPage, setCurrentPage] = useState(1);
+
+  const buildProfileListParams = useCallback(() => {
+    const params = {
+      page: currentPage,
+      page_size: Number.isFinite(pageSize) ? pageSize : 100,
+    };
+    if (filter === 'admin' || filter === 'staff' || filter === 'student') {
+      params.role = filter;
+    } else if (filter === 'verified') {
+      params.is_verified = 'true';
+    }
+    if (searchQuery.trim()) {
+      params.search = searchQuery.trim();
+    }
+    if (advancedCourseCodes.length > 0) {
+      params.course_codes = advancedCourseCodes.join(',');
+    }
+    if (advancedYearLevels.length > 0) {
+      params.year_levels = advancedYearLevels.join(',');
+    }
+    return params;
+  }, [
+    currentPage,
+    pageSize,
+    filter,
+    searchQuery,
+    advancedCourseCodes,
+    advancedYearLevels,
+  ]);
+
+  const fetchUsers = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await authService.getAllProfiles(buildProfileListParams());
+      const data = response.data || {};
+      setUsers(Array.isArray(data.results) ? data.results : []);
+      setTotalCount(typeof data.count === 'number' ? data.count : 0);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      setUsers([]);
+      setTotalCount(0);
+    } finally {
+      setLoading(false);
+    }
+  }, [buildProfileListParams]);
 
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [fetchUsers]);
 
   useEffect(() => {
     let cancelled = false;
@@ -190,19 +236,7 @@ const UserManagementPage = () => {
     };
   }, []);
 
-  const uniqueYearLevels = useMemo(() => {
-    const s = new Set();
-    users.forEach((u) => {
-      const n = formatYearLevelNumeric(u.year_level);
-      if (n) s.add(n);
-    });
-    return Array.from(s).sort((a, b) => {
-      const na = parseYearLevelNumber(a) ?? 999;
-      const nb = parseYearLevelNumber(b) ?? 999;
-      if (na !== nb) return na - nb;
-      return a.localeCompare(b);
-    });
-  }, [users]);
+  const uniqueYearLevels = useMemo(() => ['1', '2', '3', '4'], []);
 
   const filteredCourseCatalog = useMemo(() => {
     const q = courseListSearch.trim().toLowerCase();
@@ -246,95 +280,66 @@ const UserManagementPage = () => {
     };
   }, [showEditModal, selectedUser]);
 
-  useEffect(() => {
-    filterUsers();
-  }, [filter, users, searchQuery, searchFields, advancedCourseCodes, advancedYearLevels, advancedRoles]);
+  const filteredUsers = useMemo(() => {
+    if (!advancedRoles.length) {
+      return users;
+    }
+    return users.filter((userRow) => advancedRoles.includes(getUserRoleKey(userRow)));
+  }, [users, advancedRoles]);
+
+  /** Per-column comparator value. Returns numbers for numeric/boolean/date
+   * columns and lowercased strings for text columns so the hook's comparator
+   * stays a single < / > pair. Missing numeric values land at the end on
+   * ascending. */
+  const getUserSortValue = useCallback((u, key) => {
+    switch (key) {
+      case 'first_name':
+        return (u.user?.first_name || '').toLowerCase();
+      case 'middle_name':
+        return (u.middle_name || '').toLowerCase();
+      case 'last_name':
+        return (u.user?.last_name || '').toLowerCase();
+      case 'id':
+        return (u.student_id || u.user?.username || '').toLowerCase();
+      case 'course':
+        return (u.course?.code || u.course?.name || '').toLowerCase();
+      case 'year_level': {
+        const n = parseYearLevelNumber(u.year_level);
+        return n == null ? Number.POSITIVE_INFINITY : n;
+      }
+      case 'section':
+        return (u.section ?? '').toString().toLowerCase();
+      case 'role': {
+        if (u.user?.is_superuser) return 0;
+        if (u.user?.is_staff) return 1;
+        return 2;
+      }
+      case 'status':
+        return u.user?.is_active ? 1 : 0;
+      case 'joined': {
+        const raw = u.user?.date_joined || u.created_at;
+        const t = raw ? new Date(raw).getTime() : 0;
+        return Number.isFinite(t) ? t : 0;
+      }
+      default:
+        return '';
+    }
+  }, []);
+
+  const { sortedRows: sortedUsers, sortConfig, handleSort } = useTableSort(
+    filteredUsers,
+    getUserSortValue,
+  );
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filter, searchQuery, pageSize, advancedCourseCodes, advancedYearLevels, advancedRoles]);
+  }, [filter, searchQuery, pageSize, advancedCourseCodes, advancedYearLevels, advancedRoles, sortConfig]);
 
-  useEffect(() => {
-    const totalPages = Math.max(
-      1,
-      Math.ceil(filteredUsers.length / (Number.isFinite(pageSize) ? pageSize : filteredUsers.length || 1))
-    );
-    if (currentPage > totalPages) setCurrentPage(totalPages);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filteredUsers.length, pageSize]);
-
-  const fetchUsers = async () => {
-    try {
-      setLoading(true);
-      // Use getAllProfiles endpoint
-      const response = await authService.getAllProfiles();
-      setUsers(response.data || []);
-    } catch (error) {
-      console.error('Error fetching users:', error);
-      // For demo, set empty array
-      setUsers([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filterUsers = () => {
-    let filtered = users;
-    
-    // Apply type filter
-    if (filter === 'admin') {
-      filtered = filtered.filter(u => u.user?.is_superuser);
-    } else if (filter === 'staff') {
-      filtered = filtered.filter(u => u.user?.is_staff && !u.user?.is_superuser);
-    } else if (filter === 'student') {
-      filtered = filtered.filter(u => !u.user?.is_staff && !u.user?.is_superuser);
-    } else if (filter === 'verified') {
-      filtered = filtered.filter(u => u.is_verified || u.user?.is_active);
-    }
-    
-    // Apply search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      const activeFields = searchFields;
-      filtered = filtered.filter((u) => {
-        const values = [];
-
-        if (activeFields.name) {
-          values.push(
-            `${u.user?.first_name || ''} ${u.user?.last_name || ''}`.toLowerCase()
-          );
-        }
-        if (activeFields.email) {
-          values.push((u.user?.email || '').toLowerCase());
-        }
-        if (activeFields.studentId) {
-          values.push((u.student_id || '').toLowerCase());
-        }
-        if (activeFields.username) {
-          values.push((u.user?.username || '').toLowerCase());
-        }
-
-        return values.some((val) => val && val.includes(query));
-      });
-    }
-
-    if (advancedCourseCodes.length > 0) {
-      filtered = filtered.filter(
-        (u) => u.course?.code && advancedCourseCodes.includes(u.course.code)
-      );
-    }
-    if (advancedYearLevels.length > 0) {
-      filtered = filtered.filter((u) => {
-        const yn = formatYearLevelNumeric(u.year_level);
-        return yn && advancedYearLevels.includes(yn);
-      });
-    }
-    if (advancedRoles.length > 0) {
-      filtered = filtered.filter((u) => advancedRoles.includes(getUserRoleKey(u)));
-    }
-
-    setFilteredUsers(filtered);
-  };
+  const pageSizeEffective = Number.isFinite(pageSize) ? pageSize : Math.max(totalCount, 1);
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSizeEffective));
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+  const startIndexDisplay = totalCount === 0 ? 0 : (safeCurrentPage - 1) * pageSizeEffective + 1;
+  const endIndexDisplay = Math.min(safeCurrentPage * pageSizeEffective, totalCount);
 
   const toggleSearchField = (field) => {
     setSearchFields((prev) => ({
@@ -369,16 +374,11 @@ const UserManagementPage = () => {
     setCourseListSearch('');
   };
 
-  const totalRows = filteredUsers.length;
-  const effectivePageSize = Number.isFinite(pageSize) ? pageSize : totalRows || 1;
-  const totalPages = Math.max(1, Math.ceil(totalRows / effectivePageSize));
-  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
-  const startIndex = (safeCurrentPage - 1) * effectivePageSize;
-  const endIndexExclusive = Math.min(startIndex + effectivePageSize, totalRows);
-  const paginatedUsers = filteredUsers.slice(startIndex, endIndexExclusive);
+  const paginatedUsers = sortedUsers;
+  const totalRows = totalCount;
 
   const handleExportCsv = () => {
-    const toExport = Number.isFinite(pageSize) ? paginatedUsers : filteredUsers;
+    const toExport = Number.isFinite(pageSize) ? paginatedUsers : sortedUsers;
     if (!toExport.length) return;
 
     const headers = [
@@ -594,8 +594,10 @@ const UserManagementPage = () => {
         course_code: editForm.course_code || null,
         year_level: editForm.year_level,
         section: editForm.section,
-        is_verified: editForm.is_verified,
       });
+      if (Boolean(selectedUser.is_verified) !== Boolean(editForm.is_verified)) {
+        await authService.setUserVerified(selectedUser.id, editForm.is_verified);
+      }
       alert('Profile updated successfully.');
       setShowEditModal(false);
       setSelectedUser(null);
@@ -748,50 +750,34 @@ const UserManagementPage = () => {
       </div>
 
       {/* Search Bar */}
-      <div className="admin-search-container">
-        <div
-          style={{
-            display: 'flex',
-            gap: '0.75rem',
-            flexWrap: 'wrap',
-            alignItems: 'flex-end',
-          }}
+      <SearchBar
+        value={searchQuery}
+        onChange={setSearchQuery}
+        placeholder="Search by name, email, username, or student ID..."
+        onAdvancedToggle={() => setShowSearchFilters((prev) => !prev)}
+        advancedOpen={showSearchFilters}
+      >
+        <button
+          type="button"
+          className="admin-btn secondary"
+          onClick={handleExportCsv}
+          disabled={!filteredUsers.length}
+          title={
+            Number.isFinite(pageSize)
+              ? `Export current page (${paginatedUsers.length} rows) as CSV`
+              : `Export all filtered rows (${filteredUsers.length}) as CSV`
+          }
         >
-          <div style={{ flex: 1, minWidth: '220px' }}>
-            <input
-              type="text"
-              placeholder="Search by name, email, username, or student ID..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="admin-search-input"
-            />
-          </div>
-          <button
-            type="button"
-            className="admin-btn secondary"
-            onClick={() => setShowSearchFilters((prev) => !prev)}
-          >
-            Advanced Search
-          </button>
-          <button
-            type="button"
-            className="admin-btn secondary"
-            onClick={handleExportCsv}
-            disabled={!filteredUsers.length}
-            title={
-              Number.isFinite(pageSize)
-                ? `Export current page (${paginatedUsers.length} rows) as CSV`
-                : `Export all filtered rows (${filteredUsers.length}) as CSV`
-            }
-          >
-            <span className="admin-btn-inline-icon">
-              <Icon name="download" size={18} />
-            </span>
-            Export CSV
-          </button>
-        </div>
+          <span className="admin-btn-inline-icon">
+            <Icon name="download" size={18} />
+          </span>
+          Export CSV
+        </button>
+      </SearchBar>
 
-        {showSearchFilters && (
+      {/* Advanced search panel — toggled by the SearchBar's onAdvancedToggle */}
+      {showSearchFilters && (
+        <div className="admin-search-container">
           <div className="admin-advanced-search-panel">
             <div className="admin-advanced-search-row">
               <span className="admin-advanced-search-label">Search in (text box):</span>
@@ -954,8 +940,8 @@ const UserManagementPage = () => {
               </div>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Users Table */}
       {filteredUsers.length > 0 ? (
@@ -964,16 +950,27 @@ const UserManagementPage = () => {
             <table className="admin-table">
               <thead>
                 <tr>
-                  <th>First Name</th>
-                  <th>Middle Name</th>
-                  <th>Last Name</th>
-                  <th>ID</th>
-                  <th>Course</th>
-                  <th>Year Level</th>
-                  <th>Section</th>
-                  <th>Role</th>
-                  <th className="text-center">Status</th>
-                  <th className="text-center">Joined/Created</th>
+                  {[
+                    { key: 'first_name', label: 'First Name' },
+                    { key: 'middle_name', label: 'Middle Name' },
+                    { key: 'last_name', label: 'Last Name' },
+                    { key: 'id', label: 'ID' },
+                    { key: 'course', label: 'Course' },
+                    { key: 'year_level', label: 'Year Level' },
+                    { key: 'section', label: 'Section' },
+                    { key: 'role', label: 'Role' },
+                    { key: 'status', label: 'Status', align: 'center' },
+                    { key: 'joined', label: 'Joined/Created', align: 'center' },
+                  ].map(({ key, label, align }) => (
+                    <SortableHeader
+                      key={key}
+                      label={label}
+                      sortKey={key}
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
+                      align={align}
+                    />
+                  ))}
                   {(isAdmin || isStaffOnly) && <th className="text-right">Actions</th>}
                 </tr>
               </thead>
@@ -1163,7 +1160,7 @@ const UserManagementPage = () => {
                 Page {safeCurrentPage} of {totalPages}
               </span>
               <span className="admin-pagination-range">
-                ({totalRows === 0 ? 0 : startIndex + 1}-{endIndexExclusive} of {totalRows})
+                ({totalRows === 0 ? 0 : startIndexDisplay}-{endIndexDisplay} of {totalRows})
               </span>
             </div>
 
@@ -1189,16 +1186,15 @@ const UserManagementPage = () => {
                 <label className="admin-pagination-view-label">View</label>
                 <select
                   className="admin-pagination-view-select"
-                  value={Number.isFinite(pageSize) ? String(pageSize) : 'all'}
+                  value={String(pageSize)}
                   onChange={(e) => {
-                    const value = e.target.value;
-                    if (value === 'all') setPageSize(Infinity);
-                    else setPageSize(Number(value));
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
                   }}
                 >
                   <option value="20">20</option>
                   <option value="50">50</option>
-                  <option value="all">All</option>
+                  <option value="100">100</option>
                 </select>
               </div>
             </div>

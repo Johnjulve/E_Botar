@@ -11,7 +11,7 @@ import hashlib
 from .models import Ballot, VoteChoice, VoteReceipt
 from apps.elections.models import SchoolElection, SchoolPosition
 from apps.candidates.models import Candidate
-from apps.common.algorithms import CryptographicAlgorithm, MemoizationAlgorithm, AggregationAlgorithm
+from apps.common.core.algorithms import CryptographicAlgorithm, MemoizationAlgorithm, AggregationAlgorithm
 
 
 def cache_result(timeout):

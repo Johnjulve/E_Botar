@@ -77,9 +77,9 @@ export const authService = {
     return api.get('/auth/user-count/');
   },
 
-  // Get all user profiles (admin only)
-  getAllProfiles: () => {
-    return api.get('/auth/profiles/');
+  // Paginated user profiles (admin/staff list; supports page, page_size, role, search, filters)
+  getAllProfiles: (params = {}) => {
+    return api.get('/auth/profiles/', { params });
   },
 
   // Unified directory: students or staff/admin (admin/staff only)
@@ -119,6 +119,13 @@ export const authService = {
   updateUserRole: (profileId, role) => {
     return api.post(`/auth/profiles/${profileId}/update_role/`, {
       role: role
+    });
+  },
+
+  // Set student verification flag (staff/admin only; audited on server)
+  setUserVerified: (profileId, isVerified) => {
+    return api.post(`/auth/profiles/${profileId}/set_verified/`, {
+      is_verified: isVerified,
     });
   },
 

@@ -243,3 +243,13 @@ class VoteReceiptCodeFormatTests(TestCase):
         receipt = VoteReceipt.objects.create(user=self.user, election=self.election)
         compact_code = VoteReceipt.normalize_receipt_code(receipt.receipt_code)
         self.assertTrue(receipt.verify_receipt(compact_code))
+
+    def test_receipt_list_does_not_expose_full_receipt_code(self):
+        receipt = VoteReceipt.objects.create(user=self.user, election=self.election)
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get('/api/voting/receipts/my_receipts/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()), 1)
+        row = response.json()[0]
+        self.assertIn('masked_receipt_code', row)
+        self.assertNotIn('receipt_code', row)

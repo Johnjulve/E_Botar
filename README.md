@@ -462,6 +462,7 @@ E-Botar is configured to work seamlessly on Railway while maintaining full local
    - `SECRET_KEY`: Generate with `python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"`
    - `DEBUG`: Set to `False` for production
    - `FRONTEND_URL`: Your frontend URL (if deployed separately)
+   - **`CLOUDINARY_URL`** *(recommended)*: persistent media storage for avatars, candidate photos, party logos, and supporting documents — Railway's filesystem is ephemeral, so without this, uploads disappear on redeploy. Format: `cloudinary://API_KEY:API_SECRET@CLOUD_NAME` (or set `CLOUDINARY_CLOUD_NAME` + `CLOUDINARY_API_KEY` + `CLOUDINARY_API_SECRET` separately).
 5. **Deploy**: Railway will automatically detect the `Procfile` in `backend/` folder and deploy
 
 ### Local Development After Cloning

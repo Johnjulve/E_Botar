@@ -9,7 +9,7 @@ from django.utils import timezone
 from functools import wraps
 
 from .models import SchoolElection, Party
-from apps.common.algorithms import CryptographicAlgorithm
+from apps.common.core.algorithms import CryptographicAlgorithm
 
 
 def annotate_election_list_metrics(queryset):

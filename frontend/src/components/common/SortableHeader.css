@@ -1,0 +1,55 @@
+/*
+ * SortableHeader styles.
+ *
+ * The button is a borderless, transparent, full-width inline-flex element so
+ * it inherits the parent <th>'s text-align (left / center / right) without
+ * needing to know which alignment was chosen.
+ *
+ * The trailing chevron is faded when the column is not the active sort key
+ * — that way every sortable column reads as "you can sort by this" without
+ * shouting at the eye on every header.
+ */
+
+.ebotar-sortable-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition: color 0.15s ease;
+}
+
+.ebotar-sortable-header:hover,
+.ebotar-sortable-header:focus-visible {
+  color: var(--primary, #0d6efd);
+  outline: none;
+}
+
+.ebotar-sortable-header__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.45;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.ebotar-sortable-header.is-active {
+  color: var(--primary, #0d6efd);
+}
+
+.ebotar-sortable-header.is-active .ebotar-sortable-header__icon {
+  opacity: 1;
+}
+
+.ebotar-sortable-header:hover .ebotar-sortable-header__icon {
+  opacity: 0.85;
+}

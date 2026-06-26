@@ -26,18 +26,22 @@ from allauth.socialaccount.models import SocialAccount, SocialApp
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
 
-from apps.common.feature_flags import load_feature_flags
+from apps.common.core.feature_flags import load_feature_flags
 from apps.common.models import ActivityLog
-from apps.common.permissions import IsStaffOrSuperUser, IsSuperUser
-from apps.common.throttling import enforce_scope_throttle
-from apps.common.utils import get_client_ip
+from apps.common.http.permissions import IsStaffOrSuperUser, IsSuperUser
+from apps.common.http.throttling import enforce_scope_throttle
+from apps.common.core.utils import get_client_ip
 
 from .models import Program, UserProfile
+from apps.common.http.pagination import StandardResultsSetPagination
+
+from .profile_list_filters import apply_profile_list_filters
 from .serializers import (
     CourseSerializer,
     CustomTokenObtainPairSerializer,
     DepartmentSerializer,
     ProgramSerializer,
+    UserProfileListSerializer,
     UserProfileSerializer,
     UserRegistrationSerializer,
     UserSerializer,
@@ -65,6 +69,42 @@ def _get_google_client_id_from_social_app(request):
 
     fallback_social_app = SocialApp.objects.filter(provider='google').order_by('id').first()
     return fallback_social_app.client_id if fallback_social_app else None
+
+
+def _google_token_payload_from_access_token(access_token, expected_client_id):
+    """Validate a Google OAuth access token and return a normalized userinfo payload."""
+    try:
+        tokeninfo_response = requests.get(
+            'https://oauth2.googleapis.com/tokeninfo',
+            params={'access_token': access_token},
+            timeout=10,
+        )
+    except requests.RequestException:
+        return None
+
+    if tokeninfo_response.status_code != 200:
+        return None
+
+    tokeninfo = tokeninfo_response.json()
+    token_audience = tokeninfo.get('aud') or tokeninfo.get('azp')
+    if token_audience != expected_client_id:
+        logger.warning(
+            'Google access token audience mismatch: expected=%s got=%s',
+            expected_client_id,
+            token_audience,
+        )
+        return None
+
+    email_verified_raw = tokeninfo.get('email_verified')
+    email_verified = str(email_verified_raw).lower() in ('true', '1', 'yes')
+
+    return {
+        'email': (tokeninfo.get('email') or '').strip().lower(),
+        'email_verified': email_verified,
+        'sub': tokeninfo.get('sub'),
+        'given_name': tokeninfo.get('given_name') or '',
+        'family_name': tokeninfo.get('family_name') or '',
+    }
 
 
 def _build_unique_username_from_email(email_value):
@@ -156,6 +196,15 @@ def handle_current_user_password_change(request):
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
+    def post(self, request, *args, **kwargs):
+        enforce_scope_throttle(
+            request,
+            self,
+            scope='login_submit',
+            message='Too many login attempts. Please wait a moment before trying again.',
+        )
+        return super().post(request, *args, **kwargs)
+
 
 class UserRegistrationView(generics.CreateAPIView):
     queryset = User.objects.all()
@@ -230,22 +279,14 @@ def google_login(request):
                 status=status.HTTP_401_UNAUTHORIZED,
             )
     else:
-        try:
-            userinfo_response = requests.get(
-                'https://openidconnect.googleapis.com/v1/userinfo',
-                headers={'Authorization': f'Bearer {google_access_token}'},
-                timeout=10,
-            )
-            if userinfo_response.status_code != 200:
-                return Response(
-                    {'error': 'Invalid Google access token.'},
-                    status=status.HTTP_401_UNAUTHORIZED,
-                )
-            token_payload = userinfo_response.json()
-        except requests.RequestException:
+        token_payload = _google_token_payload_from_access_token(
+            google_access_token,
+            google_client_id,
+        )
+        if not token_payload:
             return Response(
-                {'error': 'Unable to verify Google access token.'},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                {'error': 'Invalid Google access token.'},
+                status=status.HTTP_401_UNAUTHORIZED,
             )
 
     email_value = (token_payload.get('email') or '').strip().lower()
@@ -390,12 +431,30 @@ class UserProfileViewSet(viewsets.ModelViewSet):
     queryset = UserProfile.objects.all()
     serializer_class = UserProfileSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = StandardResultsSetPagination
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return UserProfileListSerializer
+        return UserProfileSerializer
 
     def get_queryset(self):
         user = self.request.user
         if user.is_staff or user.is_superuser:
-            return UserProfile.objects.all()
-        return UserProfile.objects.filter(user=user)
+            queryset = UserProfile.objects.select_related('user', 'department', 'course').all()
+        else:
+            queryset = UserProfile.objects.select_related('user', 'department', 'course').filter(
+                user=user,
+            )
+
+        if self.action == 'list' and (user.is_staff or user.is_superuser):
+            queryset = apply_profile_list_filters(
+                queryset,
+                self.request.query_params,
+                include_email_search=True,
+            )
+            queryset = queryset.order_by('user__last_name', 'user__first_name', 'user__username')
+        return queryset
 
     @staticmethod
     def user_can_edit_profile(request, profile):
@@ -584,10 +643,91 @@ class UserProfileViewSet(viewsets.ModelViewSet):
 
         return Response({'message': 'Password reset successfully'}, status=status.HTTP_200_OK)
 
+    @action(detail=True, methods=['post'], permission_classes=[IsStaffOrSuperUser])
+    def set_verified(self, request, pk=None):
+        """Set student verification status (staff/admin only, audited)."""
+        profile = self.get_object()
+        user_obj = profile.user
+
+        if 'is_verified' not in request.data:
+            return Response(
+                {'error': 'is_verified is required (true or false)'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        is_verified_raw = request.data.get('is_verified')
+        if isinstance(is_verified_raw, bool):
+            new_verified = is_verified_raw
+        elif isinstance(is_verified_raw, str) and is_verified_raw.lower() in ('true', 'false'):
+            new_verified = is_verified_raw.lower() == 'true'
+        else:
+            return Response(
+                {'error': 'is_verified must be a boolean'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not request.user.is_superuser:
+            if user_obj.is_superuser or user_obj.is_staff:
+                raise PermissionDenied('Staff cannot change verification for administrators or staff.')
+            if not staff_can_manage_student_profile(request.user, profile):
+                raise PermissionDenied(
+                    'You can only change verification for students at or below your own year level.'
+                )
+
+        old_verified = profile.is_verified
+        if old_verified == new_verified:
+            serializer = self.get_serializer(profile, context={'request': request})
+            return Response(
+                {
+                    'message': f'User verification is already {"enabled" if new_verified else "disabled"}',
+                    'profile': serializer.data,
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        profile.is_verified = new_verified
+        profile.save(update_fields=['is_verified', 'updated_at'])
+
+        student_id = getattr(profile, 'student_id', None)
+        target_identifier = student_id if student_id else user_obj.username
+        actor_label = 'Admin' if request.user.is_superuser else 'Staff'
+        status_word = 'verified' if new_verified else 'unverified'
+
+        ActivityLog.objects.create(
+            user=request.user,
+            action='update',
+            resource_type='User',
+            resource_id=user_obj.id,
+            description=(
+                f'{actor_label} {request.user.username} marked user {target_identifier} '
+                f'({user_obj.get_full_name()}) as {status_word}'
+            ),
+            ip_address=get_client_ip(request),
+            metadata={
+                'target_user_id': user_obj.id,
+                'target_student_id': student_id,
+                'target_username': user_obj.username,
+                'old_is_verified': old_verified,
+                'new_is_verified': new_verified,
+                'admin_username': request.user.username,
+                'action_type': 'verification_update',
+            },
+        )
+
+        serializer = self.get_serializer(profile, context={'request': request})
+        return Response(
+            {
+                'message': f'User marked as {status_word} successfully',
+                'profile': serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
 
 class UserDirectoryView(generics.ListAPIView):
-    serializer_class = UserProfileSerializer
+    serializer_class = UserProfileListSerializer
     permission_classes = [IsAuthenticated, IsStaffOrSuperUser]
+    pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
         query_params = self.request.query_params
@@ -599,45 +739,11 @@ class UserDirectoryView(generics.ListAPIView):
         else:
             queryset = queryset.filter(user__is_staff=False, user__is_superuser=False)
 
-        department_code = query_params.get('department_code') or query_params.get('college')
-        if department_code:
-            queryset = queryset.filter(department__code=department_code)
-
-        course_code = query_params.get('course_code') or query_params.get('course')
-        if course_code:
-            queryset = queryset.filter(course__code=course_code)
-
-        year_level = query_params.get('year_level')
-        if year_level:
-            queryset = queryset.filter(year_level=year_level)
-
-        role = query_params.get('role')
-        if role in ['student', 'staff', 'admin']:
-            if role == 'admin':
-                queryset = queryset.filter(user__is_superuser=True)
-            elif role == 'staff':
-                queryset = queryset.filter(user__is_staff=True, user__is_superuser=False)
-            else:
-                queryset = queryset.filter(user__is_staff=False, user__is_superuser=False)
-
-        is_active = query_params.get('is_active')
-        if is_active in ['true', 'false']:
-            queryset = queryset.filter(user__is_active=(is_active == 'true'))
-
-        is_verified = query_params.get('is_verified')
-        if is_verified in ['true', 'false']:
-            queryset = queryset.filter(is_verified=(is_verified == 'true'))
-
-        search = query_params.get('search')
-        if search:
-            search = search.strip()
-            queryset = queryset.filter(
-                Q(user__username__icontains=search)
-                | Q(user__first_name__icontains=search)
-                | Q(user__last_name__icontains=search)
-                | Q(student_id__icontains=search)
-            )
-
+        queryset = apply_profile_list_filters(
+            queryset,
+            query_params,
+            include_email_search=True,
+        )
         return queryset.order_by('user__last_name', 'user__first_name', 'user__username')
 
 
@@ -913,8 +1019,9 @@ class ProgramViewSet(viewsets.ModelViewSet):
             )
 
         except Exception as exc:
+            logger.error('Error processing program CSV import: %s', exc, exc_info=True)
             return Response(
-                {'error': f'Error processing CSV file: {str(exc)}'},
+                {'error': 'Error processing CSV file. Check the file format and try again.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -940,9 +1047,9 @@ class ProgramViewSet(viewsets.ModelViewSet):
 
             return response
         except Exception as exc:
-            logger.error('Error exporting CSV: %s', exc, exc_info=True)
+            logger.error('Error exporting program CSV: %s', exc, exc_info=True)
             return Response(
-                {'error': f'Error exporting CSV: {str(exc)}'},
+                {'error': 'Error exporting CSV. Please try again later.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -998,13 +1105,13 @@ def current_user(request):
                     exc_info=True,
                 )
                 return Response(
-                    {'error': 'Error retrieving profile data', 'detail': str(exc)},
+                    {'error': 'Error retrieving profile data. Please try again later.'},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
         except Exception as exc:
             logger.error('Error in current_user GET for user %s: %s', request.user.id, exc, exc_info=True)
             return Response(
-                {'error': 'Error retrieving user data', 'detail': str(exc)},
+                {'error': 'Error retrieving user data. Please try again later.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 

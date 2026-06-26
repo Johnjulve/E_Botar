@@ -5,6 +5,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from .models import UserProfile, Program
 from .utils import parse_year_level_value, staff_can_manage_student_profile
+from apps.common.files.file_urls import absolute_file_url
 
 
 def lookup_program_by_code(code, program_type, error_field):
@@ -194,7 +195,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             'id', 'created_at', 'updated_at', 'avatar_url', 'department', 'course',
-            'is_profile_complete', 'missing_fields',
+            'is_verified', 'is_profile_complete', 'missing_fields',
         ]
 
     def get_is_profile_complete(self, obj):
@@ -242,26 +243,11 @@ class UserProfileSerializer(serializers.ModelSerializer):
         return ret
 
     def get_avatar_url(self, obj):
-        if not obj.avatar:
-            return None
-        try:
-            request = self.context.get('request')
-            if getattr(settings, 'BACKEND_BASE_URL', None):
-                base_url = settings.BACKEND_BASE_URL.rstrip('/')
-                media_url = obj.avatar.url.lstrip('/')
-                return f"{base_url}/{media_url}"
-            if request:
-                try:
-                    return request.build_absolute_uri(obj.avatar.url)
-                except Exception:
-                    if hasattr(request, 'scheme') and hasattr(request, 'get_host'):
-                        return f"{request.scheme}://{request.get_host()}{obj.avatar.url}"
-                    return obj.avatar.url
-            return obj.avatar.url
-        except Exception:
-            return obj.avatar.url if obj.avatar else None
+        return absolute_file_url(obj.avatar, self.context.get('request'))
 
     def update(self, instance, validated_data):
+        validated_data.pop('is_verified', None)
+
         if 'first_name' in validated_data or 'last_name' in validated_data:
             u = instance.user
             if 'first_name' in validated_data:
@@ -291,6 +277,72 @@ class UserProfileSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         instance.save()
         return instance
+
+
+class UserProfileListSerializer(serializers.ModelSerializer):
+    """Lean profile rows for admin tables (list/directory/voting status)."""
+
+    class Meta:
+        model = UserProfile
+        fields = [
+            'id',
+            'middle_name',
+            'student_id',
+            'year_level',
+            'section',
+            'is_verified',
+        ]
+        read_only_fields = fields
+
+    def to_representation(self, instance):
+        user = instance.user
+        department = instance.department
+        course = instance.course
+        return {
+            'id': instance.id,
+            'middle_name': instance.middle_name or '',
+            'student_id': instance.student_id or '',
+            'year_level': instance.year_level or '',
+            'section': instance.section or '',
+            'is_verified': instance.is_verified,
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email or '',
+                'first_name': user.first_name or '',
+                'last_name': user.last_name or '',
+                'is_active': user.is_active,
+                'is_staff': user.is_staff,
+                'is_superuser': user.is_superuser,
+                'date_joined': user.date_joined,
+            },
+            'created_at': instance.created_at,
+            'department': (
+                {
+                    'code': department.code,
+                    'name': department.name,
+                }
+                if department
+                else None
+            ),
+            'course': (
+                {
+                    'code': course.code,
+                    'name': course.name,
+                }
+                if course
+                else None
+            ),
+        }
+
+
+class UserVotingStatusListSerializer(UserProfileListSerializer):
+    """Profile list row plus per-election vote flag."""
+
+    def to_representation(self, instance):
+        row = super().to_representation(instance)
+        row['has_voted'] = bool(getattr(instance, 'has_voted', False))
+        return row
 
 
 # -----------------------------------------------------------------------------

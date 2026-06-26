@@ -1,8 +1,8 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from django.conf import settings
 from django.core.exceptions import ValidationError
 from apps.accounts.models import UserProfile
+from apps.common.files.file_urls import absolute_file_url
 
 from .models import Candidate, CandidateApplication
 from apps.elections.serializers import (
@@ -16,16 +16,12 @@ from apps.elections.serializers import (
 
 
 def absolute_url_for_uploaded_file(file_field, request):
-    """Turn a FileField/ImageField into an absolute URL using BACKEND_BASE_URL or the request."""
-    if not file_field:
-        return None
-    if getattr(settings, 'BACKEND_BASE_URL', None):
-        base_url = settings.BACKEND_BASE_URL.rstrip('/')
-        media_url = file_field.url.lstrip('/')
-        return f"{base_url}/{media_url}"
-    if request:
-        return request.build_absolute_uri(file_field.url)
-    return file_field.url
+    """Backward-compatible alias for the shared ``absolute_file_url`` helper.
+
+    The shared helper correctly returns Cloudinary's already-absolute URLs
+    verbatim instead of re-prefixing them with ``BACKEND_BASE_URL``.
+    """
+    return absolute_file_url(file_field, request)
 
 
 class CandidateUserSerializer(serializers.ModelSerializer):

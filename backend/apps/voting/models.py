@@ -4,7 +4,8 @@ from django.utils import timezone
 from django.core.exceptions import ValidationError
 from apps.candidates.models import Candidate
 from apps.elections.models import SchoolPosition, SchoolElection
-from apps.common.algorithms import CryptographicAlgorithm
+from apps.common.core.algorithms import CryptographicAlgorithm
+import hmac
 import uuid
 import hashlib
 import secrets
@@ -123,8 +124,9 @@ class VoteReceipt(models.Model):
         return CryptographicAlgorithm.sha256_hash(cls.normalize_receipt_code(receipt_code))
     
     def verify_receipt(self, receipt_code):
-        """Verify if provided receipt code matches"""
-        return self.receipt_hash == self.hash_receipt(receipt_code)
+        """Verify if provided receipt code matches (constant-time digest compare)."""
+        expected_hash = self.hash_receipt(receipt_code)
+        return hmac.compare_digest(self.receipt_hash, expected_hash)
     
     def get_masked_receipt(self):
         """Get masked receipt for display (show first 8 and last 8 chars)"""
