@@ -1,7 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.files.base import ContentFile
-from django.core.files.base import ContentFile
 from django.core.validators import RegexValidator
 from django.utils import timezone
 import random
@@ -9,7 +8,7 @@ import string
 
 from apps.common.files.upload_paths import avatar_upload_path, safe_extension
 
-from apps.common.files.upload_paths import avatar_upload_path, safe_extension
+from apps.common.files.upload_paths import avatar_upload_path
 
 
 def check_profile(profile):
@@ -113,55 +112,24 @@ class UserProfile(models.Model):
         return f"{self.user.get_full_name()} ({self.student_id})"
 
     def save(self, *args, **kwargs):
-        # Delete old avatar file when avatar is being changed or cleared (avoids orphaned files)
-        if self.pk:
-            try:
-                old = UserProfile.objects.get(pk=self.pk)
-                if old.avatar and (self.avatar is None or self.avatar is not old.avatar):
-                    try:
-                        old.avatar.delete(save=False)
-                    except (OSError, ValueError):
-                        pass
-            except UserProfile.DoesNotExist:
-                pass
         if not self.student_id and not (self.user.is_staff or self.user.is_superuser):
             year = timezone.now().year
             random_digits = ''.join(random.choices(string.digits, k=5))
             self.student_id = f"{year}-{random_digits}"
+
+        # Clean up old avatar file safely if replaced or cleared
+        if self.pk:
+            try:
+                old = UserProfile.objects.filter(pk=self.pk).only('avatar').first()
+                if old and old.avatar and self.avatar != old.avatar:
+                    try:
+                        old.avatar.delete(save=False)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
         super().save(*args, **kwargs)
-
-        if student_id_changed:
-            self._propagate_student_id_to_candidate_photos()
-
-    def _propagate_student_id_to_candidate_photos(self):
-        """Re-upload each candidate photo for this user so its name follows
-        the current ``student_id``. Each photo is read once, the existing
-        storage object is deleted, then re-saved through Django's normal
-        FileField pipeline (which routes through ``upload_to`` and so picks
-        up the new student_id automatically).
-        """
-        if not self.student_id:
-            return
-        from apps.candidates.models import Candidate, CandidateApplication
-
-        for model_cls in (Candidate, CandidateApplication):
-            queryset = (
-                model_cls.objects
-                .filter(user=self.user)
-                .exclude(photo='')
-                .exclude(photo__isnull=True)
-            )
-            for obj in queryset:
-                if not obj.photo:
-                    continue
-                try:
-                    with obj.photo.open('rb') as source:
-                        photo_bytes = source.read()
-                except FileNotFoundError:
-                    continue
-                ext = safe_extension(obj.photo.name)
-                obj.photo.delete(save=False)
-                obj.photo.save(f"photo{ext}", ContentFile(photo_bytes), save=True)
 
     def is_profile_complete(self):
         if self.user.is_staff or self.user.is_superuser:

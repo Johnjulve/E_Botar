@@ -290,13 +290,45 @@ MEDIA_ROOT = os.getenv('MEDIA_ROOT', BASE_DIR / 'media')
 
 CLOUDINARY_MEDIA_FOLDER = os.getenv('CLOUDINARY_FOLDER', 'E-Botar').strip()
 
+# Detect PythonAnywhere hosting environment for outbound proxy routing
+IS_PYTHONANYWHERE = bool(
+    os.getenv('PYTHONANYWHERE_DOMAIN')
+    or os.getenv('PYTHONANYWHERE_SITE')
+    or 'pythonanywhere' in os.getenv('VIRTUAL_ENV', '').lower()
+)
+
+CLOUDINARY_API_PROXY = os.getenv(
+    'CLOUDINARY_API_PROXY',
+    'http://proxy.server:3128' if IS_PYTHONANYWHERE else None
+)
+
 if USE_CLOUDINARY_MEDIA:
-    if not CLOUDINARY_URL:
-        CLOUDINARY_STORAGE = {
-            'CLOUD_NAME': CLOUDINARY_CLOUD_NAME,
-            'API_KEY': os.getenv('CLOUDINARY_API_KEY', ''),
-            'API_SECRET': os.getenv('CLOUDINARY_API_SECRET', ''),
-        }
+    CLOUDINARY_STORAGE = {
+        'CLOUD_NAME': CLOUDINARY_CLOUD_NAME,
+        'API_KEY': os.getenv('CLOUDINARY_API_KEY', ''),
+        'API_SECRET': os.getenv('CLOUDINARY_API_SECRET', ''),
+    }
+    if CLOUDINARY_API_PROXY:
+        CLOUDINARY_STORAGE['API_PROXY'] = CLOUDINARY_API_PROXY
+
+    try:
+        import cloudinary
+        cloudinary_kwargs = {'secure': True}
+        if CLOUDINARY_API_PROXY:
+            cloudinary_kwargs['api_proxy'] = CLOUDINARY_API_PROXY
+
+        if CLOUDINARY_URL:
+            cloudinary.config(cloudinary_url=CLOUDINARY_URL, **cloudinary_kwargs)
+        elif CLOUDINARY_CLOUD_NAME:
+            cloudinary.config(
+                cloud_name=CLOUDINARY_CLOUD_NAME,
+                api_key=os.getenv('CLOUDINARY_API_KEY', ''),
+                api_secret=os.getenv('CLOUDINARY_API_SECRET', ''),
+                **cloudinary_kwargs
+            )
+    except Exception:
+        pass
+
     _DEFAULT_FILE_STORAGE_BACKEND = 'apps.common.files.storage.ResilientMediaCloudinaryStorage'
 else:
     _DEFAULT_FILE_STORAGE_BACKEND = 'django.core.files.storage.FileSystemStorage'
