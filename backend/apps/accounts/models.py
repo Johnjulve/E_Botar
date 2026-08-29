@@ -1,12 +1,9 @@
 from django.db import models
 from django.contrib.auth.models import User
-from django.core.files.base import ContentFile
 from django.core.validators import RegexValidator
 from django.utils import timezone
 import random
 import string
-
-from apps.common.files.upload_paths import avatar_upload_path, safe_extension
 
 from apps.common.files.upload_paths import avatar_upload_path
 
