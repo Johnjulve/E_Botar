@@ -95,6 +95,12 @@ if MediaCloudinaryStorage is not None:
                 apply_media_folder(name), max_length=max_length
             )
 
+        def delete(self, name):
+            try:
+                super().delete(name)
+            except Exception as exc:
+                logger.warning("Cloudinary asset deletion skipped or failed for %s: %s", name, exc)
+
         def _save(self, name, content):
             prefixed_name = apply_media_folder(name)
             try:
