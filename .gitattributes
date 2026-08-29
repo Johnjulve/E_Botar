@@ -1,0 +1,22 @@
+# Auto detect text files and perform LF normalization on checkout
+* text=auto eol=lf
+
+# Windows-specific script files must keep CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Shell scripts must keep LF for Linux environments
+*.sh text eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.sqlite3 binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary

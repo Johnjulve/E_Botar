@@ -1,6 +1,6 @@
 # E-Botar - Blockchain-Inspired Electronic Voting System
 
-**Version 2.1.0** | A secure, privacy-preserving electronic voting platform for student government elections
+**Version 3.1.0** | A secure, privacy-preserving electronic voting platform for student government elections
 
 [![Django](https://img.shields.io/badge/Django-5.2.8-green.svg)](https://www.djangoproject.com/)
 [![DRF](https://img.shields.io/badge/DRF-3.16.1-red.svg)](https://www.django-rest-framework.org/)
@@ -11,7 +11,7 @@
 
 ## 📖 Table of Contents
 
-- [Release Highlights (2.1.0)](#-release-highlights-210)
+- [Release Highlights (3.1.0)](#-release-highlights-310)
 - [Quick Start](#quick-start)
 - [Key Features](#key-features)
 - [Role-Based Access Control](#role-based-access-control)
@@ -22,26 +22,18 @@
 
 ---
 
-## 🚀 Release Highlights (2.1.0)
+## 🚀 Release Highlights (3.1.0)
 
-- **Major release**: **Google Sign-In**, blockchain-inspired vote-ledger integrity, receipt UX modernization, election metrics correctness, profile-edit PATCH efficiency, and documentation handbooks.
-- **Google Sign-In** (`POST /api/auth/google/`):
-  - **Frontend**: Continue with Google (Google Identity Services + `VITE_GOOGLE_CLIENT_ID`); JWT returned on success ([`.env.example`](.env.example)).
-  - **Backend**: django-allauth **Social App** (`SocialApp`) + Sites; verifies Google **ID tokens** or **OAuth access tokens**; optional **link-existing-account** via password modal when Google email matches a local user (`requires_password` response path).
-  - **Ops**: Configure Google OAuth client IDs in Django admin (Sites + Social applications) consistently with frontend env (`SITE_ID` in [.env.example](.env.example)).
-- **Vote ledger integrity is now end-to-end**:
-  - Ballot submit appends **`VoteBlock`** chain entries (`apps/voting`).
-  - Staff/admin verify integrity via API and Django admin workflow.
-  - Hash linkage normalization avoids false mismatches across round-trips and legacy payloads.
-- **Receipt verification is practical for real users**:
-  - Short receipt format (`ABCD-EFGH`); hyphenless/lowercase normalization on verify.
-  - Legacy long receipts migrated where applicable with hashes recomputed.
-- **Election counting correctness**:
-  - `total_votes` and `total_positions` use **`distinct`/accurate** counting instead of inflated join counts.
-- **Profile editing** ([`frontend/src/utils/patchPayload.js`](frontend/src/utils/patchPayload.js)):
-  - **Minimal PATCH payloads** derived from dirty field detection on **`ProfileEditPage`** (`getChangedFields`) for cleaner API updates.
-- **UI polish**: Sidebar **`E-Botar`** label aligned with the collapse toggle ([`CHANGELOG.md`](CHANGELOG.md) § 2.1.0 detail).
-- **Docs**: **[`Document.md`](Document.md)** (setup/use handbook) plus **[`Information.md`](Information.md)** documentation map and stewardship notes — see changelog for the full notes list.
+- **Production Cloud Deployment (`Procfile` & `.gitattributes`)**: Standardized Gunicorn web server process configuration for Railway/Render/Fly.io deployments and enforced universal `LF` line-ending normalization across all operating systems.
+- **Cloudinary 503 & Profile Image Fix**: Completely eliminated profile update crashes and 503 errors when modifying or clearing avatars by removing unsafe remote `.open('rb')` reads and delegating upload parameters directly to `django-cloudinary-storage`.
+- **Unified Environment Settings**: Fully consolidated [`backend/backend/settings.py`](backend/backend/settings.py) with dynamic multi-engine `DATABASE_URL` parsing (PostgreSQL, MySQL, SQLite), configurable rate-limiting, and modern `STORAGES` dictionary formatting.
+
+### Previous Highlights (3.0.0 & 2.1.0)
+
+- **Pre-Aggregated Data Export Analytics**: Added single-query SQL aggregation for demographic vote breakdowns (`GET /api/voting/results/breakdown/`) and student turnout status rosters (`GET /api/voting/results/student_roster/`).
+- **Cloudinary Media Storage**: Seamless cloud media uploads with ID-based file naming (`profile_photos/<student_id>.<ext>`) and folder isolation (`E-Botar/`).
+- **Google Sign-In (OAuth 2)**: Full integration with Google Identity Services with automatic account linking and rate-limited token exchange.
+- **Append-Only Blockchain Vote Ledger**: Immutable `VoteBlock` ledger with SHA-256 hash chaining, genesis block initialization, tamper detection, and zero-knowledge voter receipt verification (`ABCD-EFGH`).
 
 ### Previous Highlights (1.0.0)
 

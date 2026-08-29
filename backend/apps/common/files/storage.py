@@ -95,29 +95,6 @@ if MediaCloudinaryStorage is not None:
                 apply_media_folder(name), max_length=max_length
             )
 
-        def _upload(self, name, content):
-            """Upload using exact public_id semantics.
-
-            The base implementation calls ``cloudinary.uploader.upload(...,
-            use_filename=True, ...)`` without ``unique_filename=False``,
-            which makes Cloudinary append a random suffix to the public_id
-            (e.g. ``2024-12345`` becomes ``2024-12345_ydulyy``). We pin
-            ``unique_filename=False`` and ``overwrite=True`` so the asset is
-            stored verbatim and re-uploads cleanly replace the previous one.
-            """
-            options = {
-                'use_filename': True,
-                'unique_filename': False,
-                'overwrite': True,
-                'invalidate': True,  # bust CDN cache when overwriting
-                'resource_type': self._get_resource_type(name),
-                'tags': self.TAG,
-            }
-            folder = os.path.dirname(name)
-            if folder:
-                options['folder'] = folder
-            return _cloudinary_uploader.upload(content, **options)
-
         def _save(self, name, content):
             prefixed_name = apply_media_folder(name)
             try:
