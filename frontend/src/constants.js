@@ -3,7 +3,7 @@
  * Central location for all app constants
  */
 // App version (single source of truth for UI; bump on release)
-export const APP_VERSION = '3.0';
+export const APP_VERSION = '3.1.0';
 
 // API Configuration
 // NOTE: For actual API calls, use the api service (src/services/api.js)
@@ -104,7 +104,7 @@ export const API_ENDPOINTS = {
   DEPARTMENTS: '/auth/departments/',
   COURSES: '/auth/courses/',
   PROFILES: '/auth/profiles/',
-  
+
   // Elections
   ELECTIONS: '/elections/elections/',
   ACTIVE_ELECTIONS: '/elections/elections/active/',
@@ -112,14 +112,14 @@ export const API_ENDPOINTS = {
   FINISHED_ELECTIONS: '/elections/elections/finished/',
   POSITIONS: '/elections/positions/',
   PARTIES: '/elections/parties/',
-  
+
   // Candidates
   CANDIDATES: '/candidates/candidates/',
   CANDIDATES_BY_ELECTION: '/candidates/candidates/by_election/',
   APPLICATIONS: '/candidates/applications/',
   MY_APPLICATIONS: '/candidates/applications/my_applications/',
   PENDING_APPLICATIONS: '/candidates/applications/pending/',
-  
+
   // Voting
   BALLOTS: '/voting/ballots/',
   SUBMIT_BALLOT: '/voting/ballots/submit/',

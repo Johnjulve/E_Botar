@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2026-08-29
+
+### Added
+- **Production Web Deployment Config (`Procfile`)**: Added root-level Gunicorn process definition (`web: gunicorn backend.wsgi:application --chdir backend --bind 0.0.0.0:$PORT`) for zero-friction deployments to modern PaaS platforms (Railway, Render, Fly.io, etc.).
+- **Cross-Platform Git Normalization (`.gitattributes`)**: Enforced universal `LF` line-ending normalization across all development OS (Windows / Linux / macOS) to prevent shell script and line ending merge conflicts.
+
+### Fixed & Improved
+- **Profile Picture & Avatar Cloudinary 503 Fix**:
+  - Removed dangerous remote binary stream reads (`.open('rb')`) in [`apps/accounts/models.py::UserProfile.save`](backend/apps/accounts/models.py) that crashed when saving or updating profiles with Cloudinary storage enabled.
+  - Eliminated cascading candidate photo re-upload mutations on profile updates.
+  - Removed the custom `_upload` override in [`apps/common/files/storage.py::ResilientMediaCloudinaryStorage`](backend/apps/common/files/storage.py) to allow `django-cloudinary-storage` to handle its upload parameters natively with reliable folder isolation (`E-Botar/`).
+  - Safely wrapped old avatar deletion so avatar replacements and removals never crash the database save transaction.
+- **Unified & Environment-Driven Django Settings**:
+  - Consolidated [`backend/backend/settings.py`](backend/backend/settings.py) to support dynamic `ALLOWED_HOSTS`, granular API throttling rates, configurable JWT token lifetimes, and universal multi-engine `DATABASE_URL` parsing (PostgreSQL, MySQL, SQLite).
+  - Modernized `STORAGES` dictionary formatting aligned with Django 5.2+ standards.
+
+---
+
 ## [3.0.0] - 2026-06-26
 
 ### Added
