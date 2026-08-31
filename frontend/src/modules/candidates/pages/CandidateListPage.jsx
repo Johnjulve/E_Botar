@@ -1,4 +1,4 @@
-﻿/**
+/**
  * CandidateListPage
  * Browse all candidates with filtering - Modern Design
  */
@@ -131,14 +131,38 @@ const CandidateListPage = () => {
                   <div key={candidate.id} className="col-md-6 col-lg-4">
                     <div className="candidate-card">
                       <div className="candidate-card-body">
-                        <h6 className="candidate-name">
-                          {candidate.user?.first_name} {candidate.user?.last_name}
-                        </h6>
-                        {candidate.party && (
-                          <div className="candidate-party-badge">
-                            {candidate.party.name}
+                        <div className="d-flex align-items-center gap-3 mb-1">
+                          <div className="candidate-list-avatar">
+                            {candidate.photo_url ? (
+                              <img
+                                src={candidate.photo_url}
+                                alt={`${candidate.user?.first_name || ''} ${candidate.user?.last_name || ''}`}
+                                className="candidate-list-avatar-img"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  const fallback = e.currentTarget.parentElement.querySelector('.candidate-list-avatar-initials');
+                                  if (fallback) fallback.style.display = 'flex';
+                                }}
+                              />
+                            ) : null}
+                            <span
+                              className="candidate-list-avatar-initials"
+                              style={{ display: candidate.photo_url ? 'none' : 'flex' }}
+                            >
+                              {candidate.user?.first_name?.[0]?.toUpperCase() || 'C'}
+                            </span>
                           </div>
-                        )}
+                          <div>
+                            <h6 className="candidate-name mb-0">
+                              {candidate.user?.first_name} {candidate.user?.last_name}
+                            </h6>
+                            {candidate.party && (
+                              <div className="candidate-party-badge mt-1">
+                                {candidate.party.name}
+                              </div>
+                            )}
+                          </div>
+                        </div>
                         {candidate.election && (
                           <div className="candidate-election-info">
                             {candidate.election.title}

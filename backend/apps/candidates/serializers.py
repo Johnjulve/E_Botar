@@ -24,6 +24,25 @@ def absolute_url_for_uploaded_file(file_field, request):
     return absolute_file_url(file_field, request)
 
 
+def resolve_candidate_photo_url(obj, request):
+    """Resolve candidate photo URL with dynamic fallback to user profile avatar.
+
+    If a student updates their profile avatar, it immediately reflects across all
+    election candidate cards, voting views, and candidate listings.
+    """
+    if getattr(obj, 'photo', None):
+        return absolute_url_for_uploaded_file(obj.photo, request)
+    user = getattr(obj, 'user', None)
+    if user:
+        try:
+            profile = getattr(user, 'profile', None)
+            if profile and profile.avatar:
+                return absolute_url_for_uploaded_file(profile.avatar, request)
+        except Exception:
+            pass
+    return None
+
+
 class CandidateUserSerializer(serializers.ModelSerializer):
     """Lightweight user serializer for candidate display"""
     full_name = serializers.CharField(source='get_full_name', read_only=True)
@@ -89,7 +108,7 @@ class CandidateListSerializer(serializers.ModelSerializer):
         return text[:320] + '...'
 
     def get_photo_url(self, obj):
-        return absolute_url_for_uploaded_file(obj.photo, self.context.get('request'))
+        return resolve_candidate_photo_url(obj, self.context.get('request'))
 
 
 class CandidateCompactSerializer(serializers.ModelSerializer):
@@ -97,10 +116,14 @@ class CandidateCompactSerializer(serializers.ModelSerializer):
     user = CandidateUserListSerializer(read_only=True)
     position = SchoolPositionMinimalSerializer(read_only=True)
     party = PartyMinimalSerializer(read_only=True)
+    photo_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Candidate
-        fields = ['id', 'user', 'position', 'party']
+        fields = ['id', 'user', 'position', 'party', 'photo_url']
+
+    def get_photo_url(self, obj):
+        return resolve_candidate_photo_url(obj, self.context.get('request'))
 
 
 class CandidateDetailSerializer(serializers.ModelSerializer):
@@ -123,7 +146,7 @@ class CandidateDetailSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at', 'updated_at', 'approved_application']
 
     def get_photo_url(self, obj):
-        return absolute_url_for_uploaded_file(obj.photo, self.context.get('request'))
+        return resolve_candidate_photo_url(obj, self.context.get('request'))
 
 
 class CandidateApplicationListSerializer(serializers.ModelSerializer):
@@ -133,15 +156,19 @@ class CandidateApplicationListSerializer(serializers.ModelSerializer):
     party = PartyMinimalSerializer(read_only=True, allow_null=True)
     election = SchoolElectionMinimalSerializer(read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+    photo_url = serializers.SerializerMethodField()
 
     class Meta:
         model = CandidateApplication
         fields = [
             'id', 'user', 'position',
-            'election', 'party',
+            'election', 'party', 'photo_url',
             'status', 'status_display', 'submitted_at'
         ]
         read_only_fields = ['submitted_at']
+
+    def get_photo_url(self, obj):
+        return resolve_candidate_photo_url(obj, self.context.get('request'))
 
 
 class CandidateApplicationDetailSerializer(serializers.ModelSerializer):
@@ -173,7 +200,7 @@ class CandidateApplicationDetailSerializer(serializers.ModelSerializer):
         return hasattr(obj, 'candidate') and obj.candidate is not None
 
     def get_photo_url(self, obj):
-        return absolute_url_for_uploaded_file(obj.photo, self.context.get('request'))
+        return resolve_candidate_photo_url(obj, self.context.get('request'))
 
 
 class CandidateApplicationCreateSerializer(serializers.ModelSerializer):

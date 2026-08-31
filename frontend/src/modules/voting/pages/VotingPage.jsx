@@ -347,6 +347,26 @@ const VotingPage = () => {
                         checked={votes[positionId] === candidate.id}
                         onChange={() => handleVoteChange(positionId, candidate.id)}
                       />
+                      <div className="voting-candidate-avatar ms-3">
+                        {candidate.photo_url ? (
+                          <img
+                            src={candidate.photo_url}
+                            alt={`${candidate.user?.first_name || ''} ${candidate.user?.last_name || ''}`}
+                            className="voting-candidate-avatar-img"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              const fallback = e.currentTarget.parentElement.querySelector('.voting-candidate-avatar-initials');
+                              if (fallback) fallback.style.display = 'flex';
+                            }}
+                          />
+                        ) : null}
+                        <span
+                          className="voting-candidate-avatar-initials"
+                          style={{ display: candidate.photo_url ? 'none' : 'flex' }}
+                        >
+                          {candidate.user?.first_name?.[0]?.toUpperCase() || 'C'}
+                        </span>
+                      </div>
                       <label className="form-check-label w-100 ms-3 voting-candidate-label" htmlFor={`candidate-${candidate.id}`}>
                         <div className="fw-semibold voting-candidate-name">
                           {candidate.user?.first_name} {candidate.user?.last_name}

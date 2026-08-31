@@ -486,6 +486,12 @@ class UserProfileViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], permission_classes=[IsStaffOrSuperUser])
     def toggle_active(self, request, pk=None):
+        enforce_scope_throttle(
+            request,
+            self,
+            scope='admin_action',
+            message='You are performing administrative actions too quickly. Please wait a moment.',
+        )
         profile = self.get_object()
         user_obj = profile.user
 
@@ -544,6 +550,12 @@ class UserProfileViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], permission_classes=[IsSuperUser])
     def update_role(self, request, pk=None):
+        enforce_scope_throttle(
+            request,
+            self,
+            scope='admin_action',
+            message='You are performing administrative actions too quickly. Please wait a moment.',
+        )
         profile = self.get_object()
         user_obj = profile.user
         new_role = request.data.get('role')
@@ -604,6 +616,12 @@ class UserProfileViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], permission_classes=[IsSuperUser])
     def reset_password(self, request, pk=None):
+        enforce_scope_throttle(
+            request,
+            self,
+            scope='admin_action',
+            message='You are performing administrative actions too quickly. Please wait a moment.',
+        )
         profile = self.get_object()
         user_obj = profile.user
         new_password = request.data.get('new_password')
@@ -646,6 +664,12 @@ class UserProfileViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[IsStaffOrSuperUser])
     def set_verified(self, request, pk=None):
         """Set student verification status (staff/admin only, audited)."""
+        enforce_scope_throttle(
+            request,
+            self,
+            scope='admin_action',
+            message='You are performing administrative actions too quickly. Please wait a moment.',
+        )
         profile = self.get_object()
         user_obj = profile.user
 
@@ -763,7 +787,10 @@ class CourseViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [AllowAny]
 
     def get_queryset(self):
-        queryset = Program.objects.filter(program_type=Program.ProgramType.COURSE, is_active=True)
+        queryset = Program.objects.filter(
+            program_type=Program.ProgramType.COURSE,
+            is_active=True
+        ).select_related('department')
         department_code = self.request.query_params.get('department')
         if department_code:
             queryset = queryset.filter(department__code=department_code)
@@ -775,7 +802,7 @@ class ProgramViewSet(viewsets.ModelViewSet):
     permission_classes = [IsSuperUser]
 
     def get_queryset(self):
-        queryset = Program.objects.all()
+        queryset = Program.objects.select_related('department').all()
         program_type = self.request.query_params.get('program_type')
         if program_type:
             queryset = queryset.filter(program_type=program_type)
@@ -1116,6 +1143,12 @@ def current_user(request):
             )
 
     if request.method in ['PATCH', 'PUT']:
+        enforce_scope_throttle(
+            request,
+            None,
+            scope='profile_update',
+            message='You are updating your profile too frequently. Please wait a moment before saving again.',
+        )
         user = request.user
         profile = user.profile
 

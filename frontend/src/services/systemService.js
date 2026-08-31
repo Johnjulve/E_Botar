@@ -1,4 +1,4 @@
-import api from './api';
+import api, { cachedGet, clearApiCache } from './api';
 
 /** Default branding when API is unavailable (template fallback) */
 export const DEFAULT_FEATURE_FLAGS = Object.freeze({
@@ -22,12 +22,16 @@ export const DEFAULT_BRANDING = Object.freeze({
  */
 const systemService = {
   /**
-   * Get institution branding (public, no auth required)
+   * Get institution branding (public, no auth required - cached 5 minutes)
+   * @param {boolean} forceRefresh - If true, bypasses client cache
    * @returns {Promise<{institution_name, institution_name_line2, institution_logo_url, app_name, institution_full_name}>}
    */
-  async getBranding() {
+  async getBranding(forceRefresh = false) {
     try {
-      const response = await api.get('/common/branding/');
+      if (forceRefresh) {
+        clearApiCache('/common/branding/');
+      }
+      const response = await cachedGet('/common/branding/', {}, 5 * 60 * 1000);
       const data = response.data || {};
       return {
         ...DEFAULT_BRANDING,
@@ -46,16 +50,21 @@ const systemService = {
   /** Superuser PATCH for temporary feature disables (stored in backend SystemSettings). */
   async patchFeatureFlags(partialFlagPayload) {
     const response = await api.patch('/common/feature-flags/', partialFlagPayload);
+    clearApiCache('/common/branding/');
     return response.data;
   },
 
   /**
-   * Get current academic year
+   * Get current academic year (cached 5 minutes)
+   * @param {boolean} forceRefresh - If true, bypasses client cache
    * @returns {Promise<{academic_year: string, display: string}>}
    */
-  async getAcademicYear() {
+  async getAcademicYear(forceRefresh = false) {
     try {
-      const response = await api.get('/common/academic-year/');
+      if (forceRefresh) {
+        clearApiCache('/common/academic-year/');
+      }
+      const response = await cachedGet('/common/academic-year/', {}, 5 * 60 * 1000);
       return response.data;
     } catch (error) {
       console.error('Error fetching academic year:', error);
@@ -77,6 +86,7 @@ const systemService = {
       const response = await api.put('/common/academic-year/', {
         academic_year: academicYear
       });
+      clearApiCache('/common/academic-year/');
       return response.data;
     } catch (error) {
       console.error('Error updating academic year:', error);

@@ -35,7 +35,7 @@ def applicant_public_identifier(user):
 
 class CandidateViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for viewing candidates (read-only for public)"""
-    queryset = Candidate.objects.select_related('user', 'position', 'election', 'party').all()
+    queryset = Candidate.objects.select_related('user', 'user__profile', 'position', 'election', 'party').all()
     permission_classes = [AllowAny]
     
     def get_serializer_class(self):
@@ -88,7 +88,7 @@ class CandidateViewSet(viewsets.ReadOnlyModelViewSet):
 class CandidateApplicationViewSet(viewsets.ModelViewSet):
     """ViewSet for managing candidate applications"""
     queryset = CandidateApplication.objects.select_related(
-        'user', 'position', 'election', 'party', 'reviewed_by'
+        'user', 'user__profile', 'position', 'election', 'party', 'reviewed_by'
     ).all()
     
     def get_permissions(self):

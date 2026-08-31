@@ -14,7 +14,7 @@ from apps.common.core.algorithms import CryptographicAlgorithm
 
 def annotate_election_list_metrics(queryset):
     """Add vote receipt and linked-position counts so list/detail serializers avoid N+1 COUNT queries."""
-    return queryset.annotate(
+    return queryset.select_related('created_by', 'allowed_department').annotate(
         _vote_receipt_count=Count('receipts', distinct=True),
         _election_position_count=Count('election_positions', distinct=True),
     )

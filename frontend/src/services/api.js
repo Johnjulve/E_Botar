@@ -147,4 +147,49 @@ api.interceptors.response.use(
   }
 );
 
+/**
+ * In-memory client-side response cache with TTL
+ */
+const apiCache = new Map();
+
+/**
+ * Cached GET request helper
+ * @param {string} url - Request endpoint URL
+ * @param {object} config - Axios request config (params, headers, etc.)
+ * @param {number} ttlMs - Time-to-live in milliseconds (defaults to 5 minutes)
+ * @returns {Promise<any>} Axios response promise
+ */
+export const cachedGet = async (url, config = {}, ttlMs = 5 * 60 * 1000) => {
+  const cacheKey = `${url}:${JSON.stringify(config.params || {})}`;
+  const cached = apiCache.get(cacheKey);
+  const now = Date.now();
+
+  if (cached && now - cached.timestamp < ttlMs) {
+    return cached.response;
+  }
+
+  const response = await api.get(url, config);
+  apiCache.set(cacheKey, {
+    response,
+    timestamp: now,
+  });
+  return response;
+};
+
+/**
+ * Clear cached responses
+ * @param {string|null} urlPrefix - Optional prefix to selectively invalidate cache keys
+ */
+export const clearApiCache = (urlPrefix = null) => {
+  if (!urlPrefix) {
+    apiCache.clear();
+  } else {
+    for (const key of apiCache.keys()) {
+      if (key.startsWith(urlPrefix)) {
+        apiCache.delete(key);
+      }
+    }
+  }
+};
+
 export default api;

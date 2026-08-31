@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ElectionDetailsPage
  * Show election details with positions and candidates
  */
@@ -263,7 +263,24 @@ const ElectionDetailsPage = () => {
                 {data.candidates.map(candidate => (
                   <div key={candidate.id} className="candidate-card-item">
                     <div className="candidate-avatar">
-                      {candidate.user?.first_name?.[0]?.toUpperCase() || 'C'}
+                      {candidate.photo_url ? (
+                        <img
+                          src={candidate.photo_url}
+                          alt={`${candidate.user?.first_name || ''} ${candidate.user?.last_name || ''}`}
+                          className="candidate-avatar-img"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                            const fallback = e.currentTarget.parentElement.querySelector('.candidate-avatar-initials');
+                            if (fallback) fallback.style.display = 'flex';
+                          }}
+                        />
+                      ) : null}
+                      <span
+                        className="candidate-avatar-initials"
+                        style={{ display: candidate.photo_url ? 'none' : 'flex' }}
+                      >
+                        {candidate.user?.first_name?.[0]?.toUpperCase() || 'C'}
+                      </span>
                     </div>
                     <div className="candidate-details">
                       <div className="candidate-name">

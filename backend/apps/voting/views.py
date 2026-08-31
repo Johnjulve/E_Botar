@@ -6,6 +6,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.db.models import Count, Exists, OuterRef, Q
 from django.http import HttpResponse
+from django.utils import timezone
 from rest_framework import generics, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -16,15 +17,16 @@ from apps.accounts.models import Program, UserProfile
 from apps.accounts.profile_list_filters import apply_profile_list_filters
 from apps.accounts.serializers import UserVotingStatusListSerializer
 from apps.common.http.pagination import StandardResultsSetPagination
+from apps.common.files.file_urls import absolute_file_url
 from apps.candidates.models import Candidate
-from apps.common.core.algorithms import AggregationAlgorithm, SortingAlgorithm
+from apps.common.core.algorithms import AggregationAlgorithm, SortingAlgorithm, CryptographicAlgorithm
 from apps.common.models import ActivityLog
 from apps.common.http.permissions import IsStaffOrSuperUser, IsSuperUser
 from apps.common.http.throttling import enforce_scope_throttle
 from apps.common.core.utils import get_client_ip
 from apps.elections.models import SchoolElection, SchoolPosition
 
-from .models import Ballot, VoteChoice, VoteReceipt, VoteBlock
+from .models import Ballot, VoteChoice, VoteReceipt, VoteBlock, AnonVote
 from .serializers import (
     BallotSerializer,
     BallotSubmissionSerializer,
@@ -102,6 +104,42 @@ class BallotViewSet(viewsets.ReadOnlyModelViewSet):
         user = request.user
         client_ip_address = get_client_ip(request)
 
+        # Pre-fetch positions and candidates in 2 bulk queries
+        position_ids = [v['position_id'] for v in votes]
+        candidate_ids = [v['candidate_id'] for v in votes]
+
+        positions_by_id = {
+            p.id: p for p in SchoolPosition.objects.filter(id__in=position_ids)
+        }
+        candidates_by_id = {
+            c.id: c for c in Candidate.objects.filter(
+                id__in=candidate_ids,
+                election=election,
+                is_active=True
+            ).select_related('user', 'position')
+        }
+
+        # Validate that all requested positions and candidates exist
+        for vote_data in votes:
+            p_id = vote_data['position_id']
+            c_id = vote_data['candidate_id']
+            if p_id not in positions_by_id:
+                return Response(
+                    {'detail': f'Position with ID {p_id} not found.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            if c_id not in candidates_by_id:
+                return Response(
+                    {'detail': f'Candidate with ID {c_id} not found or inactive in this election.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            candidate = candidates_by_id[c_id]
+            if candidate.position_id != p_id:
+                return Response(
+                    {'detail': f'Candidate {candidate.user.get_full_name()} does not run for position {positions_by_id[p_id].name}.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
         try:
             with transaction.atomic():
                 receipt = VoteReceipt.objects.create(
@@ -118,24 +156,32 @@ class BallotViewSet(viewsets.ReadOnlyModelViewSet):
                     user_agent=request.META.get('HTTP_USER_AGENT', '')[:255],
                 )
                 
-                # Create vote choices and anonymize immediately
-                choices_saved = []
-                for vote_data in votes:
-                    position = SchoolPosition.objects.get(id=vote_data['position_id'])
-                    candidate = Candidate.objects.get(
-                        id=vote_data['candidate_id'],
-                        election=election,
-                        position=position,
-                        is_active=True
-                    )
-
-                    choice = VoteChoice.objects.create(
+                # Batch create VoteChoice records
+                vote_choices_to_create = [
+                    VoteChoice(
                         ballot=ballot,
-                        position=position,
-                        candidate=candidate,
+                        position=positions_by_id[v['position_id']],
+                        candidate=candidates_by_id[v['candidate_id']],
+                        anonymized=True,
                     )
-                    choice.anonymize()
-                    choices_saved.append(choice)
+                    for v in votes
+                ]
+                choices_saved = VoteChoice.objects.bulk_create(vote_choices_to_create)
+
+                # Batch create AnonVote records with pre-generated hashes
+                now_str = timezone.now().isoformat()
+                anon_votes_to_create = [
+                    AnonVote(
+                        election=election,
+                        position=positions_by_id[v['position_id']],
+                        candidate=candidates_by_id[v['candidate_id']],
+                        vote_hash=CryptographicAlgorithm.sha256_hash(
+                            f"{election.id}:{v['position_id']}:{v['candidate_id']}:{now_str}"
+                        )
+                    )
+                    for v in votes
+                ]
+                AnonVote.objects.bulk_create(anon_votes_to_create)
 
                 append_vote_blocks_for_ballot(
                     election_id=election.id,
@@ -145,8 +191,9 @@ class BallotViewSet(viewsets.ReadOnlyModelViewSet):
                     choices=choices_saved,
                 )
 
-                # Invalidate voting cache for this election
+                # Invalidate voting and user status cache for this election
                 VotingDataService.invalidate_voting_cache(election.id)
+                VotingDataService.invalidate_user_voting_cache(user.id, election.id)
                 
                 # Log the vote activity
                 try:
@@ -374,7 +421,8 @@ class VoteReceiptViewSet(viewsets.ReadOnlyModelViewSet):
                 choices = ballot.choices.select_related(
                     'position', 
                     'candidate', 
-                    'candidate__user', 
+                    'candidate__user',
+                    'candidate__user__profile',
                     'candidate__party'
                 ).all()
                 
@@ -382,12 +430,13 @@ class VoteReceiptViewSet(viewsets.ReadOnlyModelViewSet):
                 for choice in choices:
                     # Safely access candidate and user data
                     if choice.candidate and choice.candidate.user:
+                        cand_photo = choice.candidate.photo or getattr(getattr(choice.candidate.user, 'profile', None), 'avatar', None)
                         votes_data.append({
                             'position_id': choice.position.id if choice.position else None,
                             'position_name': choice.position.name if choice.position else 'Unknown',
-                    'candidate_id': choice.candidate.id,
+                            'candidate_id': choice.candidate.id,
                             'candidate_name': choice.candidate.user.get_full_name() or 'Unknown',
-                            'candidate_photo': choice.candidate.photo.url if (choice.candidate.photo and hasattr(choice.candidate.photo, 'url')) else None,
+                            'candidate_photo': absolute_file_url(cand_photo, request) if cand_photo else None,
                             'party_name': choice.candidate.party.name if (choice.candidate.party and choice.candidate.party.name) else 'Independent',
                         })
                 
@@ -600,28 +649,10 @@ class ResultsViewSet(viewsets.ViewSet):
         
         # Get results by position
         positions_data = []
-        positions = election.election_positions.all().order_by('order')
+        positions = election.election_positions.select_related('position').order_by('order')
         
         # Handle case when no positions exist
         if not positions.exists():
-            # Count eligible students for empty election
-            from apps.accounts.models import UserProfile
-            if election.election_type == 'university':
-                total_eligible_students = UserProfile.objects.filter(
-                    user__is_active=True,
-                    user__is_staff=False,
-                    user__is_superuser=False
-                ).count()
-            elif election.election_type == 'department' and election.allowed_department:
-                total_eligible_students = UserProfile.objects.filter(
-                    department=election.allowed_department,
-                    user__is_active=True,
-                    user__is_staff=False,
-                    user__is_superuser=False
-                ).count()
-            else:
-                total_eligible_students = total_voters
-            
             return Response({
                 'election_id': election.id,
                 'election_title': election.title,
@@ -632,57 +663,52 @@ class ResultsViewSet(viewsets.ViewSet):
                 'total_eligible_students': total_eligible_students,
                 'positions': []
             })
-        
+
+        # Single aggregated SQL query for all vote tallies across the election
+        vote_counts_qs = (
+            VoteChoice.objects.filter(
+                ballot__election=election,
+                ballot__user__is_active=True,
+            )
+            .values('position_id', 'candidate_id')
+            .annotate(count=Count('id'))
+        )
+        vote_map = {(r['position_id'], r['candidate_id']): r['count'] for r in vote_counts_qs}
+
+        # Single bulk query for all active candidates in this election
+        candidates_by_position = {}
+        for candidate in Candidate.objects.filter(election=election).select_related('user', 'user__profile', 'party'):
+            if candidate.user:
+                candidates_by_position.setdefault(candidate.position_id, []).append(candidate)
+
         for election_position in positions:
             position = election_position.position
             if not position:
                 continue
-                
-            # Count only choices from active voters (deactivated accounts do not count)
-            position_votes_list = list(
-                VoteChoice.objects.filter(
-                    ballot__election=election,
-                    position=position,
-                    ballot__user__is_active=True,
-                ).values('candidate_id')
+
+            position_candidates = candidates_by_position.get(position.id, [])
+            position_total_votes = sum(
+                vote_map.get((position.id, candidate.id), 0)
+                for candidate in position_candidates
             )
-            
-            # Use aggregation algorithm to count votes by candidate
-            vote_counts = AggregationAlgorithm.aggregate(
-                position_votes_list,
-                key_func=lambda v: v.get('candidate_id'),
-                operation='count'
-            )
-            
-            # Map candidate_id -> vote_count for quick lookup (filter out None keys)
-            vote_map = {candidate_id: count for candidate_id, count in vote_counts.items() if candidate_id is not None}
-            # Calculate total votes using aggregation
-            position_total_votes = sum(vote_map.values())
-            
-            # Include every candidate for this position (even if zero votes)
-            position_candidates = Candidate.objects.filter(
-                election=election,
-                position=position
-            ).select_related('user', 'party')
-            
+
             candidates_data = []
             for candidate in position_candidates:
-                if not candidate or not candidate.user:
-                    continue
-                    
-                vote_count = vote_map.get(candidate.id, 0)
+                vote_count = vote_map.get((position.id, candidate.id), 0)
                 # Use memoized percentage calculation
                 percentage = VotingDataService.calculate_vote_percentage(vote_count, position_total_votes)
+                cand_photo = candidate.photo or getattr(getattr(candidate.user, 'profile', None), 'avatar', None)
                 candidates_data.append({
                     'candidate_id': candidate.id,
                     'candidate_name': candidate.user.get_full_name() or 'Unknown',
                     'party': candidate.party.name if (candidate.party and candidate.party.name) else None,
+                    'photo_url': absolute_file_url(cand_photo, request) if cand_photo else None,
                     'vote_count': vote_count,
                     'percentage': percentage,
                     'is_winner': False,  # assigned after sorting
                     'rank': None
                 })
-            
+
             # Sort candidates by votes (desc) using quicksort algorithm and assign rank/winner flag
             candidates_data = SortingAlgorithm.quicksort(
                 candidates_data,
@@ -692,7 +718,7 @@ class ResultsViewSet(viewsets.ViewSet):
             for idx, candidate_data in enumerate(candidates_data, start=1):
                 candidate_data['rank'] = idx
                 candidate_data['is_winner'] = election_ended and idx == 1 and candidate_data['vote_count'] > 0
-            
+
             positions_data.append({
                 'position_id': position.id,
                 'position_name': position.name,

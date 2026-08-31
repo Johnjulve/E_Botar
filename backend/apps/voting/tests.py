@@ -1,6 +1,7 @@
 from datetime import timedelta
 from unittest.mock import patch
 
+from django.core.cache import cache
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.utils import timezone
@@ -98,6 +99,7 @@ class BallotVoteLedgerChainTests(TestCase):
     """Append-only VoteBlock chain is written on ballot submit and verifies."""
 
     def setUp(self):
+        cache.clear()
         self.client = APIClient()
         now = timezone.now()
         self.staff_voter = User.objects.create_user(
@@ -134,6 +136,9 @@ class BallotVoteLedgerChainTests(TestCase):
             election=self.election,
             manifesto='m-b',
         )
+
+    def tearDown(self):
+        cache.clear()
 
     def test_submit_ballot_appends_linked_vote_blocks_and_passes_verify(self):
         payload = {

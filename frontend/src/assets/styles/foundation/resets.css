@@ -12,12 +12,20 @@
   padding: 0;
 }
 
-/* Disable all animations and transitions for a more professional look */
-*, *::before, *::after {
-  animation-duration: 0s !important;
-  animation-delay: 0s !important;
-  transition-duration: 0s !important;
-  transition-delay: 0s !important;
+/* Respect user accessibility preference for reduced motion (WCAG 2.1) */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Accessible focus ring indicators for keyboard navigation */
+:focus-visible {
+  outline: 2px solid var(--primary-500, #3b82f6);
+  outline-offset: 2px;
 }
 
 /* Text selection - default to none */

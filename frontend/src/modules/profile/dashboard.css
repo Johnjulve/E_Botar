@@ -496,6 +496,24 @@
   border: 3px solid var(--white);
   box-shadow: var(--shadow-sm);
   flex-shrink: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.dashboard-winner-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+}
+
+.dashboard-winner-avatar-initials {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .dashboard-winner-name {

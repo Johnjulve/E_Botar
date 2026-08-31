@@ -14,6 +14,15 @@ from apps.candidates.models import Candidate
 from apps.common.core.algorithms import CryptographicAlgorithm, MemoizationAlgorithm, AggregationAlgorithm
 
 
+def _make_service_cache_key(func_name, *args, **kwargs):
+    """Generate deterministic cache key for voting service functions."""
+    key_parts = [func_name]
+    key_parts.extend([str(arg) for arg in args])
+    key_parts.extend([f"{k}:{v}" for k, v in sorted(kwargs.items())])
+    key_string = '|'.join(key_parts)
+    return f"voting_service_{CryptographicAlgorithm.sha256_hash(key_string)}"
+
+
 def cache_result(timeout):
     """
     Decorator to cache function results with specified timeout
@@ -29,20 +38,7 @@ def cache_result(timeout):
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            # Create cache key from function name and arguments
-            key_parts = [func.__name__]
-            
-            # Add positional arguments
-            key_parts.extend([str(arg) for arg in args])
-            
-            # Add keyword arguments
-            key_parts.extend([f"{k}:{v}" for k, v in sorted(kwargs.items())])
-            
-            # Generate hash for cache key using SHA-256
-            key_string = '|'.join(key_parts)
-            cache_key = f"voting_service_{CryptographicAlgorithm.sha256_hash(key_string)}"
-            
-            # Try to get from cache
+            cache_key = _make_service_cache_key(func.__name__, *args, **kwargs)
             result = cache.get(cache_key)
             
             if result is None:
@@ -364,14 +360,30 @@ class VotingDataService:
     @staticmethod
     def invalidate_voting_cache(election_id=None):
         """
-        Invalidate voting-related cached data
+        Invalidate voting-related cached data targeted to a specific election.
         
         Args:
             election_id: Optional election ID to clear specific cache
         """
-        # For production, implement more sophisticated cache invalidation
-        cache.clear()
-    
+        if election_id is not None:
+            keys_to_delete = [
+                _make_service_cache_key('get_live_results', election_id),
+                _make_service_cache_key('get_election_statistics', election_id),
+                _make_service_cache_key('get_position_statistics', election_id),
+                _make_service_cache_key('get_all_winners', election_id),
+            ]
+            try:
+                position_ids = SchoolPosition.objects.filter(
+                    election_positions__election_id=election_id
+                ).values_list('id', flat=True)
+                for pos_id in position_ids:
+                    keys_to_delete.append(_make_service_cache_key('get_results_by_position', election_id, pos_id))
+                    keys_to_delete.append(_make_service_cache_key('get_winner_by_position', election_id, pos_id))
+            except Exception:
+                pass
+
+            cache.delete_many(keys_to_delete)
+
     @staticmethod
     def invalidate_user_voting_cache(user_id, election_id):
         """
@@ -381,10 +393,7 @@ class VotingDataService:
             user_id: ID of the user
             election_id: ID of the election
         """
-        # Clear specific user voting status cache
-        key_parts = ['get_user_voting_status', str(user_id), str(election_id)]
-        key_string = '|'.join(key_parts)
-        cache_key = f"voting_service_{CryptographicAlgorithm.sha256_hash(key_string)}"
+        cache_key = _make_service_cache_key('get_user_voting_status', user_id, election_id)
         cache.delete(cache_key)
     
     # Memoized computation functions for expensive calculations

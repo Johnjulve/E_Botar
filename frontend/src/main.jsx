@@ -17,7 +17,8 @@ import './assets/styles/foundation/typography.css';
 
 // External Libraries (loaded once at app level)
 import 'bootstrap/dist/css/bootstrap.min.css';
-import '@fortawesome/fontawesome-free/css/all.min.css';
+import '@fortawesome/fontawesome-free/css/fontawesome.min.css';
+import '@fortawesome/fontawesome-free/css/solid.min.css';
 
 // Bootstrap Overrides
 import './assets/styles/vendors/bootstrap-overrides.css';

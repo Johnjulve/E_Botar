@@ -4,13 +4,6 @@ import { LoadingSpinner, Modal } from '../../../components/common';
 import { electionService, votingService } from '../../../services';
 import '../admin.css';
 
-const Icon = ({ size = 20 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M9 11l3 3L22 4" />
-    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-  </svg>
-);
-
 const STATUS_LABELS = {
   verified: 'Verified',
   missing_ballot: 'Missing Ballot',
@@ -175,6 +168,12 @@ const ReceiptAuditPage = () => {
                 placeholder="Name, username, student ID, receipt, hash..."
                 value={filters.search}
                 onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    setPagination((prev) => ({ ...prev, page: 1 }));
+                    fetchRows();
+                  }
+                }}
               />
               <button className="admin-btn secondary" type="button" onClick={fetchRows}>
                 Refresh

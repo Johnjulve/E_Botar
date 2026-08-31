@@ -1,6 +1,6 @@
 # E-Botar - Blockchain-Inspired Electronic Voting System
 
-**Version 3.1.0** | A secure, privacy-preserving electronic voting platform for student government elections
+**Version 3.2.0** | A secure, privacy-preserving electronic voting platform for student government elections
 
 [![Django](https://img.shields.io/badge/Django-5.2.8-green.svg)](https://www.djangoproject.com/)
 [![DRF](https://img.shields.io/badge/DRF-3.16.1-red.svg)](https://www.django-rest-framework.org/)
@@ -11,7 +11,7 @@
 
 ## 📖 Table of Contents
 
-- [Release Highlights (3.1.0)](#-release-highlights-310)
+- [Release Highlights (3.2.0)](#-release-highlights-320)
 - [Quick Start](#quick-start)
 - [Key Features](#key-features)
 - [Role-Based Access Control](#role-based-access-control)
@@ -22,13 +22,26 @@
 
 ---
 
-## 🚀 Release Highlights (3.1.0)
+## 🚀 Release Highlights (3.2.0)
+
+- **Profile Avatar & Candidate Picture Dynamic Sync**: Implemented dynamic avatar fallback (`resolve_candidate_photo_url`) across all candidate serializers, voting ballot cards, candidate listings, and receipt audits so updating student profile pictures immediately reflects across all election UI surfaces.
+- **Search Bar Continuous Typing & Input Debounce**: Eliminated full-screen loading unmount cycles during search typing in admin views (`UserManagementPage`, `VotingStatusPage`), preserving cursor focus and typing state seamlessly with custom `useDebounce` hook.
+- **ViewSet Eager Loading Audit**: Added targeted `select_related()` for `user__profile`, `department`, and `created_by` across candidate, account, and election ViewSets to prevent N+1 database queries.
+- **Audit Trail Serializer Efficiency**: Eliminated N+1 database queries across the administrative receipt audit view in [`backend/apps/voting/serializers.py`](backend/apps/voting/serializers.py) by utilizing prefetched collections and instance-level memoization.
+- **Targeted Cache Invalidation**: Replaced nuclear `cache.clear()` with election-scoped deletion keys (`cache.delete_many(...)`) in [`backend/apps/voting/services.py`](backend/apps/voting/services.py), preserving active user sessions, tokens, and rate-limiting throttles.
+- **Direct SQL Results Aggregation**: Optimized `ResultsViewSet.election_results` in [`backend/apps/voting/views.py`](backend/apps/voting/views.py) with database-level `.values('position_id', 'candidate_id').annotate(count=Count('id'))` and bulk candidate pre-fetching, cutting live results queries from 20+ queries down to 2 fast queries.
+- **Ballot Submit Batching & Atomicity**: Pre-fetched positions and candidates in bulk and implemented `bulk_create` for `VoteChoice` and `AnonVote` records in [`backend/apps/voting/views.py`](backend/apps/voting/views.py), dropping DB operations per ballot from ~40+ queries down to 4 fast queries.
+- **Route-Level Lazy Loading & Code Splitting**: Converted all 30+ pages in [`frontend/src/routes/AppRoutes.jsx`](frontend/src/routes/AppRoutes.jsx) to dynamic `React.lazy()` imports with `<Suspense>`, shrinking the initial JavaScript bundle by **68.7%** (from `1,049 kB` down to `328 kB`) and CSS by **32%**.
+- **Client-Side Request Caching with TTL**: Added in-memory TTL caching (`cachedGet` / `clearApiCache`) to [`frontend/src/services/api.js`](frontend/src/services/api.js) and static services, eliminating redundant network calls for branding, academic year, and department/course hierarchies.
+- **Unified SVG Icon Component & Chunk Shrinkage**: Created `<Icon />` common component in [`frontend/src/components/common/Icon.jsx`](frontend/src/components/common/Icon.jsx) and removed ~1,100+ lines of duplicate icon SVG dictionaries across 14 pages, shrinking admin page bundle chunks by up to 38%.
+- **Admin Action & Profile Update Scope Throttling**: Added `admin_action` and `profile_update` rate-limiting guards in [`backend/apps/accounts/views.py`](backend/apps/accounts/views.py) and [`backend/backend/settings.py`](backend/backend/settings.py) to prevent brute-force status toggles and script spam.
+- **Zero-Waterfall Typography & Icon Consolidation**: Moved Google Fonts connection to preconnect and link tags in [`frontend/index.html`](frontend/index.html), eliminated render-blocking CSS `@import`, and stripped unused FontAwesome Brand/Regular font bundles for an additional **140+ kB** reduction in initial static asset payload.
+
+### Previous Highlights (3.1.0 & 3.0.0)
 
 - **Production Cloud Deployment (`Procfile` & `.gitattributes`)**: Standardized Gunicorn web server process configuration for Railway/Render/Fly.io deployments and enforced universal `LF` line-ending normalization across all operating systems.
 - **Cloudinary 503 & Profile Image Fix**: Completely eliminated profile update crashes and 503 errors when modifying or clearing avatars by removing unsafe remote `.open('rb')` reads and delegating upload parameters directly to `django-cloudinary-storage`.
 - **Unified Environment Settings**: Fully consolidated [`backend/backend/settings.py`](backend/backend/settings.py) with dynamic multi-engine `DATABASE_URL` parsing (PostgreSQL, MySQL, SQLite), configurable rate-limiting, and modern `STORAGES` dictionary formatting.
-
-### Previous Highlights (3.0.0 & 2.1.0)
 
 - **Pre-Aggregated Data Export Analytics**: Added single-query SQL aggregation for demographic vote breakdowns (`GET /api/voting/results/breakdown/`) and student turnout status rosters (`GET /api/voting/results/student_roster/`).
 - **Cloudinary Media Storage**: Seamless cloud media uploads with ID-based file naming (`profile_photos/<student_id>.<ext>`) and folder isolation (`E-Botar/`).
