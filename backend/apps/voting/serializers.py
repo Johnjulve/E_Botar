@@ -226,7 +226,7 @@ class VoteReceiptAuditSerializer(serializers.ModelSerializer):
         return getattr(profile, 'student_id', None)
 
     def get_has_ballot(self, obj):
-        return hasattr(obj, 'ballot') and obj.ballot is not None
+        return getattr(obj, 'ballot', None) is not None
 
     def get_vote_status(self, obj):
         if not self.get_has_ballot(obj):
@@ -236,13 +236,32 @@ class VoteReceiptAuditSerializer(serializers.ModelSerializer):
         return 'hash_mismatch'
 
     def _first_vote_block(self, obj):
+        if hasattr(obj, '_cached_first_vote_block'):
+            return obj._cached_first_vote_block
+
         ballot = getattr(obj, 'ballot', None)
         if ballot is None:
+            obj._cached_first_vote_block = None
             return None
+
+        # Check if choices are already prefetched to avoid extra SQL queries
+        if hasattr(ballot, '_prefetched_objects_cache') and 'choices' in ballot._prefetched_objects_cache:
+            choices = sorted(ballot.choices.all(), key=lambda c: c.id)
+            if not choices:
+                obj._cached_first_vote_block = None
+                return None
+            first_choice = choices[0]
+            if hasattr(first_choice, '_prefetched_objects_cache') and 'vote_blocks' in first_choice._prefetched_objects_cache:
+                blocks = sorted(first_choice.vote_blocks.all(), key=lambda b: b.block_index)
+                obj._cached_first_vote_block = blocks[0] if blocks else None
+                return obj._cached_first_vote_block
+
         first_choice = ballot.choices.order_by('id').first()
         if first_choice is None:
+            obj._cached_first_vote_block = None
             return None
-        return first_choice.vote_blocks.order_by('block_index').first()
+        obj._cached_first_vote_block = first_choice.vote_blocks.order_by('block_index').first()
+        return obj._cached_first_vote_block
 
     def get_block_hash(self, obj):
         block = self._first_vote_block(obj)

@@ -5,94 +5,14 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Container } from '../../../components/layout';
-import { LoadingSpinner, Modal, Button, SortableHeader, SearchBar } from '../../../components/common';
+import { LoadingSpinner, Modal, Button, SortableHeader, SearchBar, Icon } from '../../../components/common';
 import { authService } from '../../../services';
 import { useAuth } from '../../../hooks/useAuth';
 import { useTableSort } from '../../../hooks/useTableSort';
+import { useDebounce } from '../../../hooks/useDebounce';
 import { getInitials, parseYearLevelNumber, formatYearLevelNumeric, coerceYearLevelToFormValue } from '../../../utils/helpers';
 import { formatDate } from '../../../utils/formatters';
 import '../admin.css';
-
-// SVG Icon Component
-const Icon = ({ name, size = 20, className = '' }) => {
-  const icons = {
-    users: (
-      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-        <circle cx="9" cy="7" r="4"/>
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-      </svg>
-    ),
-    shield: (
-      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-      </svg>
-    ),
-    mail: (
-      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-        <polyline points="22,6 12,13 2,6"/>
-      </svg>
-    ),
-    checkCircle: (
-      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-        <polyline points="22 4 12 14.01 9 11.01"/>
-      </svg>
-    ),
-    clock: (
-      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-        <circle cx="12" cy="12" r="10"/>
-        <polyline points="12 6 12 12 16 14"/>
-      </svg>
-    ),
-    edit: (
-      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-      </svg>
-    ),
-    trash: (
-      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-        <polyline points="3 6 5 6 21 6"/>
-        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-      </svg>
-    ),
-    toggleLeft: (
-      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-        <rect x="1" y="5" width="22" height="14" rx="7" ry="7"/>
-        <circle cx="8" cy="12" r="3"/>
-      </svg>
-    ),
-    toggleRight: (
-      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-        <rect x="1" y="5" width="22" height="14" rx="7" ry="7"/>
-        <circle cx="16" cy="12" r="3"/>
-      </svg>
-    ),
-    key: (
-      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-        <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
-      </svg>
-    ),
-    copy: (
-      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-      </svg>
-    ),
-    download: (
-      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-        <polyline points="7 10 12 15 17 10"/>
-        <line x1="12" y1="15" x2="12" y2="3"/>
-      </svg>
-    ),
-  };
-
-  return icons[name] || null;
-};
 
 const csvEscape = (val) => {
   const s = String(val ?? '');
@@ -130,7 +50,8 @@ const UserManagementPage = () => {
   const isStaffOnly = isStaffOrAdmin && !isAdmin;
   const [users, setUsers] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [tableLoading, setTableLoading] = useState(false);
   const [filter, setFilter] = useState('all'); // all, admin, staff, student, verified
   const [selectedUser, setSelectedUser] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -154,6 +75,7 @@ const UserManagementPage = () => {
   const [passwordCopied, setPasswordCopied] = useState(false);
   const [selectedRole, setSelectedRole] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [actionUserId, setActionUserId] = useState(null); // prevent rapid repeat actions per user
   const [modalSubmitting, setModalSubmitting] = useState(false); // prevent double-submit in modals
   const [showSearchFilters, setShowSearchFilters] = useState(false);
@@ -172,6 +94,10 @@ const UserManagementPage = () => {
   const [pageSize, setPageSize] = useState(50);
   const [currentPage, setCurrentPage] = useState(1);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchQuery, filter, advancedCourseCodes, advancedYearLevels, pageSize]);
+
   const buildProfileListParams = useCallback(() => {
     const params = {
       page: currentPage,
@@ -182,8 +108,8 @@ const UserManagementPage = () => {
     } else if (filter === 'verified') {
       params.is_verified = 'true';
     }
-    if (searchQuery.trim()) {
-      params.search = searchQuery.trim();
+    if (debouncedSearchQuery.trim()) {
+      params.search = debouncedSearchQuery.trim();
     }
     if (advancedCourseCodes.length > 0) {
       params.course_codes = advancedCourseCodes.join(',');
@@ -196,14 +122,18 @@ const UserManagementPage = () => {
     currentPage,
     pageSize,
     filter,
-    searchQuery,
+    debouncedSearchQuery,
     advancedCourseCodes,
     advancedYearLevels,
   ]);
 
-  const fetchUsers = useCallback(async () => {
+  const fetchUsers = useCallback(async (isInitial = false) => {
     try {
-      setLoading(true);
+      if (isInitial) {
+        setInitialLoading(true);
+      } else {
+        setTableLoading(true);
+      }
       const response = await authService.getAllProfiles(buildProfileListParams());
       const data = response.data || {};
       setUsers(Array.isArray(data.results) ? data.results : []);
@@ -213,12 +143,13 @@ const UserManagementPage = () => {
       setUsers([]);
       setTotalCount(0);
     } finally {
-      setLoading(false);
+      setInitialLoading(false);
+      setTableLoading(false);
     }
   }, [buildProfileListParams]);
 
   useEffect(() => {
-    fetchUsers();
+    fetchUsers(initialLoading);
   }, [fetchUsers]);
 
   useEffect(() => {
@@ -636,7 +567,7 @@ const UserManagementPage = () => {
     }
   };
 
-  if (loading) {
+  if (initialLoading) {
     return <LoadingSpinner fullScreen text="Loading users..." />;
   }
 

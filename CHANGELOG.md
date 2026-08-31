@@ -5,6 +5,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0] - 2026-08-31
+
+### Added
+- **Unified SVG Icon System & Component Deduplication**: Created [`frontend/src/components/common/Icon.jsx`](frontend/src/components/common/Icon.jsx) and exported `<Icon />` from the common components library. Replaced local duplicate icon dictionaries across **14 separate admin and layout files**, removing **~1,100+ lines of duplicate JSX** and reducing page chunk sizes across all administrative views.
+- **Admin Action & Profile Update Scope Throttling**: Added `admin_action` (`60/minute`) and `profile_update` (`20/minute`) scoped rate limits to [`backend/backend/settings.py`](backend/backend/settings.py) and applied `enforce_scope_throttle` on sensitive state mutations (`toggle_active`, `update_role`, `reset_password`, `set_verified`, and `current_user` profile saves) in [`backend/apps/accounts/views.py`](backend/apps/accounts/views.py).
+- **Route-Level Lazy Loading & Code Splitting**: Converted all 30+ application pages in [`frontend/src/routes/AppRoutes.jsx`](frontend/src/routes/AppRoutes.jsx) to dynamic `React.lazy()` imports wrapped in `<Suspense>`, reducing initial main bundle size by **68.7%** (from `1,049 kB` down to `328 kB`).
+- **Client-Side Request Caching with TTL**: Added transparent in-memory TTL caching (`cachedGet` and `clearApiCache`) to [`frontend/src/services/api.js`](frontend/src/services/api.js). Integrated with [`systemService.js`](frontend/src/services/systemService.js), [`programService.js`](frontend/src/services/programService.js), and [`authService.js`](frontend/src/services/authService.js) so navigating between pages or repeatedly opening user edit modals in the SPA achieves **0 redundant network requests** for static metadata (branding, academic year, departments/courses).
+- **Icon System Consolidation & Font Trimming**: Replaced monolithic `@fortawesome/fontawesome-free/css/all.min.css` with modular `fontawesome.min.css` and `solid.min.css` in [`frontend/src/main.jsx`](frontend/src/main.jsx). Replaced FontAwesome brand glyph in [`LoginPage.jsx`](frontend/src/modules/auth/pages/LoginPage.jsx) with crisp multicolor Google SVG, eliminating 140+ kB of binary font downloads (`fa-brands-400.woff2`, `fa-regular-400.woff2`) and shaving 21 kB from CSS.
+
+### Fixed & Improved
+- **Accessible Focus Indicators & WCAG Reduced Motion**: Added `:focus-visible` accessible outline rings for keyboard navigation and updated [`frontend/src/assets/styles/foundation/resets.css`](frontend/src/assets/styles/foundation/resets.css) to support smooth micro-interactions while strictly respecting `@media (prefers-reduced-motion: reduce)`.
+- **Admin Stat Cards CSS Consolidation**:
+  - Consolidated shared `.admin-stats-grid`, `.admin-stat-card`, `.admin-stat-icon`, `.admin-stat-value`, and `.admin-stat-label` styles into [`frontend/src/modules/admin/admin.css`](frontend/src/modules/admin/admin.css).
+  - Resolved an issue where stat cards in [`UserManagementPage.jsx`](frontend/src/modules/admin/pages/UserManagementPage.jsx), [`SystemLogsPage.jsx`](frontend/src/modules/admin/pages/SystemLogsPage.jsx), and [`UserDirectoryPage.jsx`](frontend/src/modules/admin/pages/UserDirectoryPage.jsx) rendered vertically unstyled when navigating directly to those sub-routes under route-level code splitting.
+- **Student Profile Avatar & Candidate Picture Dynamic Synchronization**:
+  - Implemented `resolve_candidate_photo_url` across `CandidateListSerializer`, `CandidateDetailSerializer`, `CandidateCompactSerializer`, and `CandidateApplicationDetailSerializer` in [`backend/apps/candidates/serializers.py`](backend/apps/candidates/serializers.py).
+  - Added `photo_url` and `select_related('user__profile')` to `ResultsViewSet.election_results` in [`backend/apps/voting/views.py`](backend/apps/voting/views.py).
+  - Automatically falls back to the student's active `UserProfile.avatar` if no separate campaign photo is uploaded, or whenever the student updates their profile avatar.
+  - Updated [`backend/apps/voting/views.py`](backend/apps/voting/views.py) (`VoteReceiptViewSet.verify`) so that candidate pictures resolve seamlessly on voter audit receipts.
+  - Enhanced frontend candidate avatar rendering with circular thumbnails and fallback initials across [`DashboardPage.jsx`](frontend/src/modules/profile/pages/DashboardPage.jsx) (Current Administration winner cards), [`ElectionDetailsPage.jsx`](frontend/src/modules/elections/pages/ElectionDetailsPage.jsx), [`VotingPage.jsx`](frontend/src/modules/voting/pages/VotingPage.jsx), and [`CandidateListPage.jsx`](frontend/src/modules/candidates/pages/CandidateListPage.jsx).
+- **Search Bar Typing Continuity & Input Debounce**:
+  - Fixed a critical UI bug where typing into search inputs (`UserManagementPage`, `VotingStatusPage`, `UserDirectoryPage`) triggered full-screen loading states that unmounted the search bar on every keystroke, forcing users to repeatedly re-click the input.
+  - Separated `initialLoading` from non-blocking `tableLoading` states, keeping header controls, search bars, and filter toggles permanently mounted and focused.
+  - Created a reusable `useDebounce` hook in [`frontend/src/hooks/useDebounce.js`](frontend/src/hooks/useDebounce.js) to debounce fast keystrokes (300ms) and eliminate rapid-fire API request thrashing and race conditions.
+- **ViewSet Eager Loading Audit (`apps/accounts`, `apps/candidates`, `apps/elections`)**:
+  - Added `select_related('user', 'user__profile', 'position', 'election', 'party')` to `CandidateViewSet` and `CandidateApplicationViewSet` in [`backend/apps/candidates/views.py`](backend/apps/candidates/views.py), eliminating N+1 queries when resolving candidate profiles and academic details.
+  - Added `select_related('department')` to `CourseViewSet` and `ProgramViewSet` in [`backend/apps/accounts/views.py`](backend/apps/accounts/views.py).
+  - Added `select_related('created_by', 'allowed_department')` to `SchoolElectionViewSet` querysets in [`backend/apps/elections/services.py`](backend/apps/elections/services.py).
+- **Audit Trail Serializer Efficiency (`VoteReceiptAuditSerializer`)**:
+  - Optimized `_first_vote_block` in [`backend/apps/voting/serializers.py`](backend/apps/voting/serializers.py) to leverage prefetched in-memory collections and memoize lookups on instances, eliminating N+1 database queries across the administrative receipt audit view.
+- **Targeted Election Cache Invalidation (`VotingDataService.invalidate_voting_cache`)**:
+  - Replaced global nuclear `cache.clear()` with election-scoped key invalidation (`cache.delete_many(...)`) and voter status clearing (`invalidate_user_voting_cache`) in [`backend/apps/voting/services.py`](backend/apps/voting/services.py).
+  - Protects active user sessions, auth tokens, rate limiters, and system branding cache from being flushed whenever a single vote is cast.
+- **Direct SQL Aggregation for Election Results (`ResultsViewSet.election_results`)**:
+  - Replaced loop-based per-position candidate queries with a single database SQL aggregation query (`.values('position_id', 'candidate_id').annotate(count=Count('id'))`) and bulk candidate pre-fetching in [`backend/apps/voting/views.py`](backend/apps/voting/views.py).
+  - Slashed database query counts for live results from **20+ queries** down to **2 fast indexed queries**.
+- **Ballot Submit Batching & Atomicity (`BallotViewSet.submit`)**:
+  - Pre-fetched positions and active candidates in 2 bulk queries before the submission loop in [`backend/apps/voting/views.py`](backend/apps/voting/views.py).
+  - Replaced per-vote sequential database lookups, inserts, and updates with `VoteChoice.objects.bulk_create` and `AnonVote.objects.bulk_create` (with pre-computed SHA-256 hashes).
+  - Reduced database operations per cast ballot from **~40+ queries** down to **4 fast queries**, maximizing throughput during peak election voting.
+- **Zero-Waterfall Font Preconnect & Preload**:
+  - Moved Google Fonts discovery to `<link rel="preconnect">` and `<link rel="stylesheet">` tags in [`frontend/index.html`](frontend/index.html) to pre-warm DNS and TLS handshakes.
+  - Removed render-blocking `@import url(...)` from [`frontend/src/assets/styles/foundation/typography.css`](frontend/src/assets/styles/foundation/typography.css), eliminating stylesheet waterfalls and repeated font evaluations.
+- **Frontend CSS Bundle Reduction**: Reduced initial CSS bundle size by **32%** (from `490 kB` down to `333 kB`) with zero chunk-size build warnings.
+
+---
+
 ## [3.1.0] - 2026-08-29
 
 ### Added

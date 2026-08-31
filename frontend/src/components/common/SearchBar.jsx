@@ -63,8 +63,7 @@ const SearchBar = ({
 
   const handleInputChange = (event) => {
     if (typeof onChange !== 'function') return;
-    // Tolerate both signatures: receiver expecting a value or an event.
-    onChange(event.target.value, event);
+    onChange(event.target.value);
   };
 
   return (
@@ -78,6 +77,7 @@ const SearchBar = ({
             value={value ?? ''}
             onChange={handleInputChange}
             className={`ebotar-search-bar__input${inputClassName ? ` ${inputClassName}` : ''}`}
+            autoComplete="off"
           />
         </div>
 

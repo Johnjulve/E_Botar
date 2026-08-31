@@ -3,7 +3,7 @@
  * Handles all authentication-related API calls
  */
 
-import api from './api';
+import api, { cachedGet, clearApiCache } from './api';
 
 export const authService = {
   // User registration
@@ -52,19 +52,29 @@ export const authService = {
     });
   },
 
-  // Get all departments
-  getDepartments: () => {
-    return api.get('/auth/departments/');
+  // Get all departments (cached 5 minutes)
+  getDepartments: (forceRefresh = false) => {
+    if (forceRefresh) {
+      clearApiCache('/auth/departments/');
+    }
+    return cachedGet('/auth/departments/', {}, 5 * 60 * 1000);
   },
 
-  // Get all courses
-  getCourses: () => {
-    return api.get('/auth/courses/');
+  // Get all courses (cached 5 minutes)
+  getCourses: (forceRefresh = false) => {
+    if (forceRefresh) {
+      clearApiCache('/auth/courses/');
+    }
+    return cachedGet('/auth/courses/', {}, 5 * 60 * 1000);
   },
 
-  // Get courses by department
-  getCoursesByDepartment: (departmentCode) => {
-    return api.get(`/auth/courses/?department=${departmentCode}`);
+  // Get courses by department (cached 5 minutes)
+  getCoursesByDepartment: (departmentCode, forceRefresh = false) => {
+    const params = departmentCode ? { department: departmentCode } : {};
+    if (forceRefresh) {
+      clearApiCache('/auth/courses/');
+    }
+    return cachedGet('/auth/courses/', { params }, 5 * 60 * 1000);
   },
 
   // Get total student count (available to all authenticated users)

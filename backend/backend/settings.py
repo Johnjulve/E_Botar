@@ -67,6 +67,8 @@ REST_FRAMEWORK = {
         "program_import": os.getenv('THROTTLE_PROGRAM_IMPORT', '3/minute'),
         "login_submit": os.getenv('THROTTLE_LOGIN_SUBMIT', '10/minute'),
         "receipt_verify": os.getenv('THROTTLE_RECEIPT_VERIFY', '15/minute'),
+        "admin_action": os.getenv('THROTTLE_ADMIN_ACTION', '60/minute'),
+        "profile_update": os.getenv('THROTTLE_PROFILE_UPDATE', '20/minute'),
     },
 }
 
@@ -347,8 +349,8 @@ STORAGES = {
 # ---------------------------------------------------------------------------
 BACKEND_BASE_URL = os.getenv('BACKEND_BASE_URL', None)
 API_VERSION = os.getenv('API_VERSION', 'v1')
-BACKEND_VERSION = os.getenv('BACKEND_VERSION', '3.1.0')
-MIN_FRONTEND_VERSION = os.getenv('MIN_FRONTEND_VERSION', '3.1.0')
+BACKEND_VERSION = os.getenv('BACKEND_VERSION', '3.2.0')
+MIN_FRONTEND_VERSION = os.getenv('MIN_FRONTEND_VERSION', '3.2.0')
 
 # ---------------------------------------------------------------------------
 # DEFAULT PRIMARY KEY

@@ -396,7 +396,24 @@ const DashboardPage = () => {
                     {currentAdministration.map((item, index) => (
                       <div key={index} className="dashboard-winner-item">
                         <div className="dashboard-winner-avatar">
-                          {item.candidate.candidate_name?.charAt(0)?.toUpperCase() || 'W'}
+                          {item.candidate.photo_url ? (
+                            <img
+                              src={item.candidate.photo_url}
+                              alt={item.candidate.candidate_name || 'Winner'}
+                              className="dashboard-winner-avatar-img"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                                const fallback = e.currentTarget.parentElement.querySelector('.dashboard-winner-avatar-initials');
+                                if (fallback) fallback.style.display = 'flex';
+                              }}
+                            />
+                          ) : null}
+                          <span
+                            className="dashboard-winner-avatar-initials"
+                            style={{ display: item.candidate.photo_url ? 'none' : 'flex' }}
+                          >
+                            {item.candidate.candidate_name?.charAt(0)?.toUpperCase() || 'W'}
+                          </span>
                         </div>
                         <div className="dashboard-winner-name">
                           {item.candidate.candidate_name || 'Unknown'}

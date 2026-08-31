@@ -3,7 +3,7 @@
  * Handles all program (department/course) related API calls
  */
 
-import api from './api';
+import api, { cachedGet, clearApiCache } from './api';
 
 export const programService = {
   // === Programs ===
@@ -18,38 +18,53 @@ export const programService = {
     return api.get(`/auth/programs/${id}/`);
   },
 
-  // Get departments only
-  getDepartments: () => {
-    return api.get('/auth/departments/');
+  // Get departments only (cached 5 minutes)
+  getDepartments: (forceRefresh = false) => {
+    if (forceRefresh) {
+      clearApiCache('/auth/departments/');
+    }
+    return cachedGet('/auth/departments/', {}, 5 * 60 * 1000);
   },
 
-  // Get courses only
-  getCourses: (departmentCode = null) => {
+  // Get courses only (cached 5 minutes)
+  getCourses: (departmentCode = null, forceRefresh = false) => {
     const params = departmentCode ? { department: departmentCode } : {};
-    return api.get('/auth/courses/', { params });
+    if (forceRefresh) {
+      clearApiCache('/auth/courses/');
+    }
+    return cachedGet('/auth/courses/', { params }, 5 * 60 * 1000);
   },
 
   // Create program
-  create: (programData) => {
-    return api.post('/auth/programs/', programData);
+  create: async (programData) => {
+    const response = await api.post('/auth/programs/', programData);
+    clearApiCache('/auth/departments/');
+    clearApiCache('/auth/courses/');
+    return response;
   },
 
   // Update program
-  update: (id, programData) => {
-    return api.put(`/auth/programs/${id}/`, programData);
+  update: async (id, programData) => {
+    const response = await api.put(`/auth/programs/${id}/`, programData);
+    clearApiCache('/auth/departments/');
+    clearApiCache('/auth/courses/');
+    return response;
   },
 
   // Delete program
-  delete: (id) => {
-    return api.delete(`/auth/programs/${id}/`);
+  delete: async (id) => {
+    const response = await api.delete(`/auth/programs/${id}/`);
+    clearApiCache('/auth/departments/');
+    clearApiCache('/auth/courses/');
+    return response;
   },
 
   // Import programs from CSV (supports preview-only validation mode)
-  importCSV: (file, options = {}) => {
+  importCSV: async (file, options = {}) => {
     const { previewOnly = false } = options;
     const formData = new FormData();
     formData.append('file', file);
-    return api.post('/auth/programs/import-csv/', formData, {
+    const response = await api.post('/auth/programs/import-csv/', formData, {
       params: {
         preview_only: previewOnly,
       },
@@ -57,6 +72,11 @@ export const programService = {
         'Content-Type': 'multipart/form-data',
       },
     });
+    if (!previewOnly) {
+      clearApiCache('/auth/departments/');
+      clearApiCache('/auth/courses/');
+    }
+    return response;
   },
 
   // Export programs to CSV

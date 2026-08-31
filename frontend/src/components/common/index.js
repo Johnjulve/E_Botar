@@ -12,4 +12,5 @@ export { default as Modal } from './Modal';
 export { default as EmptyState } from './EmptyState';
 export { default as SortableHeader } from './SortableHeader';
 export { default as SearchBar } from './SearchBar';
+export { default as Icon } from './Icon';
 
