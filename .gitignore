@@ -277,10 +277,24 @@ storybook-static/
 
 CSS_STRUCTURE_REVIEW.md
 CSS_ARCHITECTURE_STRATEGY.md
-major_improvement.md
-Document.md
-Enhancements.md
 
-# Private development plans & drafts
+# Private development plans, thesis docs & scripts
+docs/
+scripts/
 Plans/
 Plan/
+Plans-Docs/
+Plans*/
+Plan*/
+
+# Local launcher scripts
+start-dev.ps1
+start-dev.bat
+start*.ps1
+start*.bat
+scripts/start*.ps1
+scripts/start*.bat
+
+# Agent customizations and local agent skills/rules
+.agents/
+.agent/

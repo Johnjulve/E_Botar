@@ -12,7 +12,7 @@ import { formatDate, formatNumber, formatPercentage } from '../../../utils/forma
 import './results.css';
 
 // Component to auto-shrink text to fit one line
-const AutoFitText = ({ children, className = '', minFontSize = 14, maxFontSize = 20 }) => {
+const AutoFitText = ({ children, className = '', minFontSize = 14, maxFontSize = 20, align = 'left' }) => {
   const textRef = useRef(null);
   const containerRef = useRef(null);
 
@@ -73,7 +73,7 @@ const AutoFitText = ({ children, className = '', minFontSize = 14, maxFontSize =
   }, [children, minFontSize, maxFontSize]);
 
   return (
-    <div ref={containerRef} className={className} style={{ overflow: 'hidden', width: '100%', minWidth: 0, textAlign: 'center' }}>
+    <div ref={containerRef} className={className} style={{ overflow: 'hidden', width: '100%', minWidth: 0, textAlign: align }}>
       <span ref={textRef} style={{ whiteSpace: 'nowrap', display: 'inline-block' }}>
         {children}
       </span>
@@ -310,7 +310,7 @@ const ResultsDetailsPage = () => {
               <div key={posIndex} className="position-section">
                 <div className="position-header">
                   <h2 className="position-title">{positionResult.position_name}</h2>
-                  <span className="position-votes">{formatNumber(positionResult.total_votes)} total votes</span>
+                  <span className="position-votes">{formatNumber(positionResult.total_votes)} TOTAL VOTES</span>
                 </div>
 
                 <div className="candidates-list">

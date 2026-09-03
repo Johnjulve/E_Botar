@@ -1,6 +1,6 @@
 # E-Botar - Blockchain-Inspired Electronic Voting System
 
-**Version 3.2.0** | A secure, privacy-preserving electronic voting platform for student government elections
+**Version 3.3.0** | A secure, privacy-preserving electronic voting platform for student government elections
 
 [![Django](https://img.shields.io/badge/Django-5.2.8-green.svg)](https://www.djangoproject.com/)
 [![DRF](https://img.shields.io/badge/DRF-3.16.1-red.svg)](https://www.django-rest-framework.org/)
@@ -11,7 +11,7 @@
 
 ## 📖 Table of Contents
 
-- [Release Highlights (3.2.0)](#-release-highlights-320)
+- [Release Highlights (3.3.0)](#-release-highlights-330)
 - [Quick Start](#quick-start)
 - [Key Features](#key-features)
 - [Role-Based Access Control](#role-based-access-control)
@@ -22,22 +22,27 @@
 
 ---
 
-## 🚀 Release Highlights (3.2.0)
+## 🚀 Release Highlights (3.3.0)
+
+- **Modern Unified Admin Dashboard & Table Design System**:
+  - Standardized modern dashboard controls across [`UserManagementPage.jsx`](frontend/src/modules/admin/pages/UserManagementPage.jsx) and [`ReceiptAuditPage.jsx`](frontend/src/modules/admin/pages/ReceiptAuditPage.jsx), consolidated under [`frontend/src/modules/admin/admin.css`](frontend/src/modules/admin/admin.css).
+  - **Unified Search & Filter Toolbar**: Search pill with instant debounce and clear button, multi-select dropdown pills (`Course ▼`, `Year Level ▼`, `Role ▼`, `Election ▼`, `Vote Status ▼`) featuring live subtext tags (`Selected: ...`), and collapsible advanced filters with active count badge.
+  - **5-Card Admin Summary Metric Bar**: Responsive summary stat cards (`Total Users`, `Administrators`, `Staff`, `Students`, `Verified`) with interactive category filtering.
+  - **Card Table Layout**: Rounded table containers (`.admin-users-table-container`) with hover highlights, circular avatar cells displaying period-free initials (e.g. `AC`, `PC`, `VA`), soft-tinted status/role pills (`Administrator`, `Staff`, `Student`, `Active`, `Inactive`, `Verified`, `Missing Ballot`, `Hash Mismatch`), and square outline action buttons (Edit, Reset/Lock, Delete/Archive, Reveal Hash/Receipt).
+  - **Modular Table Footer & Pagination**: Configurable page-size selector (`Show [ 10/20/50/100 ▼ ] entries`) with numeric pagination (`< Previous [1][2][3] Next >`).
+  - **Add User & Multi-Select User Management**: Integrated administrative Add User modal form and multi-row selection with bulk archive/deactivation support.
+- **Custom SVG Icons Expansion**: Added `sliders` and `archive` vector icons to [`frontend/src/components/common/Icon.jsx`](frontend/src/components/common/Icon.jsx).
+- **Receipt Audit Blank Page Crash Resolved**: Fixed missing component import runtime errors in [`ReceiptAuditPage.jsx`](frontend/src/modules/admin/pages/ReceiptAuditPage.jsx).
+- **CSS Isolation & Lazy-Loaded Route Leaks**: Scoped module stylesheets (`results.css`, `elections.css`, `candidates.css`, `applications.css`) to their respective container classes to strictly prevent cross-route CSS bleed under route-level code splitting.
+- **Election Results Horizontal Card Grid Standardization**: Standardized `.results-page .candidates-list` into a multi-column horizontal responsive grid layout (`repeat(auto-fill, minmax(280px, 1fr))`) with golden winner badges and percentage progress meters.
+- **Responsive Navbar Dual-Display Bug Fix**: Resolved dual sidebar/drawer rendering during responsive viewport resizing in [`Navbar.jsx`](frontend/src/components/layout/Navbar.jsx) and [`layout.css`](frontend/src/assets/styles/global/layout.css).
+
+### Previous Highlights (3.2.0 & 3.1.0)
 
 - **Profile Avatar & Candidate Picture Dynamic Sync**: Implemented dynamic avatar fallback (`resolve_candidate_photo_url`) across all candidate serializers, voting ballot cards, candidate listings, and receipt audits so updating student profile pictures immediately reflects across all election UI surfaces.
 - **Search Bar Continuous Typing & Input Debounce**: Eliminated full-screen loading unmount cycles during search typing in admin views (`UserManagementPage`, `VotingStatusPage`), preserving cursor focus and typing state seamlessly with custom `useDebounce` hook.
-- **ViewSet Eager Loading Audit**: Added targeted `select_related()` for `user__profile`, `department`, and `created_by` across candidate, account, and election ViewSets to prevent N+1 database queries.
-- **Audit Trail Serializer Efficiency**: Eliminated N+1 database queries across the administrative receipt audit view in [`backend/apps/voting/serializers.py`](backend/apps/voting/serializers.py) by utilizing prefetched collections and instance-level memoization.
-- **Targeted Cache Invalidation**: Replaced nuclear `cache.clear()` with election-scoped deletion keys (`cache.delete_many(...)`) in [`backend/apps/voting/services.py`](backend/apps/voting/services.py), preserving active user sessions, tokens, and rate-limiting throttles.
-- **Direct SQL Results Aggregation**: Optimized `ResultsViewSet.election_results` in [`backend/apps/voting/views.py`](backend/apps/voting/views.py) with database-level `.values('position_id', 'candidate_id').annotate(count=Count('id'))` and bulk candidate pre-fetching, cutting live results queries from 20+ queries down to 2 fast queries.
-- **Ballot Submit Batching & Atomicity**: Pre-fetched positions and candidates in bulk and implemented `bulk_create` for `VoteChoice` and `AnonVote` records in [`backend/apps/voting/views.py`](backend/apps/voting/views.py), dropping DB operations per ballot from ~40+ queries down to 4 fast queries.
-- **Route-Level Lazy Loading & Code Splitting**: Converted all 30+ pages in [`frontend/src/routes/AppRoutes.jsx`](frontend/src/routes/AppRoutes.jsx) to dynamic `React.lazy()` imports with `<Suspense>`, shrinking the initial JavaScript bundle by **68.7%** (from `1,049 kB` down to `328 kB`) and CSS by **32%**.
-- **Client-Side Request Caching with TTL**: Added in-memory TTL caching (`cachedGet` / `clearApiCache`) to [`frontend/src/services/api.js`](frontend/src/services/api.js) and static services, eliminating redundant network calls for branding, academic year, and department/course hierarchies.
-- **Unified SVG Icon Component & Chunk Shrinkage**: Created `<Icon />` common component in [`frontend/src/components/common/Icon.jsx`](frontend/src/components/common/Icon.jsx) and removed ~1,100+ lines of duplicate icon SVG dictionaries across 14 pages, shrinking admin page bundle chunks by up to 38%.
-- **Admin Action & Profile Update Scope Throttling**: Added `admin_action` and `profile_update` rate-limiting guards in [`backend/apps/accounts/views.py`](backend/apps/accounts/views.py) and [`backend/backend/settings.py`](backend/backend/settings.py) to prevent brute-force status toggles and script spam.
-- **Zero-Waterfall Typography & Icon Consolidation**: Moved Google Fonts connection to preconnect and link tags in [`frontend/index.html`](frontend/index.html), eliminated render-blocking CSS `@import`, and stripped unused FontAwesome Brand/Regular font bundles for an additional **140+ kB** reduction in initial static asset payload.
-
-### Previous Highlights (3.1.0 & 3.0.0)
+- **Direct SQL Results Aggregation & Ballot Submit Batching**: Optimized database queries for live results and ballot submission down to fast indexed queries and atomic bulk creates.
+- **Route-Level Lazy Loading & Code Splitting**: Converted all 30+ pages in [`frontend/src/routes/AppRoutes.jsx`](frontend/src/routes/AppRoutes.jsx) to dynamic `React.lazy()` imports with `<Suspense>`, shrinking the initial JavaScript bundle by **68.7%** (from `1,049 kB` down to `328 kB`).
 
 - **Production Cloud Deployment (`Procfile` & `.gitattributes`)**: Standardized Gunicorn web server process configuration for Railway/Render/Fly.io deployments and enforced universal `LF` line-ending normalization across all operating systems.
 - **Cloudinary 503 & Profile Image Fix**: Completely eliminated profile update crashes and 503 errors when modifying or clearing avatars by removing unsafe remote `.open('rb')` reads and delegating upload parameters directly to `django-cloudinary-storage`.

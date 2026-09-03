@@ -1,7 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Container } from '../../../components/layout';
-import { LoadingSpinner, Modal } from '../../../components/common';
+import { LoadingSpinner, Modal, Icon } from '../../../components/common';
 import { electionService, votingService } from '../../../services';
+import { getInitials } from '../../../utils/helpers';
+import { formatDate } from '../../../utils/formatters';
 import '../admin.css';
 
 const STATUS_LABELS = {
@@ -10,7 +12,7 @@ const STATUS_LABELS = {
   hash_mismatch: 'Hash Mismatch',
 };
 
-const MASKED_VALUE = '******';
+const MASKED_VALUE = '••••••••';
 
 const ReceiptAuditPage = () => {
   const [loading, setLoading] = useState(true);
@@ -27,12 +29,25 @@ const ReceiptAuditPage = () => {
     search: '',
     vote_status: '',
   });
+  const [activeDropdown, setActiveDropdown] = useState(null); // 'election' | 'status' | null
   const [revealModal, setRevealModal] = useState({
     show: false,
     title: '',
     value: '',
   });
   const [revealingReceiptId, setRevealingReceiptId] = useState(null);
+  const dropdownRef = useRef(null);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setActiveDropdown(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     fetchElections();
@@ -88,16 +103,6 @@ const ReceiptAuditPage = () => {
     }
   };
 
-  const pageStart = useMemo(() => {
-    if (pagination.totalCount === 0) return 0;
-    return (pagination.page - 1) * pagination.pageSize + 1;
-  }, [pagination.totalCount, pagination.page, pagination.pageSize]);
-
-  const pageEnd = useMemo(() => {
-    if (pagination.totalCount === 0) return 0;
-    return Math.min(pagination.page * pagination.pageSize, pagination.totalCount);
-  }, [pagination.totalCount, pagination.page, pagination.pageSize]);
-
   const openRevealModal = (title, value) => {
     setRevealModal({
       show: true,
@@ -112,215 +117,379 @@ const ReceiptAuditPage = () => {
       const response = await votingService.revealReceiptCode(row.id);
       openRevealModal('Receipt Code', response.data?.receipt_code || 'N/A');
     } catch {
-      // Fallback for environments without updated backend endpoint
       openRevealModal('Receipt Code', row.full_receipt_code || row.masked_receipt_code || 'N/A');
     } finally {
       setRevealingReceiptId(null);
     }
   };
 
+  const selectedElectionTitle = useMemo(() => {
+    if (!filters.election_id) return 'All Elections';
+    const found = elections.find((e) => String(e.id) === String(filters.election_id));
+    return found ? found.title : 'All Elections';
+  }, [filters.election_id, elections]);
+
+  const selectedStatusLabel = useMemo(() => {
+    if (!filters.vote_status) return 'All Statuses';
+    return STATUS_LABELS[filters.vote_status] || filters.vote_status;
+  }, [filters.vote_status]);
+
+  // Pagination pages array
+  const paginationPages = useMemo(() => {
+    const pages = [];
+    for (let i = 1; i <= Math.min(pagination.totalPages, 5); i++) {
+      pages.push(i);
+    }
+    return pages;
+  }, [pagination.totalPages]);
+
   return (
     <Container>
+      {/* Header */}
       <div className="admin-header">
         <h1>
-          <Icon size={28} />
+          <Icon name="fileText" size={28} className="admin-icon-primary" />
           Receipt Audit
         </h1>
-        <p>Read-only receipt audit trail for staff/admin confirmation and dispute handling.</p>
+        <p>Read-only receipt audit trail for staff and administrator verification and dispute handling.</p>
       </div>
 
-      <div className="admin-form-section" style={{ marginBottom: '1rem' }}>
-        <h5 className="admin-section-header">Filters</h5>
-        <div className="admin-form-grid">
-          <div>
-            <label className="admin-form-label">Election</label>
-            <select
-              className="admin-form-input"
-              value={filters.election_id}
-              onChange={(e) => setFilters((prev) => ({ ...prev, election_id: e.target.value }))}
-            >
-              <option value="">All elections</option>
-              {elections.map((election) => (
-                <option key={election.id} value={election.id}>
-                  {election.title}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="admin-form-label">Vote status</label>
-            <select
-              className="admin-form-input"
-              value={filters.vote_status}
-              onChange={(e) => setFilters((prev) => ({ ...prev, vote_status: e.target.value }))}
-            >
-              <option value="">All</option>
-              <option value="verified">Verified</option>
-              <option value="missing_ballot">Missing Ballot</option>
-              <option value="hash_mismatch">Hash Mismatch</option>
-            </select>
-          </div>
-          <div>
-            <label className="admin-form-label">Search</label>
-            <div className="d-flex gap-2 align-items-center">
-              <input
-                className="admin-form-input"
-                placeholder="Name, username, student ID, receipt, hash..."
-                value={filters.search}
-                onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    setPagination((prev) => ({ ...prev, page: 1 }));
-                    fetchRows();
-                  }
+      {/* Modern Filter & Action Toolbar */}
+      <div className="admin-users-toolbar-card" ref={dropdownRef}>
+        <div className="admin-users-toolbar-left">
+          {/* Search Pill */}
+          <div className="admin-users-search-pill">
+            <Icon name="search" size={16} className="admin-users-search-icon" />
+            <input
+              type="text"
+              className="admin-users-search-input"
+              placeholder="Search student, ID, receipt, hash..."
+              value={filters.search}
+              onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  setPagination((prev) => ({ ...prev, page: 1 }));
+                  fetchRows();
+                }
+              }}
+            />
+            {filters.search && (
+              <button
+                type="button"
+                className="admin-users-search-clear"
+                onClick={() => {
+                  setFilters((prev) => ({ ...prev, search: '' }));
+                  setTimeout(fetchRows, 0);
                 }}
-              />
-              <button className="admin-btn secondary" type="button" onClick={fetchRows}>
-                Refresh
+              >
+                ×
               </button>
-            </div>
+            )}
           </div>
+
+          {/* Election Dropdown Pill */}
+          <div className="admin-filter-dropdown-wrapper">
+            <button
+              type="button"
+              className={`admin-filter-dropdown-btn ${filters.election_id ? 'active' : ''}`}
+              onClick={() => setActiveDropdown((prev) => (prev === 'election' ? null : 'election'))}
+            >
+              <div className="admin-filter-dropdown-title">
+                <span>Election</span>
+                <Icon name="chevronDown" size={12} />
+              </div>
+              <div className="admin-filter-dropdown-sub">{selectedElectionTitle}</div>
+            </button>
+            {activeDropdown === 'election' && (
+              <div className="admin-dropdown-popover">
+                <div
+                  className={`admin-filter-dropdown-item ${!filters.election_id ? 'active font-bold' : ''}`}
+                  style={{ padding: '0.4rem 0.6rem', cursor: 'pointer', borderRadius: '6px' }}
+                  onClick={() => {
+                    setFilters((prev) => ({ ...prev, election_id: '' }));
+                    setActiveDropdown(null);
+                  }}
+                >
+                  All Elections
+                </div>
+                {elections.map((election) => (
+                  <div
+                    key={election.id}
+                    className={`admin-filter-dropdown-item ${String(filters.election_id) === String(election.id) ? 'active font-bold' : ''}`}
+                    style={{ padding: '0.4rem 0.6rem', cursor: 'pointer', borderRadius: '6px' }}
+                    onClick={() => {
+                      setFilters((prev) => ({ ...prev, election_id: election.id }));
+                      setActiveDropdown(null);
+                    }}
+                  >
+                    {election.title}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Vote Status Dropdown Pill */}
+          <div className="admin-filter-dropdown-wrapper">
+            <button
+              type="button"
+              className={`admin-filter-dropdown-btn ${filters.vote_status ? 'active' : ''}`}
+              onClick={() => setActiveDropdown((prev) => (prev === 'status' ? null : 'status'))}
+            >
+              <div className="admin-filter-dropdown-title">
+                <span>Vote Status</span>
+                <Icon name="chevronDown" size={12} />
+              </div>
+              <div className="admin-filter-dropdown-sub">{selectedStatusLabel}</div>
+            </button>
+            {activeDropdown === 'status' && (
+              <div className="admin-dropdown-popover">
+                {[
+                  { key: '', label: 'All Statuses' },
+                  { key: 'verified', label: 'Verified' },
+                  { key: 'missing_ballot', label: 'Missing Ballot' },
+                  { key: 'hash_mismatch', label: 'Hash Mismatch' },
+                ].map((st) => (
+                  <div
+                    key={st.key}
+                    className={`admin-filter-dropdown-item ${filters.vote_status === st.key ? 'active font-bold' : ''}`}
+                    style={{ padding: '0.4rem 0.6rem', cursor: 'pointer', borderRadius: '6px' }}
+                    onClick={() => {
+                      setFilters((prev) => ({ ...prev, vote_status: st.key }));
+                      setActiveDropdown(null);
+                    }}
+                  >
+                    {st.label}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="admin-users-toolbar-right">
+          <button
+            type="button"
+            className="admin-btn-export-csv"
+            onClick={fetchRows}
+          >
+            <Icon name="refresh" size={15} />
+            <span>Refresh</span>
+          </button>
         </div>
       </div>
 
+      {/* Data Table */}
       {loading ? (
         <LoadingSpinner text="Loading receipt audit data..." />
       ) : rows.length > 0 ? (
-        <div className="admin-table-container">
-          <div className="admin-table-wrapper">
-            <table className="admin-table">
+        <div className="admin-users-table-container">
+          <div className="table-responsive">
+            <table className="admin-users-table">
               <thead>
                 <tr>
-                  <th>Student</th>
-                  <th>Election</th>
-                  <th>Receipt</th>
-                  <th>Created</th>
-                  <th>Status</th>
-                  <th>Block Hash</th>
-                  <th>Previous Hash</th>
+                  <th>STUDENT</th>
+                  <th>ELECTION</th>
+                  <th>RECEIPT CODE</th>
+                  <th>CREATED AT</th>
+                  <th className="text-center">STATUS</th>
+                  <th>BLOCK HASH</th>
+                  <th>PREVIOUS HASH</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row) => (
-                  <tr key={row.id}>
-                    <td>
-                      <div className="admin-list-item-title">{row.user_full_name || row.user_username || '—'}</div>
-                      <div className="admin-user-id">{row.student_id || row.user_username || '—'}</div>
-                    </td>
-                    <td>{row.election_title || '—'}</td>
-                    <td>
-                      {row.masked_receipt_code ? (
-                        <div className="d-flex gap-2 align-items-center">
-                          <code>{MASKED_VALUE}</code>
-                          <button
-                            type="button"
-                            className="admin-btn admin-btn-small secondary"
-                            onClick={() => openReceiptModal(row)}
-                            disabled={revealingReceiptId === row.id}
-                          >
-                            {revealingReceiptId === row.id ? 'Loading...' : 'Show'}
-                          </button>
+                {rows.map((row) => {
+                  const studentName = row.user_full_name || row.user_username || 'Student';
+                  const cleanInitials = getInitials(studentName).replace(/\./g, '').toUpperCase() || 'U';
+
+                  return (
+                    <tr key={row.id}>
+                      <td>
+                        <div className="admin-user-cell">
+                          <div className="admin-user-avatar-table">
+                            {cleanInitials}
+                          </div>
+                          <div>
+                            <div className="admin-user-name">
+                              {studentName}
+                            </div>
+                            <div className="admin-user-id text-muted" style={{ fontSize: '0.78rem' }}>
+                              {row.student_id || row.user_username || '—'}
+                            </div>
+                          </div>
                         </div>
-                      ) : (
-                        <code>N/A</code>
-                      )}
-                    </td>
-                    <td>{row.created_at ? new Date(row.created_at).toLocaleString() : '—'}</td>
-                    <td>{STATUS_LABELS[row.vote_status] || row.vote_status || '—'}</td>
-                    <td>
-                      {row.block_hash ? (
-                        <div className="d-flex gap-2 align-items-center">
-                          <code>{MASKED_VALUE}</code>
-                          <button
-                            type="button"
-                            className="admin-btn admin-btn-small secondary"
-                            onClick={() => openRevealModal('Block Hash', row.block_hash)}
-                          >
-                            Show
-                          </button>
-                        </div>
-                      ) : (
-                        <code>N/A</code>
-                      )}
-                    </td>
-                    <td>
-                      {row.previous_hash ? (
-                        <div className="d-flex gap-2 align-items-center">
-                          <code>{MASKED_VALUE}</code>
-                          <button
-                            type="button"
-                            className="admin-btn admin-btn-small secondary"
-                            onClick={() => openRevealModal('Previous Hash', row.previous_hash)}
-                          >
-                            Show
-                          </button>
-                        </div>
-                      ) : (
-                        <code>N/A</code>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td>
+                        <div className="fw-semibold text-dark">{row.election_title || '—'}</div>
+                      </td>
+                      <td>
+                        {row.masked_receipt_code ? (
+                          <div className="d-flex align-items-center gap-2">
+                            <code className="text-muted">{MASKED_VALUE}</code>
+                            <button
+                              type="button"
+                              className="admin-action-btn-outline lock"
+                              title="Show Receipt Code"
+                              onClick={() => openReceiptModal(row)}
+                              disabled={revealingReceiptId === row.id}
+                            >
+                              <Icon name={revealingReceiptId === row.id ? 'clock' : 'eye'} size={14} />
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-muted">N/A</span>
+                        )}
+                      </td>
+                      <td>
+                        <span className="admin-user-joined">
+                          {formatDate(row.created_at, 'datetime') || (row.created_at ? new Date(row.created_at).toLocaleString() : '—')}
+                        </span>
+                      </td>
+                      <td className="text-center">
+                        {row.vote_status === 'verified' ? (
+                          <span className="admin-status-badge-table admin-status-badge-active-table">
+                            <Icon name="checkCircle" size={13} />
+                            Verified
+                          </span>
+                        ) : row.vote_status === 'missing_ballot' ? (
+                          <span className="admin-role-badge admin-role-badge-admin">
+                            <Icon name="alertTriangle" size={13} />
+                            Missing Ballot
+                          </span>
+                        ) : row.vote_status === 'hash_mismatch' ? (
+                          <span className="admin-role-badge admin-btn-archive-selected active">
+                            <Icon name="xCircle" size={13} />
+                            Hash Mismatch
+                          </span>
+                        ) : (
+                          <span className="admin-status-badge-table admin-status-badge-inactive-table">
+                            {row.vote_status || '—'}
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        {row.block_hash ? (
+                          <div className="d-flex align-items-center gap-2">
+                            <code className="text-muted">{MASKED_VALUE}</code>
+                            <button
+                              type="button"
+                              className="admin-action-btn-outline edit"
+                              title="View Block Hash"
+                              onClick={() => openRevealModal('Block Hash', row.block_hash)}
+                            >
+                              <Icon name="eye" size={14} />
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-muted">N/A</span>
+                        )}
+                      </td>
+                      <td>
+                        {row.previous_hash ? (
+                          <div className="d-flex align-items-center gap-2">
+                            <code className="text-muted">{MASKED_VALUE}</code>
+                            <button
+                              type="button"
+                              className="admin-action-btn-outline edit"
+                              title="View Previous Hash"
+                              onClick={() => openRevealModal('Previous Hash', row.previous_hash)}
+                            >
+                              <Icon name="eye" size={14} />
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-muted">N/A</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
-          <div className="admin-pagination">
-            <div className="admin-pagination-left">
-              <span className="admin-pagination-title">Page {pagination.page} of {pagination.totalPages}</span>
-              <span className="admin-pagination-range">({pageStart}-{pageEnd} of {pagination.totalCount})</span>
+
+          {/* Footer & Pagination */}
+          <div className="admin-users-table-footer">
+            <div className="admin-users-page-size">
+              <span>Show</span>
+              <select
+                className="admin-users-page-select"
+                value={String(pagination.pageSize)}
+                onChange={(e) => setPagination((prev) => ({ ...prev, pageSize: Number(e.target.value) }))}
+              >
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+              <span>entries</span>
             </div>
-            <div className="admin-pagination-right">
+
+            <div className="admin-users-pagination">
               <button
                 type="button"
-                className="admin-btn admin-btn-small"
+                className="admin-users-page-btn"
                 onClick={() => setPagination((prev) => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
                 disabled={pagination.page <= 1}
               >
-                Prev
+                &lt; Previous
               </button>
+
+              {paginationPages.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  className={`admin-users-page-btn ${p === pagination.page ? 'active' : ''}`}
+                  onClick={() => setPagination((prev) => ({ ...prev, page: p }))}
+                >
+                  [{p}]
+                </button>
+              ))}
+
               <button
                 type="button"
-                className="admin-btn admin-btn-small"
+                className="admin-users-page-btn"
                 onClick={() => setPagination((prev) => ({ ...prev, page: Math.min(prev.totalPages, prev.page + 1) }))}
                 disabled={pagination.page >= pagination.totalPages}
               >
-                Next
+                Next &gt;
               </button>
-              <div className="admin-pagination-view">
-                <label className="admin-pagination-view-label">View</label>
-                <select
-                  className="admin-pagination-view-select"
-                  value={String(pagination.pageSize)}
-                  onChange={(e) => setPagination((prev) => ({ ...prev, pageSize: Number(e.target.value) }))}
-                >
-                  <option value="20">20</option>
-                  <option value="50">50</option>
-                  <option value="100">100</option>
-                </select>
-              </div>
             </div>
           </div>
         </div>
       ) : (
-        <div className="admin-empty-state">
+        <div className="admin-card-container admin-empty-state">
+          <Icon name="fileText" size={48} className="admin-empty-state-icon" />
           <h5 className="admin-empty-state-title">No audit records found</h5>
-          <p className="admin-empty-state-message">Try changing filters or search text.</p>
+          <p className="admin-empty-state-message">Try changing the election filter, vote status, or search query.</p>
         </div>
       )}
 
+      {/* Sensitive Value Reveal Modal */}
       <Modal
         show={revealModal.show}
         onHide={() => setRevealModal({ show: false, title: '', value: '' })}
+        onCancel={() => setRevealModal({ show: false, title: '', value: '' })}
         title={revealModal.title}
         confirmText="Close"
-        hideCancel
         onConfirm={() => setRevealModal({ show: false, title: '', value: '' })}
       >
-        <div className="admin-form-section">
-          <p className="admin-form-label" style={{ marginBottom: '0.5rem' }}>
-            Sensitive value
+        <div className="admin-form-section" style={{ background: '#f8fafc', padding: '1rem', borderRadius: '12px' }}>
+          <p className="admin-form-label text-muted" style={{ marginBottom: '0.5rem', fontSize: '0.85rem' }}>
+            Full Audited Hash / Code:
           </p>
-          <code className="admin-user-id" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+          <code
+            style={{
+              display: 'block',
+              padding: '0.75rem',
+              background: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              wordBreak: 'break-all',
+              fontSize: '0.9rem',
+              color: '#0f172a',
+            }}
+          >
             {revealModal.value}
           </code>
         </div>

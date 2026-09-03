@@ -1,16 +1,16 @@
 /**
  * UserManagementPage
- * View and manage all users in table format
+ * View and manage all users in modern table format matching exact UI specifications
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Container } from '../../../components/layout';
-import { LoadingSpinner, Modal, Button, SortableHeader, SearchBar, Icon } from '../../../components/common';
+import { LoadingSpinner, Modal, Button, SortableHeader, Icon } from '../../../components/common';
 import { authService } from '../../../services';
 import { useAuth } from '../../../hooks/useAuth';
 import { useTableSort } from '../../../hooks/useTableSort';
 import { useDebounce } from '../../../hooks/useDebounce';
-import { getInitials, parseYearLevelNumber, formatYearLevelNumeric, coerceYearLevelToFormValue } from '../../../utils/helpers';
+import { getInitials, parseYearLevelNumber, formatYearLevelNumeric } from '../../../utils/helpers';
 import { formatDate } from '../../../utils/formatters';
 import '../admin.css';
 
@@ -39,12 +39,6 @@ const getUserRoleKey = (u) => {
   return 'student';
 };
 
-const getUserRoleLabel = (u) => {
-  if (u.user?.is_superuser) return 'Admin';
-  if (u.user?.is_staff) return 'Staff';
-  return 'Student';
-};
-
 const UserManagementPage = () => {
   const { isAdmin, isStaffOrAdmin, user: authUser } = useAuth();
   const isStaffOnly = isStaffOrAdmin && !isAdmin;
@@ -54,7 +48,17 @@ const UserManagementPage = () => {
   const [tableLoading, setTableLoading] = useState(false);
   const [filter, setFilter] = useState('all'); // all, admin, staff, student, verified
   const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedUserIds, setSelectedUserIds] = useState([]);
+  const [activeDropdown, setActiveDropdown] = useState(null); // 'course' | 'year' | 'role' | null
+  
+  // Modals
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showRoleModal, setShowRoleModal] = useState(false);
+
   const [editDepartments, setEditDepartments] = useState([]);
   const [editCourses, setEditCourses] = useState([]);
   const [editForm, setEditForm] = useState({
@@ -68,16 +72,29 @@ const UserManagementPage = () => {
     section: '',
     is_verified: false,
   });
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [showRoleModal, setShowRoleModal] = useState(false);
+
+  const [addForm, setAddForm] = useState({
+    username: '',
+    email: '',
+    first_name: '',
+    middle_name: '',
+    last_name: '',
+    student_id: '',
+    department_code: '',
+    course_code: '',
+    year_level: '',
+    section: '',
+    role: 'student',
+    password: '',
+  });
+
   const [generatedPassword, setGeneratedPassword] = useState('');
   const [passwordCopied, setPasswordCopied] = useState(false);
   const [selectedRole, setSelectedRole] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
-  const [actionUserId, setActionUserId] = useState(null); // prevent rapid repeat actions per user
-  const [modalSubmitting, setModalSubmitting] = useState(false); // prevent double-submit in modals
+  const [actionUserId, setActionUserId] = useState(null);
+  const [modalSubmitting, setModalSubmitting] = useState(false);
   const [showSearchFilters, setShowSearchFilters] = useState(false);
   const [searchFields, setSearchFields] = useState({
     name: true,
@@ -85,18 +102,32 @@ const UserManagementPage = () => {
     username: true,
     studentId: true,
   });
-  /** Multi-select filters (empty = no restriction on that axis). */
+
+  /** Multi-select filters */
   const [courseCatalog, setCourseCatalog] = useState([]);
   const [courseListSearch, setCourseListSearch] = useState('');
   const [advancedCourseCodes, setAdvancedCourseCodes] = useState([]);
   const [advancedYearLevels, setAdvancedYearLevels] = useState([]);
   const [advancedRoles, setAdvancedRoles] = useState([]);
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
+
+  const dropdownRef = useRef(null);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setActiveDropdown(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearchQuery, filter, advancedCourseCodes, advancedYearLevels, pageSize]);
+  }, [debouncedSearchQuery, filter, advancedCourseCodes, advancedYearLevels, advancedRoles, pageSize]);
 
   const buildProfileListParams = useCallback(() => {
     const params = {
@@ -188,14 +219,15 @@ const UserManagementPage = () => {
   }, [courseCatalog, courseListSearch]);
 
   useEffect(() => {
-    if (!showEditModal || !selectedUser) return;
+    if (!showEditModal && !showAddModal) return;
     let cancelled = false;
     (async () => {
       try {
         const [deptRes] = await Promise.all([authService.getDepartments()]);
         if (cancelled) return;
         setEditDepartments(deptRes.data || []);
-        const dept = selectedUser.department?.code || '';
+        
+        const dept = selectedUser?.department?.code || addForm.department_code || '';
         if (dept) {
           const cr = await authService.getCoursesByDepartment(dept);
           if (!cancelled) setEditCourses(cr.data || []);
@@ -209,7 +241,7 @@ const UserManagementPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [showEditModal, selectedUser]);
+  }, [showEditModal, showAddModal, selectedUser, addForm.department_code]);
 
   const filteredUsers = useMemo(() => {
     if (!advancedRoles.length) {
@@ -218,18 +250,10 @@ const UserManagementPage = () => {
     return users.filter((userRow) => advancedRoles.includes(getUserRoleKey(userRow)));
   }, [users, advancedRoles]);
 
-  /** Per-column comparator value. Returns numbers for numeric/boolean/date
-   * columns and lowercased strings for text columns so the hook's comparator
-   * stays a single < / > pair. Missing numeric values land at the end on
-   * ascending. */
   const getUserSortValue = useCallback((u, key) => {
     switch (key) {
       case 'first_name':
-        return (u.user?.first_name || '').toLowerCase();
-      case 'middle_name':
-        return (u.middle_name || '').toLowerCase();
-      case 'last_name':
-        return (u.user?.last_name || '').toLowerCase();
+        return (u.user?.first_name || u.user?.username || '').toLowerCase();
       case 'id':
         return (u.student_id || u.user?.username || '').toLowerCase();
       case 'course':
@@ -262,21 +286,32 @@ const UserManagementPage = () => {
     getUserSortValue,
   );
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [filter, searchQuery, pageSize, advancedCourseCodes, advancedYearLevels, advancedRoles, sortConfig]);
-
   const pageSizeEffective = Number.isFinite(pageSize) ? pageSize : Math.max(totalCount, 1);
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSizeEffective));
   const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
-  const startIndexDisplay = totalCount === 0 ? 0 : (safeCurrentPage - 1) * pageSizeEffective + 1;
-  const endIndexDisplay = Math.min(safeCurrentPage * pageSizeEffective, totalCount);
 
-  const toggleSearchField = (field) => {
-    setSearchFields((prev) => ({
-      ...prev,
-      [field]: !prev[field],
-    }));
+  const paginatedUsers = sortedUsers;
+
+  // Multi-select helpers
+  const isAllSelected = paginatedUsers.length > 0 && paginatedUsers.every((u) => selectedUserIds.includes(u.id));
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      const pageIds = paginatedUsers.map((u) => u.id);
+      setSelectedUserIds((prev) => prev.filter((id) => !pageIds.includes(id)));
+    } else {
+      const pageIds = paginatedUsers.map((u) => u.id);
+      setSelectedUserIds((prev) => Array.from(new Set([...prev, ...pageIds])));
+    }
+  };
+
+  const toggleSelectUser = (id) => {
+    setSelectedUserIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const toggleDropdown = (name) => {
+    setActiveDropdown((prev) => (prev === name ? null : name));
   };
 
   const toggleAdvancedCourse = (code) => {
@@ -298,217 +333,112 @@ const UserManagementPage = () => {
     );
   };
 
-  const clearAdvancedAttributeFilters = () => {
-    setAdvancedCourseCodes([]);
-    setAdvancedYearLevels([]);
-    setAdvancedRoles([]);
-    setCourseListSearch('');
-  };
+  const activeFilterCount =
+    advancedCourseCodes.length +
+    advancedYearLevels.length +
+    advancedRoles.length +
+    (filter !== 'all' ? 1 : 0);
 
-  const paginatedUsers = sortedUsers;
-  const totalRows = totalCount;
+  // Pagination pages array
+  const paginationPages = useMemo(() => {
+    const pages = [];
+    for (let i = 1; i <= Math.min(totalPages, 5); i++) {
+      pages.push(i);
+    }
+    return pages;
+  }, [totalPages]);
 
+  // CSV Export
   const handleExportCsv = () => {
-    const toExport = Number.isFinite(pageSize) ? paginatedUsers : sortedUsers;
-    if (!toExport.length) return;
+    const list = filteredUsers;
+    if (!list.length) return;
 
     const headers = [
-      'First Name',
-      'Middle Name',
-      'Last Name',
+      'Name',
       'Student ID',
       'Username',
       'Email',
-      'College',
+      'Department',
       'Course',
       'Year Level',
       'Section',
       'Role',
-      'Active',
+      'Status',
       'Verified',
-      'Joined',
+      'Date Joined',
     ];
-    const lines = [headers.join(',')];
 
-    toExport.forEach((u) => {
-      const course = u.course?.name || u.course?.code || '';
-      const college = u.department?.name || u.department?.code || '';
-      const yearDisplay =
-        formatYearLevelNumeric(u.year_level) ||
-        (String(u.year_level || '').trim() ? String(u.year_level) : '');
-      lines.push(
-        [
-          csvEscape(u.user?.first_name || ''),
-          csvEscape(u.middle_name || ''),
-          csvEscape(u.user?.last_name || ''),
-          csvEscape(u.student_id || ''),
-          csvEscape(u.user?.username || ''),
-          csvEscape(u.user?.email || ''),
-          csvEscape(college),
-          csvEscape(course),
-          csvEscape(yearDisplay),
-          csvEscape(u.section != null ? String(u.section) : ''),
-          csvEscape(getUserRoleLabel(u)),
-          csvEscape(u.user?.is_active ? 'Yes' : 'No'),
-          csvEscape(u.is_verified ? 'Yes' : 'No'),
-          csvEscape(formatDate(u.user?.date_joined || u.created_at, 'date')),
-        ].join(',')
-      );
-    });
+    const rows = list.map((u) => [
+      `${u.user?.first_name || ''} ${u.user?.last_name || ''}`.trim() || u.user?.username,
+      u.student_id || '',
+      u.user?.username || '',
+      u.user?.email || '',
+      u.department?.name || u.department?.code || '',
+      u.course?.code || u.course?.name || '',
+      formatYearLevelNumeric(u.year_level),
+      u.section || '',
+      u.user?.is_superuser ? 'Admin' : u.user?.is_staff ? 'Staff' : 'Student',
+      u.user?.is_active ? 'Active' : 'Inactive',
+      u.is_verified ? 'Yes' : 'No',
+      u.user?.date_joined || u.created_at || '',
+    ]);
 
-    const blob = new Blob([`\uFEFF${lines.join('\r\n')}`], {
-      type: 'text/csv;charset=utf-8;',
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    const scopeLabel = Number.isFinite(pageSize)
-      ? `page${safeCurrentPage}_of${totalPages}`
-      : 'all_filtered';
-    const filterSlug = String(filter || 'all').replace(/[^\w-]+/g, '_');
-    a.href = url;
-    a.download = `users_${filterSlug}_${scopeLabel}_${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const csvContent =
+      'data:text/csv;charset=utf-8,' +
+      [headers.map(csvEscape).join(','), ...rows.map((r) => r.map(csvEscape).join(','))].join('\n');
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `users_export_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
-  // Generate random password: 8 characters with lower, upper, and numbers
-  // Simple format for easy copying and remembering
-  const generatePassword = () => {
-    const lowercase = 'abcdefghijklmnopqrstuvwxyz';
-    const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    const numbers = '0123456789';
-    
-    let password = '';
-    
-    // Ensure at least one of each type
-    password += lowercase[Math.floor(Math.random() * lowercase.length)];
-    password += uppercase[Math.floor(Math.random() * uppercase.length)];
-    password += numbers[Math.floor(Math.random() * numbers.length)];
-    
-    // Fill the rest randomly (total 8 chars)
-    const allChars = lowercase + uppercase + numbers;
-    for (let i = 3; i < 8; i++) {
-      password += allChars[Math.floor(Math.random() * allChars.length)];
-    }
-    
-    // Shuffle the password
-    return password.split('').sort(() => Math.random() - 0.5).join('');
-  };
-
-  const handleToggleActive = async (user) => {
-    if (actionUserId === user.id) {
-      // Ignore rapid repeat clicks for the same user
-      return;
-    }
-    try {
-      setActionUserId(user.id);
-      const response = await authService.toggleUserActive(user.id);
-      
-      // Update the user in the local state immediately
-      setUsers(prevUsers => prevUsers.map(u => 
-        u.id === user.id 
-          ? { 
-              ...u, 
-              user: { 
-                ...u.user, 
-                is_active: !u.user.is_active 
-              } 
-            }
-          : u
-      ));
-      
-      console.log(response.data.message);
-    } catch (error) {
-      console.error('Error toggling user status:', error);
-      alert('Failed to toggle user status. Please try again.');
-    } finally {
-      setActionUserId(null);
-    }
-  };
-
-  const handleResetPassword = (user) => {
-    if (!user || !user.id) {
-      alert('Error: Invalid user selected. Please try again.');
-      return;
-    }
-    setSelectedUser(user);
-    const newPassword = generatePassword();
-    if (!newPassword || newPassword.length < 8) {
-      alert('Error: Failed to generate a valid password. Please try again.');
-      return;
-    }
-    setGeneratedPassword(newPassword);
-    setPasswordCopied(false);
-    setShowPasswordModal(true);
-  };
-
-  const handleCopyPassword = () => {
-    navigator.clipboard.writeText(generatedPassword);
-    setPasswordCopied(true);
-    setTimeout(() => setPasswordCopied(false), 2000);
-  };
-
-  const handleConfirmPasswordReset = async () => {
-    if (modalSubmitting) return;
-    if (!selectedUser || !selectedUser.id) {
-      alert('Error: User information is missing. Please try again.');
-      return;
-    }
-    try {
-      setModalSubmitting(true);
-      await authService.resetUserPassword(selectedUser.id, generatedPassword);
-      
-      console.log('Password reset successfully');
-      alert(`Password reset successfully for ${selectedUser.user?.first_name} ${selectedUser.user?.last_name}. Make sure to share the password securely.`);
-      
-      // Close modal
-      setShowPasswordModal(false);
-      setSelectedUser(null);
-      setGeneratedPassword('');
-      setPasswordCopied(false);
-    } catch (error) {
-      console.error('Error resetting password:', error);
-      const errorMessage = error.response?.data?.error || 
-                          error.response?.data?.detail || 
-                          error.message || 
-                          'Failed to reset password. Please try again.';
-      alert(`Failed to reset password: ${errorMessage}`);
-    } finally {
-      setModalSubmitting(false);
-    }
-  };
-
-  const openEditUser = (u) => {
-    setSelectedUser(u);
+  // Actions
+  const openEditUser = (userRow) => {
+    setSelectedUser(userRow);
     setEditForm({
-      first_name: u.user?.first_name || '',
-      last_name: u.user?.last_name || '',
-      middle_name: u.middle_name || '',
-      student_id: u.student_id || '',
-      department_code: u.department?.code || '',
-      course_code: u.course?.code || '',
-      year_level: coerceYearLevelToFormValue(u.year_level),
-      section: u.section != null ? String(u.section) : '',
-      is_verified: !!u.is_verified,
+      first_name: userRow.user?.first_name || '',
+      last_name: userRow.user?.last_name || '',
+      middle_name: userRow.middle_name || '',
+      student_id: userRow.student_id || '',
+      department_code: userRow.department?.code || '',
+      course_code: userRow.course?.code || '',
+      year_level: userRow.year_level != null ? String(userRow.year_level) : '',
+      section: userRow.section || '',
+      is_verified: Boolean(userRow.is_verified),
     });
     setShowEditModal(true);
   };
 
-  const handleEditDepartmentChange = async (e) => {
-    const code = e.target.value;
-    setEditForm((prev) => ({ ...prev, department_code: code, course_code: '' }));
-    if (code) {
-      try {
-        const cr = await authService.getCoursesByDepartment(code);
-        setEditCourses(cr.data || []);
-      } catch (err) {
-        console.error(err);
-        setEditCourses([]);
-      }
-    } else {
-      setEditCourses([]);
+  const handleResetPassword = (userRow) => {
+    setSelectedUser(userRow);
+    const chars = 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let pwd = '';
+    for (let i = 0; i < 8; i++) {
+      pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setGeneratedPassword(pwd);
+    setPasswordCopied(false);
+    setShowPasswordModal(true);
+  };
+
+  const handleConfirmPasswordReset = async () => {
+    if (!selectedUser?.id || !generatedPassword || modalSubmitting) return;
+    try {
+      setModalSubmitting(true);
+      await authService.resetUserPassword(selectedUser.id, generatedPassword);
+      alert('Password has been reset successfully.');
+      setShowPasswordModal(false);
+      setSelectedUser(null);
+      setGeneratedPassword('');
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      alert(error.response?.data?.error || 'Failed to reset password.');
+    } finally {
+      setModalSubmitting(false);
     }
   };
 
@@ -535,33 +465,89 @@ const UserManagementPage = () => {
       await fetchUsers();
     } catch (error) {
       console.error(error);
-      const d = error.response?.data;
-      let msg = d?.detail;
-      if (!msg && typeof d === 'object') {
-        const first = Object.values(d)[0];
-        msg = Array.isArray(first) ? first[0] : first;
-      }
-      alert(msg || error.message || 'Failed to update profile.');
+      alert(error.response?.data?.detail || error.message || 'Failed to update profile.');
     } finally {
       setModalSubmitting(false);
     }
   };
 
   const handleDeleteUser = async () => {
+    if (modalSubmitting || !selectedUser) return;
+    try {
+      setModalSubmitting(true);
+      // Toggle active status as archive/delete
+      await authService.toggleUserActive(selectedUser.id);
+      setShowDeleteModal(false);
+      setSelectedUser(null);
+      await fetchUsers();
+    } catch (error) {
+      console.error('Error archiving user:', error);
+      alert('Failed to update user status.');
+    } finally {
+      setModalSubmitting(false);
+    }
+  };
+
+  const handleBulkArchive = async () => {
+    if (modalSubmitting || !selectedUserIds.length) return;
+    try {
+      setModalSubmitting(true);
+      for (const id of selectedUserIds) {
+        await authService.toggleUserActive(id);
+      }
+      setShowBulkDeleteModal(false);
+      setSelectedUserIds([]);
+      await fetchUsers();
+      alert(`Updated status for ${selectedUserIds.length} users.`);
+    } catch (error) {
+      console.error('Error in bulk update:', error);
+      alert('Failed to update all users.');
+    } finally {
+      setModalSubmitting(false);
+    }
+  };
+
+  const handleAddUserSubmit = async (e) => {
+    e.preventDefault();
     if (modalSubmitting) return;
     try {
       setModalSubmitting(true);
-      // TODO: Implement API call to delete user
-      console.log('Delete user:', selectedUser?.id);
-      
-      setShowDeleteModal(false);
-      setSelectedUser(null);
-      
-      // Refresh users after deletion
+      await authService.register({
+        username: addForm.username,
+        email: addForm.email,
+        first_name: addForm.first_name,
+        middle_name: addForm.middle_name,
+        last_name: addForm.last_name,
+        student_id: addForm.student_id,
+        department: addForm.department_code,
+        course: addForm.course_code,
+        year_level: addForm.year_level,
+        section: addForm.section,
+        password: addForm.password,
+        password_confirm: addForm.password,
+      });
+      alert('User added successfully.');
+      setShowAddModal(false);
+      setAddForm({
+        username: '',
+        email: '',
+        first_name: '',
+        middle_name: '',
+        last_name: '',
+        student_id: '',
+        department_code: '',
+        course_code: '',
+        year_level: '',
+        section: '',
+        role: 'student',
+        password: '',
+      });
       await fetchUsers();
     } catch (error) {
-      console.error('Error deleting user:', error);
-      alert('Failed to delete user. Please try again.');
+      console.error('Error adding user:', error);
+      const data = error.response?.data;
+      const msg = typeof data === 'object' ? Object.values(data).flat().join('\n') : error.message;
+      alert(msg || 'Failed to add user.');
     } finally {
       setModalSubmitting(false);
     }
@@ -571,144 +557,259 @@ const UserManagementPage = () => {
     return <LoadingSpinner fullScreen text="Loading users..." />;
   }
 
-  const adminCount = users.filter(u => u.user?.is_superuser).length;
-  const staffCount = users.filter(u => u.user?.is_staff && !u.user?.is_superuser).length;
-  const studentCount = users.filter(u => !u.user?.is_staff && !u.user?.is_superuser).length;
-  const verifiedCount = users.filter(u => u.is_verified || u.user?.is_active).length;
+  const adminCount = users.filter((u) => u.user?.is_superuser).length;
+  const staffCount = users.filter((u) => u.user?.is_staff && !u.user?.is_superuser).length;
+  const studentCount = users.filter((u) => !u.user?.is_staff && !u.user?.is_superuser).length;
+  const verifiedCount = users.filter((u) => u.is_verified || u.user?.is_active).length;
 
   return (
     <Container>
-      {/* Header */}
-      <div className="admin-header">
-        <h1>
-          <Icon name="users" size={28} className="admin-icon-primary" />
-          User Management
-        </h1>
-        <p>View and manage all registered users</p>
-        {isStaffOnly && (
-          <p className="admin-header-note text-muted small mt-2 mb-0">
-            As staff, you can edit profile details and student verification/active status only for students whose
-            year level is at or below your own (
-              {formatYearLevelNumeric(authUser?.profile?.year_level) ||
-                authUser?.profile?.year_level ||
-                'set your year level in Profile'}
-            ).
-            Administrators and other staff accounts are not editable here.
-          </p>
-        )}
-      </div>
-
-      {/* Stats */}
-      <div className="admin-stats-grid" style={{ marginBottom: '2rem' }}>
-        <div className="admin-stat-card">
-          <div className="admin-stat-icon primary">
-            <Icon name="users" size={24} />
-          </div>
-          <div className="admin-stat-value">{users.length}</div>
-          <div className="admin-stat-label">Total Users</div>
-        </div>
-
-        <div className="admin-stat-card">
-          <div className="admin-stat-icon warning">
-            <Icon name="shield" size={24} />
-          </div>
-          <div className="admin-stat-value">{adminCount}</div>
-          <div className="admin-stat-label">Administrators</div>
-        </div>
-
-        <div className="admin-stat-card">
-          <div className="admin-stat-icon info">
-            <Icon name="users" size={24} />
-          </div>
-          <div className="admin-stat-value">{staffCount}</div>
-          <div className="admin-stat-label">Staff</div>
-        </div>
-
-        <div className="admin-stat-card">
-          <div className="admin-stat-icon primary">
-            <Icon name="users" size={24} />
-          </div>
-          <div className="admin-stat-value">{studentCount}</div>
-          <div className="admin-stat-label">Students</div>
-        </div>
-
-        <div className="admin-stat-card">
-          <div className="admin-stat-icon success">
-            <Icon name="checkCircle" size={24} />
-          </div>
-          <div className="admin-stat-value">{verifiedCount}</div>
-          <div className="admin-stat-label">Verified</div>
-        </div>
-      </div>
-
-      {/* Filter Tabs */}
-      <div className="admin-filter-tabs">
-        <button
+      {/* 5 Top Stat Cards matching user mockup */}
+      <div className="admin-users-stats-grid">
+        <div
+          className={`admin-users-stat-card ${filter === 'all' ? 'active' : ''}`}
           onClick={() => setFilter('all')}
-          className={`admin-filter-btn ${filter === 'all' ? 'admin-filter-btn-active' : 'admin-filter-btn-inactive-default'}`}
         >
-          <Icon name="users" size={16} />
-          All Users ({users.length})
-        </button>
-        <button
+          <div className="admin-users-stat-icon total">
+            <Icon name="users" size={20} />
+          </div>
+          <div className="admin-users-stat-value">{users.length}</div>
+          <div className="admin-users-stat-label">Total Users</div>
+        </div>
+
+        <div
+          className={`admin-users-stat-card ${filter === 'admin' ? 'active' : ''}`}
           onClick={() => setFilter('admin')}
-          className={`admin-filter-btn ${filter === 'admin' ? 'admin-filter-btn-admin' : 'admin-filter-btn-inactive-default'}`}
         >
-          <Icon name="shield" size={16} />
-          Admins ({adminCount})
-        </button>
-        <button
+          <div className="admin-users-stat-icon admin">
+            <Icon name="shield" size={20} />
+          </div>
+          <div className="admin-users-stat-value">{adminCount}</div>
+          <div className="admin-users-stat-label">Administrators</div>
+        </div>
+
+        <div
+          className={`admin-users-stat-card ${filter === 'staff' ? 'active' : ''}`}
           onClick={() => setFilter('staff')}
-          className={`admin-filter-btn ${filter === 'staff' ? 'admin-filter-btn-staff' : 'admin-filter-btn-inactive-default'}`}
         >
-          <Icon name="users" size={16} />
-          Staff ({staffCount})
-        </button>
-        <button
+          <div className="admin-users-stat-icon staff">
+            <Icon name="users" size={20} />
+          </div>
+          <div className="admin-users-stat-value">{staffCount}</div>
+          <div className="admin-users-stat-label">Staff</div>
+        </div>
+
+        <div
+          className={`admin-users-stat-card ${filter === 'student' ? 'active' : ''}`}
           onClick={() => setFilter('student')}
-          className={`admin-filter-btn ${filter === 'student' ? 'admin-filter-btn-student' : 'admin-filter-btn-inactive-default'}`}
         >
-          <Icon name="users" size={16} />
-          Students ({studentCount})
-        </button>
-        <button
+          <div className="admin-users-stat-icon student">
+            <Icon name="users" size={20} />
+          </div>
+          <div className="admin-users-stat-value">{studentCount}</div>
+          <div className="admin-users-stat-label">Students</div>
+        </div>
+
+        <div
+          className={`admin-users-stat-card ${filter === 'verified' ? 'active' : ''}`}
           onClick={() => setFilter('verified')}
-          className={`admin-filter-btn ${filter === 'verified' ? 'admin-filter-btn-verified' : 'admin-filter-btn-inactive-default'}`}
         >
-          <Icon name="checkCircle" size={16} />
-          Verified ({verifiedCount})
-        </button>
+          <div className="admin-users-stat-icon verified">
+            <Icon name="checkCircle" size={20} />
+          </div>
+          <div className="admin-users-stat-value">{verifiedCount}</div>
+          <div className="admin-users-stat-label">Verified</div>
+        </div>
       </div>
 
-      {/* Search Bar */}
-      <SearchBar
-        value={searchQuery}
-        onChange={setSearchQuery}
-        placeholder="Search by name, email, username, or student ID..."
-        onAdvancedToggle={() => setShowSearchFilters((prev) => !prev)}
-        advancedOpen={showSearchFilters}
-      >
-        <button
-          type="button"
-          className="admin-btn secondary"
-          onClick={handleExportCsv}
-          disabled={!filteredUsers.length}
-          title={
-            Number.isFinite(pageSize)
-              ? `Export current page (${paginatedUsers.length} rows) as CSV`
-              : `Export all filtered rows (${filteredUsers.length}) as CSV`
-          }
-        >
-          <span className="admin-btn-inline-icon">
-            <Icon name="download" size={18} />
-          </span>
-          Export CSV
-        </button>
-      </SearchBar>
+      {/* Filter & Action Toolbar */}
+      <div className="admin-users-toolbar-card" ref={dropdownRef}>
+        <div className="admin-users-toolbar-left">
+          {/* Search Input Pill */}
+          <div className="admin-users-search-pill">
+            <Icon name="search" size={16} className="admin-users-search-icon" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by name, ID, or email..."
+              className="admin-users-search-input"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                className="admin-users-search-clear"
+                onClick={() => setSearchQuery('')}
+              >
+                ×
+              </button>
+            )}
+          </div>
 
-      {/* Advanced search panel — toggled by the SearchBar's onAdvancedToggle */}
+          {/* Course Dropdown Pill */}
+          <div className="admin-filter-dropdown-wrapper">
+            <button
+              type="button"
+              className={`admin-filter-dropdown-btn ${advancedCourseCodes.length > 0 ? 'active' : ''}`}
+              onClick={() => toggleDropdown('course')}
+            >
+              <div className="admin-filter-dropdown-title">
+                <span>Course</span>
+                <Icon name="chevronDown" size={12} />
+              </div>
+              <div className="admin-filter-dropdown-sub">
+                {advancedCourseCodes.length > 0
+                  ? `Selected: ${advancedCourseCodes.join(', ')}`
+                  : 'All Courses'}
+              </div>
+            </button>
+            {activeDropdown === 'course' && (
+              <div className="admin-dropdown-popover">
+                <input
+                  type="search"
+                  className="form-control form-control-sm mb-2"
+                  placeholder="Filter courses..."
+                  value={courseListSearch}
+                  onChange={(e) => setCourseListSearch(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                />
+                {filteredCourseCatalog.map((c) => (
+                  <label key={c.code} className="d-flex align-items-center gap-2 small cursor-pointer py-1">
+                    <input
+                      type="checkbox"
+                      checked={advancedCourseCodes.includes(c.code)}
+                      onChange={() => toggleAdvancedCourse(c.code)}
+                    />
+                    <span>{c.code} - {c.name || ''}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Year Level Dropdown Pill */}
+          <div className="admin-filter-dropdown-wrapper">
+            <button
+              type="button"
+              className={`admin-filter-dropdown-btn ${advancedYearLevels.length > 0 ? 'active' : ''}`}
+              onClick={() => toggleDropdown('year')}
+            >
+              <div className="admin-filter-dropdown-title">
+                <span>Year Level</span>
+                <Icon name="chevronDown" size={12} />
+              </div>
+              <div className="admin-filter-dropdown-sub">
+                {advancedYearLevels.length > 0
+                  ? `Selected: ${advancedYearLevels.join(', ')}`
+                  : 'All Years'}
+              </div>
+            </button>
+            {activeDropdown === 'year' && (
+              <div className="admin-dropdown-popover">
+                {uniqueYearLevels.map((yl) => (
+                  <label key={yl} className="d-flex align-items-center gap-2 small cursor-pointer py-1">
+                    <input
+                      type="checkbox"
+                      checked={advancedYearLevels.includes(yl)}
+                      onChange={() => toggleAdvancedYear(yl)}
+                    />
+                    <span>Year {yl}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Role Dropdown Pill */}
+          <div className="admin-filter-dropdown-wrapper">
+            <button
+              type="button"
+              className={`admin-filter-dropdown-btn ${advancedRoles.length > 0 ? 'active' : ''}`}
+              onClick={() => toggleDropdown('role')}
+            >
+              <div className="admin-filter-dropdown-title">
+                <span>Role</span>
+                <Icon name="chevronDown" size={12} />
+              </div>
+              <div className="admin-filter-dropdown-sub">
+                {advancedRoles.length > 0
+                  ? `Selected: ${advancedRoles.map((r) => r === 'admin' ? 'Admin' : r === 'staff' ? 'Staff' : 'Student').join(', ')}`
+                  : 'All Roles'}
+              </div>
+            </button>
+            {activeDropdown === 'role' && (
+              <div className="admin-dropdown-popover">
+                {[
+                  { key: 'student', label: 'Student' },
+                  { key: 'staff', label: 'Staff' },
+                  { key: 'admin', label: 'Admin' },
+                ].map(({ key, label }) => (
+                  <label key={key} className="d-flex align-items-center gap-2 small cursor-pointer py-1">
+                    <input
+                      type="checkbox"
+                      checked={advancedRoles.includes(key)}
+                      onChange={() => toggleAdvancedRole(key)}
+                    />
+                    <span>{label}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Advanced Filters Button */}
+          <button
+            type="button"
+            className={`admin-advanced-toggle-btn ${showSearchFilters ? 'active' : ''}`}
+            onClick={() => setShowSearchFilters((prev) => !prev)}
+          >
+            <Icon name="sliders" size={15} />
+            <span>Advanced Filters</span>
+            {activeFilterCount > 0 && (
+              <span className="admin-filter-badge">{activeFilterCount}</span>
+            )}
+          </button>
+        </div>
+
+        <div className="admin-users-toolbar-right">
+          {isAdmin && (
+            <button
+              type="button"
+              className="admin-btn-add-user"
+              onClick={() => setShowAddModal(true)}
+            >
+              <Icon name="plus" size={16} />
+              <span>Add User</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            className="admin-btn-export-csv"
+            onClick={handleExportCsv}
+            disabled={!filteredUsers.length}
+          >
+            <Icon name="download" size={16} />
+            <span>Export CSV</span>
+          </button>
+
+          {isAdmin && (
+            <button
+              type="button"
+              className={`admin-btn-archive-selected ${selectedUserIds.length > 0 ? 'active' : ''}`}
+              disabled={selectedUserIds.length === 0}
+              onClick={() => setShowBulkDeleteModal(true)}
+            >
+              <Icon name="archive" size={16} />
+              <span>Archive Selected</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Advanced search panel drawer */}
       {showSearchFilters && (
-        <div className="admin-search-container">
+        <div className="admin-search-container mb-3">
           <div className="admin-advanced-search-panel">
             <div className="admin-advanced-search-row">
               <span className="admin-advanced-search-label">Search in (text box):</span>
@@ -717,7 +818,7 @@ const UserManagementPage = () => {
                   <input
                     type="checkbox"
                     checked={searchFields.name}
-                    onChange={() => toggleSearchField('name')}
+                    onChange={() => setSearchFields((f) => ({ ...f, name: !f.name }))}
                   />
                   <span>Name</span>
                 </label>
@@ -725,7 +826,7 @@ const UserManagementPage = () => {
                   <input
                     type="checkbox"
                     checked={searchFields.email}
-                    onChange={() => toggleSearchField('email')}
+                    onChange={() => setSearchFields((f) => ({ ...f, email: !f.email }))}
                   />
                   <span>Email</span>
                 </label>
@@ -733,7 +834,7 @@ const UserManagementPage = () => {
                   <input
                     type="checkbox"
                     checked={searchFields.username}
-                    onChange={() => toggleSearchField('username')}
+                    onChange={() => setSearchFields((f) => ({ ...f, username: !f.username }))}
                   />
                   <span>Username</span>
                 </label>
@@ -741,132 +842,27 @@ const UserManagementPage = () => {
                   <input
                     type="checkbox"
                     checked={searchFields.studentId}
-                    onChange={() => toggleSearchField('studentId')}
+                    onChange={() => setSearchFields((f) => ({ ...f, studentId: !f.studentId }))}
                   />
                   <span>ID</span>
                 </label>
               </div>
             </div>
 
-            <div className="admin-advanced-search-row admin-advanced-search-row-stack">
-              <span className="admin-advanced-search-label">Courses:</span>
-              <div className="admin-course-listbox">
-                <input
-                  type="search"
-                  className="admin-course-listbox-search form-control form-control-sm"
-                  placeholder="Search courses by name, code, or department…"
-                  value={courseListSearch}
-                  onChange={(e) => setCourseListSearch(e.target.value)}
-                  aria-label="Filter course list"
-                  disabled={courseCatalog.length === 0}
-                />
-                {courseCatalog.length === 0 ? (
-                  <span className="text-muted small d-block mt-2">Loading courses…</span>
-                ) : (
-                  <>
-                    <div className="admin-course-listbox-meta">
-                      <span>
-                        {filteredCourseCatalog.length} of {courseCatalog.length} shown
-                        {advancedCourseCodes.length > 0 && (
-                          <> · {advancedCourseCodes.length} selected</>
-                        )}
-                      </span>
-                    </div>
-                    <div
-                      className="admin-course-listbox-list"
-                      role="listbox"
-                      aria-multiselectable="true"
-                      aria-label="Courses. Use checkboxes to select multiple."
-                    >
-                      {filteredCourseCatalog.length === 0 ? (
-                        <div className="admin-course-listbox-empty text-muted small">No courses match your search.</div>
-                      ) : (
-                        filteredCourseCatalog.map((c) => {
-                          const code = c.code;
-                          const checked = advancedCourseCodes.includes(code);
-                          return (
-                            <label
-                              key={code}
-                              className={`admin-course-listbox-option ${checked ? 'admin-course-listbox-option-selected' : ''}`}
-                              role="option"
-                              aria-selected={checked}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                onChange={() => toggleAdvancedCourse(code)}
-                              />
-                              <span className="admin-course-listbox-option-text">
-                                <span className="admin-course-listbox-name">{c.name || code}</span>
-                                <span className="admin-course-listbox-code">{code}</span>
-                                {(c.department_name || c.department) && (
-                                  <span className="admin-course-listbox-dept">
-                                    {c.department_name || c.department}
-                                  </span>
-                                )}
-                              </span>
-                            </label>
-                          );
-                        })
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-
-            <div className="admin-advanced-search-row">
-              <span className="admin-advanced-search-label">Year level:</span>
-              <div className="admin-advanced-search-chips">
-                {uniqueYearLevels.length === 0 ? (
-                  <span className="text-muted small">No year levels in current user list</span>
-                ) : (
-                  uniqueYearLevels.map((yl) => {
-                    const checked = advancedYearLevels.includes(yl);
-                    return (
-                      <label key={yl} className={`admin-filter-chip ${checked ? 'admin-filter-chip-active' : ''}`}>
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => toggleAdvancedYear(yl)}
-                        />
-                        <span>{yl}</span>
-                      </label>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-
-            <div className="admin-advanced-search-row">
-              <span className="admin-advanced-search-label">Role:</span>
-              <div className="admin-advanced-search-chips">
-                {[
-                  { key: 'student', label: 'Student' },
-                  { key: 'staff', label: 'Staff' },
-                  { key: 'admin', label: 'Admin' },
-                ].map(({ key, label }) => {
-                  const checked = advancedRoles.includes(key);
-                  return (
-                    <label key={key} className={`admin-filter-chip ${checked ? 'admin-filter-chip-active' : ''}`}>
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggleAdvancedRole(key)}
-                      />
-                      <span>{label}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-
             {(advancedCourseCodes.length > 0 ||
               advancedYearLevels.length > 0 ||
               advancedRoles.length > 0) && (
-              <div className="admin-advanced-search-actions">
-                <button type="button" className="admin-btn secondary admin-btn-small" onClick={clearAdvancedAttributeFilters}>
-                  Clear course / year / role filters
+              <div className="admin-advanced-search-actions mt-2">
+                <button
+                  type="button"
+                  className="admin-btn secondary admin-btn-small"
+                  onClick={() => {
+                    setAdvancedCourseCodes([]);
+                    setAdvancedYearLevels([]);
+                    setAdvancedRoles([]);
+                  }}
+                >
+                  Clear all filters
                 </button>
               </div>
             )}
@@ -874,276 +870,376 @@ const UserManagementPage = () => {
         </div>
       )}
 
-      {/* Users Table */}
+      {/* Modern Users Table */}
       {filteredUsers.length > 0 ? (
-        <div className="admin-table-container">
-          <div className="admin-table-wrapper">
-            <table className="admin-table">
+        <div className="admin-users-table-container">
+          <div className="table-responsive">
+            <table className="admin-users-table">
               <thead>
                 <tr>
-                  {[
-                    { key: 'first_name', label: 'First Name' },
-                    { key: 'middle_name', label: 'Middle Name' },
-                    { key: 'last_name', label: 'Last Name' },
-                    { key: 'id', label: 'ID' },
-                    { key: 'course', label: 'Course' },
-                    { key: 'year_level', label: 'Year Level' },
-                    { key: 'section', label: 'Section' },
-                    { key: 'role', label: 'Role' },
-                    { key: 'status', label: 'Status', align: 'center' },
-                    { key: 'joined', label: 'Joined/Created', align: 'center' },
-                  ].map(({ key, label, align }) => (
-                    <SortableHeader
-                      key={key}
-                      label={label}
-                      sortKey={key}
-                      sortConfig={sortConfig}
-                      onSort={handleSort}
-                      align={align}
+                  <th style={{ width: '40px' }}>
+                    <input
+                      type="checkbox"
+                      checked={isAllSelected}
+                      onChange={toggleSelectAll}
                     />
-                  ))}
-                  {(isAdmin || isStaffOnly) && <th className="text-right">Actions</th>}
+                  </th>
+                  <SortableHeader label="NAME" sortKey="first_name" sortConfig={sortConfig} onSort={handleSort} />
+                  <SortableHeader label="ID" sortKey="id" sortConfig={sortConfig} onSort={handleSort} />
+                  <SortableHeader label="COURSE" sortKey="course" sortConfig={sortConfig} onSort={handleSort} />
+                  <SortableHeader label="YEAR LEVEL" sortKey="year_level" sortConfig={sortConfig} onSort={handleSort} />
+                  <SortableHeader label="SECTION" sortKey="section" sortConfig={sortConfig} onSort={handleSort} />
+                  <SortableHeader label="ROLE" sortKey="role" sortConfig={sortConfig} onSort={handleSort} />
+                  <SortableHeader label="STATUS" sortKey="status" sortConfig={sortConfig} onSort={handleSort} align="center" />
+                  <SortableHeader label="JOINED/CREATED" sortKey="joined" sortConfig={sortConfig} onSort={handleSort} />
+                  <th className="text-right">ACTIONS</th>
                 </tr>
               </thead>
               <tbody>
-                {paginatedUsers.map((user) => (
-                  <tr key={user.id}>
-                    <td>
-                      <div className="admin-user-cell">
-                        <div className="admin-user-avatar-table">
-                          {getInitials(`${user.user?.first_name || ''} ${user.user?.last_name || ''}`)}
-                        </div>
-                        <div>
+                {paginatedUsers.map((user) => {
+                  const isSelected = selectedUserIds.includes(user.id);
+                  // Clean initials WITHOUT PERIOD as requested
+                  const rawInitials = getInitials(`${user.user?.first_name || ''} ${user.user?.last_name || ''}`);
+                  const cleanInitials = (rawInitials || 'U').replace(/\./g, '').toUpperCase();
+                  const fullName = `${user.user?.first_name || ''} ${user.user?.last_name || ''}`.trim() || user.user?.username || '-';
+
+                  return (
+                    <tr key={user.id} className={isSelected ? 'selected' : ''}>
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelectUser(user.id)}
+                        />
+                      </td>
+                      <td>
+                        <div className="admin-user-cell">
+                          <div className="admin-user-avatar-table">
+                            {cleanInitials}
+                          </div>
                           <div className="admin-user-name">
-                            {user.user?.first_name || '-'}
+                            {fullName}
                           </div>
                         </div>
-                      </div>
-                    </td>
-                    <td>
-                      {user.middle_name || '-'}
-                    </td>
-                    <td>
-                      {user.user?.last_name || '-'}
-                    </td>
-                    <td>
-                      <div className="admin-user-id">
-                        {user.student_id || user.user?.username || '-'}
-                      </div>
-                    </td>
-                    <td>
-                      {user.course?.code || user.course?.name || (
-                        <span className="admin-user-not-specified">Not specified</span>
-                      )}
-                    </td>
-                    <td>
-                      {formatYearLevelNumeric(user.year_level) ||
-                        (String(user.year_level || '').trim() ? user.year_level : '-')}
-                    </td>
-                    <td>
-                      {user.section != null && String(user.section).trim() !== ''
-                        ? user.section
-                        : '—'}
-                    </td>
-                    
-                    {/* Role */}
-                    <td>
-                      {user.user?.is_superuser ? (
-                        <span className="admin-role-badge admin-role-badge-admin">
-                          <Icon name="shield" size={14} />
-                          Admin
-                        </span>
-                      ) : user.user?.is_staff ? (
-                        <span className="admin-role-badge admin-role-badge-staff">
-                          <Icon name="users" size={14} />
-                          Staff
-                        </span>
-                      ) : (
-                        <span className="admin-role-badge admin-role-badge-student">
-                          <Icon name="users" size={14} />
-                          Student
-                        </span>
-                      )}
-                    </td>
-                    
-                    {/* Status */}
-                    <td className="text-center">
-                      {user.user?.is_active ? (
-                        <span className="admin-status-badge-table admin-status-badge-active-table">
-                          <Icon name="checkCircle" size={14} />
-                          Active
-                        </span>
-                      ) : (
-                        <span className="admin-status-badge-table admin-status-badge-inactive-table">
-                          <Icon name="clock" size={14} />
-                          Inactive
-                        </span>
-                      )}
-                    </td>
-                    
-                    {/* Joined/Created */}
-                    <td className="text-center admin-user-joined">
-                      {formatDate(user.user?.date_joined || user.created_at, 'date')}
-                    </td>
-                    
-                    {/* Actions: admin full set; staff edit + active toggle for in-scope students only */}
-                    {(isAdmin || isStaffOnly) && (
+                      </td>
                       <td>
-                        <div className="admin-user-actions">
+                        <div className="admin-user-id">{user.student_id || user.user?.username || '-'}</div>
+                      </td>
+                      <td>
+                        {user.course?.code || user.course?.name || (
+                          <span className="admin-user-not-specified text-muted">Not specified</span>
+                        )}
+                      </td>
+                      <td>
+                        {formatYearLevelNumeric(user.year_level) ||
+                          (String(user.year_level || '').trim() ? user.year_level : '-')}
+                      </td>
+                      <td>
+                        {user.section != null && String(user.section).trim() !== ''
+                          ? user.section
+                          : '-'}
+                      </td>
+                      
+                      {/* Role Pill */}
+                      <td>
+                        {user.user?.is_superuser ? (
+                          <span className="admin-role-badge admin-role-badge-admin">
+                            <Icon name="user" size={13} />
+                            Administrator
+                          </span>
+                        ) : user.user?.is_staff ? (
+                          <span className="admin-role-badge admin-role-badge-staff">
+                            <Icon name="user" size={13} />
+                            Staff
+                          </span>
+                        ) : (
+                          <span className="admin-role-badge admin-role-badge-student">
+                            <Icon name="user" size={13} />
+                            Student
+                          </span>
+                        )}
+                      </td>
+                      
+                      {/* Status Pill */}
+                      <td className="text-center">
+                        {user.user?.is_active ? (
+                          <span className="admin-status-badge-table admin-status-badge-active-table">
+                            <Icon name="checkCircle" size={13} />
+                            Active
+                          </span>
+                        ) : (
+                          <span className="admin-status-badge-table admin-status-badge-inactive-table">
+                            <Icon name="clock" size={13} />
+                            Inactive
+                          </span>
+                        )}
+                      </td>
+                      
+                      {/* Joined/Created */}
+                      <td className="admin-user-joined">
+                        {formatDate(user.user?.date_joined || user.created_at, 'date')}
+                      </td>
+                      
+                      {/* Actions: 3 Outline Buttons */}
+                      <td>
+                        <div className="d-flex align-items-center justify-content-end">
+                          <button
+                            type="button"
+                            onClick={() => openEditUser(user)}
+                            className="admin-action-btn-outline edit"
+                            title="Edit User"
+                          >
+                            <Icon name="edit" size={15} />
+                          </button>
+                          
                           {isAdmin && (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => openEditUser(user)}
-                                disabled={actionUserId === user.id}
-                                className="admin-action-btn admin-action-btn-role"
-                                title="Edit profile"
-                              >
-                                <Icon name="edit" size={18} />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleToggleActive(user)}
-                                disabled={actionUserId === user.id}
-                                className={`admin-action-btn ${user.user?.is_active ? 'admin-action-btn-toggle-active' : 'admin-action-btn-toggle-inactive'}`}
-                                title={user.user?.is_active ? 'Deactivate User' : 'Activate User'}
-                              >
-                                <Icon name={user.user?.is_active ? 'toggleRight' : 'toggleLeft'} size={18} />
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedUser(user);
-                                  setSelectedRole(user.user?.is_superuser ? 'admin' : (user.user?.is_staff ? 'staff' : 'student'));
-                                  setShowRoleModal(true);
-                                }}
-                                disabled={actionUserId === user.id}
-                                className="admin-action-btn admin-action-btn-role"
-                                title="Change Role"
-                              >
-                                <Icon name="shield" size={18} />
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => handleResetPassword(user)}
-                                disabled={actionUserId === user.id}
-                                className="admin-action-btn admin-action-btn-password"
-                                title="Reset Password"
-                              >
-                                <Icon name="key" size={18} />
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedUser(user);
-                                  setShowDeleteModal(true);
-                                }}
-                                disabled={actionUserId === user.id}
-                                className="admin-action-btn admin-action-btn-delete"
-                                title="Delete User"
-                              >
-                                <Icon name="trash" size={18} />
-                              </button>
-                            </>
+                            <button
+                              type="button"
+                              onClick={() => handleResetPassword(user)}
+                              className="admin-action-btn-outline lock"
+                              title="Reset Password"
+                            >
+                              <Icon name="lock" size={15} />
+                            </button>
                           )}
-                          {isStaffOnly &&
-                            (canStaffManageStudent(authUser?.profile, user) ? (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => openEditUser(user)}
-                                  disabled={actionUserId === user.id}
-                                  className="admin-action-btn admin-action-btn-role"
-                                  title="Edit profile"
-                                >
-                                  <Icon name="edit" size={18} />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleToggleActive(user)}
-                                  disabled={actionUserId === user.id}
-                                  className={`admin-action-btn ${user.user?.is_active ? 'admin-action-btn-toggle-active' : 'admin-action-btn-toggle-inactive'}`}
-                                  title={user.user?.is_active ? 'Deactivate User' : 'Activate User'}
-                                >
-                                  <Icon name={user.user?.is_active ? 'toggleRight' : 'toggleLeft'} size={18} />
-                                </button>
-                              </>
-                            ) : (
-                              <span className="text-muted small" title="Outside your year-level scope">
-                                —
-                              </span>
-                            ))}
+
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedUser(user);
+                                setShowDeleteModal(true);
+                              }}
+                              className="admin-action-btn-outline delete"
+                              title="Archive/Delete User"
+                            >
+                              <Icon name="trash" size={15} />
+                            </button>
+                          )}
                         </div>
                       </td>
-                    )}
-                  </tr>
-                ))}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
 
-          <div className="admin-pagination">
-            <div className="admin-pagination-left">
-              <span className="admin-pagination-title">
-                Page {safeCurrentPage} of {totalPages}
-              </span>
-              <span className="admin-pagination-range">
-                ({totalRows === 0 ? 0 : startIndexDisplay}-{endIndexDisplay} of {totalRows})
-              </span>
+          {/* Footer & Pagination */}
+          <div className="admin-users-table-footer">
+            <div className="admin-users-page-size">
+              <span>Show</span>
+              <select
+                className="admin-users-page-select"
+                value={String(pageSize)}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+              >
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+              <span>entries</span>
             </div>
 
-            <div className="admin-pagination-right">
+            <div className="admin-users-pagination">
               <button
                 type="button"
-                className="admin-btn admin-btn-small"
+                className="admin-users-page-btn"
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={safeCurrentPage <= 1}
               >
-                Prev
+                &lt; Previous
               </button>
+
+              {paginationPages.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  className={`admin-users-page-btn ${p === safeCurrentPage ? 'active' : ''}`}
+                  onClick={() => setCurrentPage(p)}
+                >
+                  [{p}]
+                </button>
+              ))}
+
               <button
                 type="button"
-                className="admin-btn admin-btn-small"
+                className="admin-users-page-btn"
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={safeCurrentPage >= totalPages}
               >
-                Next
+                Next &gt;
               </button>
-
-              <div className="admin-pagination-view">
-                <label className="admin-pagination-view-label">View</label>
-                <select
-                  className="admin-pagination-view-select"
-                  value={String(pageSize)}
-                  onChange={(e) => {
-                    setPageSize(Number(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                >
-                  <option value="20">20</option>
-                  <option value="50">50</option>
-                  <option value="100">100</option>
-                </select>
-              </div>
             </div>
           </div>
         </div>
       ) : (
         <div className="admin-card-container admin-empty-state">
           <Icon name="users" size={48} className="admin-empty-state-icon" />
-          <h5 className="admin-empty-state-title">
-            No Users Found
-          </h5>
+          <h5 className="admin-empty-state-title">No Users Found</h5>
           <p className="admin-empty-state-message">
             {filter !== 'all' ? `No ${filter} users found.` : 'No users registered yet.'}
           </p>
         </div>
       )}
 
-      {/* Edit profile (staff scoped / admin full) */}
+      {/* Add User Modal */}
+      {showAddModal && (
+        <Modal
+          show={showAddModal}
+          onClose={() => setShowAddModal(false)}
+          title="Add New User"
+        >
+          <form onSubmit={handleAddUserSubmit} className="admin-edit-profile-form">
+            <div className="row g-2 mb-2">
+              <div className="col-md-6">
+                <label className="admin-modal-label">Username / Student ID *</label>
+                <input
+                  required
+                  className="form-control form-control-sm"
+                  value={addForm.username}
+                  onChange={(e) => setAddForm((f) => ({ ...f, username: e.target.value, student_id: e.target.value }))}
+                  placeholder="e.g. 2025-12345"
+                />
+              </div>
+              <div className="col-md-6">
+                <label className="admin-modal-label">Email *</label>
+                <input
+                  required
+                  type="email"
+                  className="form-control form-control-sm"
+                  value={addForm.email}
+                  onChange={(e) => setAddForm((f) => ({ ...f, email: e.target.value }))}
+                  placeholder="user@ssct.edu.ph"
+                />
+              </div>
+            </div>
+
+            <div className="row g-2 mb-2">
+              <div className="col-md-4">
+                <label className="admin-modal-label">First Name *</label>
+                <input
+                  required
+                  className="form-control form-control-sm"
+                  value={addForm.first_name}
+                  onChange={(e) => setAddForm((f) => ({ ...f, first_name: e.target.value }))}
+                />
+              </div>
+              <div className="col-md-4">
+                <label className="admin-modal-label">Middle Name</label>
+                <input
+                  className="form-control form-control-sm"
+                  value={addForm.middle_name}
+                  onChange={(e) => setAddForm((f) => ({ ...f, middle_name: e.target.value }))}
+                />
+              </div>
+              <div className="col-md-4">
+                <label className="admin-modal-label">Last Name *</label>
+                <input
+                  required
+                  className="form-control form-control-sm"
+                  value={addForm.last_name}
+                  onChange={(e) => setAddForm((f) => ({ ...f, last_name: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="row g-2 mb-2">
+              <div className="col-md-6">
+                <label className="admin-modal-label">Department</label>
+                <select
+                  className="admin-modal-select"
+                  value={addForm.department_code}
+                  onChange={async (e) => {
+                    const code = e.target.value;
+                    setAddForm((f) => ({ ...f, department_code: code, course_code: '' }));
+                    if (code) {
+                      const cr = await authService.getCoursesByDepartment(code);
+                      setEditCourses(cr.data || []);
+                    }
+                  }}
+                >
+                  <option value="">—</option>
+                  {editDepartments.map((d) => (
+                    <option key={d.code || d.id} value={d.code}>
+                      {d.name} ({d.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="col-md-6">
+                <label className="admin-modal-label">Course</label>
+                <select
+                  className="admin-modal-select"
+                  value={addForm.course_code}
+                  onChange={(e) => setAddForm((f) => ({ ...f, course_code: e.target.value }))}
+                >
+                  <option value="">—</option>
+                  {editCourses.map((c) => (
+                    <option key={c.code || c.id} value={c.code}>
+                      {c.name} ({c.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="row g-2 mb-2">
+              <div className="col-md-6">
+                <label className="admin-modal-label">Year Level</label>
+                <select
+                  className="admin-modal-select"
+                  value={addForm.year_level}
+                  onChange={(e) => setAddForm((f) => ({ ...f, year_level: e.target.value }))}
+                >
+                  <option value="">—</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                </select>
+              </div>
+              <div className="col-md-6">
+                <label className="admin-modal-label">Section</label>
+                <input
+                  className="form-control form-control-sm"
+                  value={addForm.section}
+                  onChange={(e) => setAddForm((f) => ({ ...f, section: e.target.value }))}
+                  placeholder="e.g. A"
+                />
+              </div>
+            </div>
+
+            <div className="mb-3">
+              <label className="admin-modal-label">Temporary Password *</label>
+              <input
+                required
+                type="password"
+                className="form-control form-control-sm"
+                value={addForm.password}
+                onChange={(e) => setAddForm((f) => ({ ...f, password: e.target.value }))}
+                placeholder="At least 8 characters"
+                minLength={8}
+              />
+            </div>
+
+            <div className="admin-modal-buttons">
+              <Button variant="secondary" onClick={() => setShowAddModal(false)}>
+                Cancel
+              </Button>
+              <Button variant="primary" type="submit" disabled={modalSubmitting}>
+                {modalSubmitting ? 'Creating…' : 'Create User'}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* Edit Profile Modal */}
       {showEditModal && selectedUser && (
         <Modal
           show={showEditModal}
@@ -1151,12 +1247,12 @@ const UserManagementPage = () => {
             setShowEditModal(false);
             setSelectedUser(null);
           }}
-          title="Edit profile"
+          title="Edit Profile"
         >
           <div className="admin-edit-profile-form">
             <div className="row g-2 mb-2">
               <div className="col-md-6">
-                <label className="admin-modal-label">First name</label>
+                <label className="admin-modal-label">First Name</label>
                 <input
                   className="form-control form-control-sm"
                   value={editForm.first_name}
@@ -1164,7 +1260,7 @@ const UserManagementPage = () => {
                 />
               </div>
               <div className="col-md-6">
-                <label className="admin-modal-label">Last name</label>
+                <label className="admin-modal-label">Last Name</label>
                 <input
                   className="form-control form-control-sm"
                   value={editForm.last_name}
@@ -1173,7 +1269,7 @@ const UserManagementPage = () => {
               </div>
             </div>
             <div className="mb-2">
-              <label className="admin-modal-label">Middle name</label>
+              <label className="admin-modal-label">Middle Name</label>
               <input
                 className="form-control form-control-sm"
                 value={editForm.middle_name}
@@ -1194,7 +1290,14 @@ const UserManagementPage = () => {
                 <select
                   className="admin-modal-select"
                   value={editForm.department_code}
-                  onChange={handleEditDepartmentChange}
+                  onChange={async (e) => {
+                    const code = e.target.value;
+                    setEditForm((f) => ({ ...f, department_code: code, course_code: '' }));
+                    if (code) {
+                      const cr = await authService.getCoursesByDepartment(code);
+                      setEditCourses(cr.data || []);
+                    }
+                  }}
                 >
                   <option value="">—</option>
                   {editDepartments.map((d) => (
@@ -1221,7 +1324,7 @@ const UserManagementPage = () => {
               </div>
             </div>
             <div className="mb-2">
-              <label className="admin-modal-label">Year level</label>
+              <label className="admin-modal-label">Year Level</label>
               <select
                 className="admin-modal-select"
                 value={editForm.year_level}
@@ -1232,7 +1335,6 @@ const UserManagementPage = () => {
                 <option value="2">2</option>
                 <option value="3">3</option>
                 <option value="4">4</option>
-                <option value="5">5</option>
               </select>
             </div>
             <div className="mb-2">
@@ -1242,7 +1344,6 @@ const UserManagementPage = () => {
                 value={editForm.section}
                 onChange={(e) => setEditForm((f) => ({ ...f, section: e.target.value }))}
                 maxLength={50}
-                placeholder="e.g. A, B"
               />
             </div>
             <div className="mb-3 form-check">
@@ -1301,7 +1402,10 @@ const UserManagementPage = () => {
                   {generatedPassword}
                 </code>
                 <button
-                  onClick={handleCopyPassword}
+                  onClick={() => {
+                    navigator.clipboard.writeText(generatedPassword);
+                    setPasswordCopied(true);
+                  }}
                   className={`admin-password-copy-btn ${passwordCopied ? 'admin-password-copy-btn-success' : 'admin-password-copy-btn-primary'}`}
                   title="Copy to clipboard"
                 >
@@ -1309,19 +1413,6 @@ const UserManagementPage = () => {
                   {passwordCopied ? 'Copied!' : 'Copy'}
                 </button>
               </div>
-            </div>
-
-            <div className="admin-modal-warning-box">
-              <p className="admin-modal-warning-text">
-                <strong>⚠️ Important:</strong> Make sure to copy this password and share it securely with the user. 
-                This password will only be shown once and follows the format:
-              </p>
-              <ul className="admin-modal-warning-list">
-                <li>8 characters long</li>
-                <li>Contains lowercase letters (a-z)</li>
-                <li>Contains uppercase letters (A-Z)</li>
-                <li>Contains numbers (0-9)</li>
-              </ul>
             </div>
           </div>
           
@@ -1331,8 +1422,6 @@ const UserManagementPage = () => {
               onClick={() => {
                 setShowPasswordModal(false);
                 setSelectedUser(null);
-                setGeneratedPassword('');
-                setPasswordCopied(false);
               }}
             >
               Cancel
@@ -1340,7 +1429,7 @@ const UserManagementPage = () => {
             <Button 
               variant="primary" 
               onClick={handleConfirmPasswordReset}
-              disabled={modalSubmitting || !generatedPassword || generatedPassword.length < 8}
+              disabled={modalSubmitting}
             >
               {modalSubmitting ? 'Resetting...' : 'Confirm Reset'}
             </Button>
@@ -1348,86 +1437,7 @@ const UserManagementPage = () => {
         </Modal>
       )}
 
-      {/* Role Management Modal */}
-      {showRoleModal && (
-        <Modal
-          show={showRoleModal}
-          onClose={() => {
-            setShowRoleModal(false);
-            setSelectedUser(null);
-            setSelectedRole('');
-          }}
-          title="Change User Role"
-        >
-          <div>
-            <p style={{ marginBottom: '1rem' }}>
-              Change role for <strong>{selectedUser?.user?.first_name} {selectedUser?.user?.last_name}</strong>
-            </p>
-            
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label className="admin-modal-label">
-                Select Role
-              </label>
-              <select
-                value={selectedRole}
-                onChange={(e) => setSelectedRole(e.target.value)}
-                className="admin-modal-select"
-              >
-                <option value="student">Student</option>
-                <option value="staff">Staff</option>
-                <option value="admin">Admin</option>
-              </select>
-            </div>
-
-            <div className="admin-modal-info-box-blue">
-              <p className="admin-modal-info-text-blue">
-                <strong>Role Permissions:</strong><br />
-                <strong>Student:</strong> Can vote and apply as candidate<br />
-                <strong>Staff:</strong> Can manage elections, applications, and view results<br />
-                <strong>Admin:</strong> Full system access including user management
-              </p>
-            </div>
-          </div>
-          
-          <div className="admin-modal-buttons">
-            <Button 
-              variant="secondary" 
-              onClick={() => {
-                setShowRoleModal(false);
-                setSelectedUser(null);
-                setSelectedRole('');
-              }}
-            >
-              Cancel
-            </Button>
-            <Button 
-              variant="primary" 
-              disabled={modalSubmitting}
-              onClick={async () => {
-                if (modalSubmitting) return;
-                try {
-                  setModalSubmitting(true);
-                  await authService.updateUserRole(selectedUser.id, selectedRole);
-                  alert(`User role updated to ${selectedRole} successfully`);
-                  setShowRoleModal(false);
-                  setSelectedUser(null);
-                  setSelectedRole('');
-                  await fetchUsers();
-                } catch (error) {
-                  console.error('Error updating role:', error);
-                  alert(error.response?.data?.error || 'Failed to update role. Please try again.');
-                } finally {
-                  setModalSubmitting(false);
-                }
-              }}
-            >
-              {modalSubmitting ? 'Updating...' : 'Update Role'}
-            </Button>
-          </div>
-        </Modal>
-      )}
-
-      {/* Delete Confirmation Modal */}
+      {/* Single Archive/Delete Confirmation Modal */}
       {showDeleteModal && (
         <Modal
           show={showDeleteModal}
@@ -1435,10 +1445,11 @@ const UserManagementPage = () => {
             setShowDeleteModal(false);
             setSelectedUser(null);
           }}
-          title="Delete User"
+          title="Toggle User Status"
         >
-          <p>Are you sure you want to delete <strong>{selectedUser?.user?.first_name} {selectedUser?.user?.last_name}</strong>?</p>
-          <p className="admin-modal-danger-text">This action cannot be undone.</p>
+          <p>
+            Are you sure you want to {selectedUser?.user?.is_active ? 'deactivate/archive' : 'reactivate'} <strong>{selectedUser?.user?.first_name} {selectedUser?.user?.last_name}</strong>?
+          </p>
           
           <div className="admin-modal-buttons">
             <Button 
@@ -1455,7 +1466,36 @@ const UserManagementPage = () => {
               onClick={handleDeleteUser}
               disabled={modalSubmitting}
             >
-              {modalSubmitting ? 'Deleting...' : 'Delete User'}
+              {modalSubmitting ? 'Updating...' : 'Confirm'}
+            </Button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Bulk Archive Modal */}
+      {showBulkDeleteModal && (
+        <Modal
+          show={showBulkDeleteModal}
+          onClose={() => setShowBulkDeleteModal(false)}
+          title="Archive Selected Users"
+        >
+          <p>
+            Are you sure you want to archive / toggle active status for <strong>{selectedUserIds.length}</strong> selected users?
+          </p>
+          
+          <div className="admin-modal-buttons">
+            <Button 
+              variant="secondary" 
+              onClick={() => setShowBulkDeleteModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="danger" 
+              onClick={handleBulkArchive}
+              disabled={modalSubmitting}
+            >
+              {modalSubmitting ? 'Archiving...' : 'Archive Selected'}
             </Button>
           </div>
         </Modal>

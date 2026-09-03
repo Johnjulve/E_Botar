@@ -235,39 +235,40 @@ class VoteReceiptAuditSerializer(serializers.ModelSerializer):
             return 'verified'
         return 'hash_mismatch'
 
-    def _first_vote_block(self, obj):
-        if hasattr(obj, '_cached_first_vote_block'):
-            return obj._cached_first_vote_block
+    def _ballot_blocks(self, obj):
+        if hasattr(obj, '_cached_ballot_blocks'):
+            return obj._cached_ballot_blocks
 
         ballot = getattr(obj, 'ballot', None)
         if ballot is None:
-            obj._cached_first_vote_block = None
-            return None
+            obj._cached_ballot_blocks = (None, None)
+            return obj._cached_ballot_blocks
 
-        # Check if choices are already prefetched to avoid extra SQL queries
+        blocks = []
         if hasattr(ballot, '_prefetched_objects_cache') and 'choices' in ballot._prefetched_objects_cache:
-            choices = sorted(ballot.choices.all(), key=lambda c: c.id)
-            if not choices:
-                obj._cached_first_vote_block = None
-                return None
-            first_choice = choices[0]
-            if hasattr(first_choice, '_prefetched_objects_cache') and 'vote_blocks' in first_choice._prefetched_objects_cache:
-                blocks = sorted(first_choice.vote_blocks.all(), key=lambda b: b.block_index)
-                obj._cached_first_vote_block = blocks[0] if blocks else None
-                return obj._cached_first_vote_block
+            for choice in ballot.choices.all():
+                if hasattr(choice, '_prefetched_objects_cache') and 'vote_blocks' in choice._prefetched_objects_cache:
+                    blocks.extend(choice.vote_blocks.all())
+                else:
+                    blocks.extend(list(choice.vote_blocks.all()))
+        else:
+            from apps.voting.models import VoteBlock
+            blocks = list(VoteBlock.objects.filter(vote_choice__ballot=ballot).order_by('block_index'))
 
-        first_choice = ballot.choices.order_by('id').first()
-        if first_choice is None:
-            obj._cached_first_vote_block = None
-            return None
-        obj._cached_first_vote_block = first_choice.vote_blocks.order_by('block_index').first()
-        return obj._cached_first_vote_block
+        if not blocks:
+            obj._cached_ballot_blocks = (None, None)
+            return obj._cached_ballot_blocks
+
+        blocks.sort(key=lambda b: b.block_index)
+        obj._cached_ballot_blocks = (blocks[0], blocks[-1])
+        return obj._cached_ballot_blocks
 
     def get_block_hash(self, obj):
-        block = self._first_vote_block(obj)
-        return block.current_hash if block else None
+        _first_block, last_block = self._ballot_blocks(obj)
+        return last_block.current_hash if last_block else None
 
     def get_previous_hash(self, obj):
-        block = self._first_vote_block(obj)
-        return block.previous_hash if block else None
+        first_block, _last_block = self._ballot_blocks(obj)
+        return first_block.previous_hash if first_block else None
+
 

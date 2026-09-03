@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.0] - 2026-09-02
+
+### Added
+- **Modern Unified Admin Dashboard & Table Design System**:
+  - Standardized modern dashboard controls across [`UserManagementPage.jsx`](frontend/src/modules/admin/pages/UserManagementPage.jsx) and [`ReceiptAuditPage.jsx`](frontend/src/modules/admin/pages/ReceiptAuditPage.jsx), consolidated under [`frontend/src/modules/admin/admin.css`](frontend/src/modules/admin/admin.css).
+  - **Unified Search & Filter Toolbar**: Search pill with instant debounce and clear button, multi-select dropdown pills (`Course ▼`, `Year Level ▼`, `Role ▼`, `Election ▼`, `Vote Status ▼`) featuring live subtext tags (`Selected: ...`), and collapsible advanced filters with active count badge.
+  - **5-Card Admin Summary Metric Bar**: Responsive summary stat cards (`Total Users`, `Administrators`, `Staff`, `Students`, `Verified`) with interactive category filtering.
+  - **Card Table Layout**: Rounded table containers (`.admin-users-table-container`) with hover highlights, circular avatar cells displaying period-free initials (e.g. `AC`, `PC`, `VA`), soft-tinted status/role pills (`Administrator`, `Staff`, `Student`, `Active`, `Inactive`, `Verified`, `Missing Ballot`, `Hash Mismatch`), and square outline action buttons (Edit, Reset/Lock, Delete/Archive, Reveal Hash/Receipt).
+  - **Modular Table Footer & Pagination**: Configurable page-size selector (`Show [ 10/20/50/100 ▼ ] entries`) with numeric pagination (`< Previous [1][2][3] Next >`).
+  - **Add User & Multi-Select User Management**: Integrated administrative Add User modal form and multi-row selection with bulk archive/deactivation support.
+- **Custom SVG Icons Expansion**: Added `sliders` and `archive` vector icons to [`frontend/src/components/common/Icon.jsx`](frontend/src/components/common/Icon.jsx).
+
+### Fixed & Improved
+- **Blockchain Audit Hash Linkage Alignment (`VoteReceiptAuditSerializer`)**:
+  - Resolved an audit table mismatch where a student's displayed block hash did not match the next voter's previous hash in multi-position elections.
+  - Replaced single-choice block lookup with `_ballot_blocks`, returning the ballot's entry `previous_hash` (the blockchain state immediately prior to ballot casting) and the ballot's terminal `current_hash` (the resulting blockchain state after all positions on the ballot are appended).
+  - Ensured seamless 1-to-1 cryptographic linkage across consecutive voter rows in [`ReceiptAuditPage.jsx`](frontend/src/modules/admin/pages/ReceiptAuditPage.jsx) while preserving full zero-knowledge audit integrity.
+- **Receipt Audit Blank Page Crash**: Resolved a runtime `ReferenceError: Icon is not defined` in [`frontend/src/modules/admin/pages/ReceiptAuditPage.jsx`](frontend/src/modules/admin/pages/ReceiptAuditPage.jsx) by adding missing component imports and setting valid SVG icon identifiers.
+- **CSS Isolation & Lazy-Loaded Route Leaks**:
+  - Scoped module stylesheets to their respective root containers to prevent global CSS bleeding under route-level code splitting:
+    - Scoped `results.css` under `.results-page`
+    - Scoped `elections.css` under `.elections-page` and `.election-details-page`
+    - Scoped `candidates.css` under `.candidates-list-page` and `.candidate-profile-page`
+    - Scoped `applications.css` under `.applications-page` and `.application-form-page`
+  - Resolved candidate grid and card collision bugs when navigating between Elections, Candidates, and Results pages.
+- **Election Results Horizontal Card Grid Standardization**:
+  - Standardized `.results-page .candidates-list` into a multi-column horizontal responsive grid layout (`repeat(auto-fill, minmax(280px, 1fr))`) in [`frontend/src/modules/results/pages/results.css`](frontend/src/modules/results/pages/results.css).
+  - Added golden winner card highlights, emerald runner-up percentage meters, left-aligned `AutoFitText` candidate names, and uppercase total vote metrics.
+- **Responsive Navbar Offcanvas Drawer Dual-Display Bug**:
+  - Fixed an issue where resizing the browser across the 992px breakpoint caused both the desktop sidebar and mobile offcanvas menu to render simultaneously.
+  - Added resize event listener and route change auto-close hooks in [`frontend/src/components/layout/Navbar.jsx`](frontend/src/components/layout/Navbar.jsx).
+  - Enforced strict `@media (min-width: 992px) { .offcanvas.offcanvas-end, .offcanvas-backdrop { display: none !important; } }` in [`frontend/src/assets/styles/global/layout.css`](frontend/src/assets/styles/global/layout.css).
+
 ## [3.2.0] - 2026-08-31
 
 ### Added

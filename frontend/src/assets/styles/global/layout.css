@@ -947,6 +947,11 @@
     display: block;
   }
 
+  .offcanvas.offcanvas-end,
+  .offcanvas-backdrop {
+    display: none !important;
+  }
+
   .main-content {
     margin-left: 300px;
     width: calc(100% - 300px);

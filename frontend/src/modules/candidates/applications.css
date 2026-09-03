@@ -1,12 +1,15 @@
-/* Applications Pages Styles */
+/* ============================================
+   Applications Module Styles
+   Scoped strictly under .applications-page and .application-form-page
+   ============================================ */
 
-/* My Applications Page */
+/* ==================== My Applications Page ==================== */
 .applications-page {
   padding: 2rem 0;
   min-height: calc(100vh - 200px);
 }
 
-.applications-header {
+.applications-page .applications-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -17,20 +20,20 @@
   flex-wrap: wrap;
 }
 
-.applications-header-content h1 {
+.applications-page .applications-header-content h1 {
   font-size: var(--font-size-2xl);
   font-weight: 700;
   color: var(--text-primary);
   margin: 0 0 0.5rem 0;
 }
 
-.applications-header-content p {
+.applications-page .applications-header-content p {
   font-size: var(--font-size-base);
   color: var(--text-muted);
   margin: 0;
 }
 
-.new-application-btn {
+.applications-page .new-application-btn {
   display: inline-flex;
   align-items: center;
   gap: var(--spacing-sm);
@@ -43,19 +46,19 @@
   font-size: 0.95rem;
 }
 
-.new-application-btn:hover {
+.applications-page .new-application-btn:hover {
   background: var(--brand-green-dark);
   color: var(--white);
 }
 
 /* Applications Grid */
-.applications-grid {
+.applications-page .applications-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
   gap: 1.5rem;
 }
 
-.application-card {
+.applications-page .application-card {
   background: var(--card-bg);
   border-radius: var(--radius-xl);
   padding: var(--spacing-lg);
@@ -65,7 +68,7 @@
   gap: var(--spacing-md);
 }
 
-.application-card-header {
+.applications-page .application-card-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -73,12 +76,12 @@
   margin-bottom: 0.5rem;
 }
 
-.application-card-title {
+.applications-page .application-card-title {
   flex: 1;
   min-width: 0;
 }
 
-.application-card-title h3 {
+.applications-page .application-card-title h3 {
   font-size: var(--font-size-lg);
   font-weight: 700;
   color: var(--text-primary);
@@ -88,7 +91,7 @@
   line-height: 1.4;
 }
 
-.application-card-title p {
+.applications-page .application-card-title p {
   font-size: var(--font-size-sm);
   color: var(--text-muted);
   margin: 0;
@@ -97,7 +100,7 @@
   line-height: 1.4;
 }
 
-.status-badge {
+.applications-page .status-badge {
   padding: 0.35rem 0.75rem;
   border-radius: var(--radius-md);
   font-size: 0.85rem;
@@ -107,33 +110,33 @@
   align-self: flex-start;
 }
 
-.status-badge.pending {
+.applications-page .status-badge.pending {
   background: var(--warning-soft-bg);
   color: var(--warning-soft-text);
 }
 
-.status-badge.approved {
+.applications-page .status-badge.approved {
   background: var(--success-soft-bg);
   color: var(--success-soft-text);
 }
 
-.status-badge.rejected {
+.applications-page .status-badge.rejected {
   background: var(--danger-soft-bg);
   color: var(--danger-soft-text);
 }
 
-.status-badge.withdrawn {
+.applications-page .status-badge.withdrawn {
   background: var(--gray-100);
   color: var(--gray-600);
 }
 
-.application-info {
+.applications-page .application-info {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
 }
 
-.info-row {
+.applications-page .info-row {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
@@ -141,17 +144,17 @@
   color: var(--gray-700);
 }
 
-.info-row svg {
+.applications-page .info-row svg {
   color: var(--text-muted);
   flex-shrink: 0;
 }
 
-.info-section {
+.applications-page .info-section {
   padding-top: 0.75rem;
   border-top: 1px solid var(--border-color);
 }
 
-.info-section-label {
+.applications-page .info-section-label {
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--text-muted);
@@ -160,12 +163,12 @@
   margin-bottom: var(--spacing-sm);
 }
 
-.info-section-content {
+.applications-page .info-section-content {
   font-size: 0.95rem;
   color: var(--text-primary);
 }
 
-.manifesto-preview {
+.applications-page .manifesto-preview {
   font-size: 0.9rem;
   color: var(--text-muted);
   line-height: 1.5;
@@ -173,15 +176,15 @@
   overflow: hidden;
 }
 
-.application-actions {
+.applications-page .application-actions {
   display: flex;
   gap: 0.75rem;
   margin-top: 0.5rem;
   flex-wrap: wrap;
 }
 
-.btn-withdraw,
-.btn-view-profile {
+.applications-page .btn-withdraw,
+.applications-page .btn-view-profile {
   flex: 1 1 auto;
   min-width: 140px;
   display: inline-flex;
@@ -198,31 +201,58 @@
   white-space: nowrap;
 }
 
-.btn-withdraw {
+.applications-page .btn-withdraw {
   background: var(--danger-soft-bg);
   color: var(--danger-soft-text);
   border: 2px solid var(--danger-soft-border);
 }
 
-.btn-withdraw:hover {
+.applications-page .btn-withdraw:hover {
   background: var(--danger-soft-border);
   border-color: var(--danger-soft-border-strong);
 }
 
-.btn-view-profile {
+.applications-page .btn-view-profile {
   background: var(--success-soft-bg);
   color: var(--success-soft-text);
   border: 2px solid var(--success-soft-border);
 }
 
-.btn-view-profile:hover {
+.applications-page .btn-view-profile:hover {
   background: var(--success-soft-border);
   border-color: var(--success-soft-border-strong);
   color: var(--success-soft-text);
 }
 
+.applications-page .alert-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: var(--spacing-md) 1.25rem;
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--spacing-lg);
+  font-weight: 500;
+}
+
+.applications-page .alert-message.error {
+  background: var(--danger-soft-bg);
+  color: var(--danger-soft-text);
+  border: 1px solid var(--danger-soft-border);
+}
+
+.applications-page .alert-close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.7;
+}
+
 /* Empty State */
-.empty-state {
+.applications-page .empty-state {
   text-align: center;
   padding: 4rem 2rem;
   background: var(--card-bg);
@@ -230,20 +260,20 @@
   box-shadow: var(--shadow-sm);
 }
 
-.empty-state-icon {
+.applications-page .empty-state-icon {
   font-size: 4rem;
   color: var(--gray-300);
   margin-bottom: var(--spacing-lg);
 }
 
-.empty-state h2 {
+.applications-page .empty-state h2 {
   font-size: var(--font-size-2xl);
   font-weight: 700;
   color: var(--text-primary);
   margin-bottom: 0.75rem;
 }
 
-.empty-state p {
+.applications-page .empty-state p {
   font-size: var(--font-size-base);
   color: var(--text-muted);
   margin-bottom: 2rem;
@@ -252,7 +282,7 @@
   margin-right: auto;
 }
 
-.empty-state-action {
+.applications-page .empty-state-action {
   display: inline-flex;
   align-items: center;
   gap: var(--spacing-sm);
@@ -265,30 +295,30 @@
   font-size: var(--font-size-base);
 }
 
-.empty-state-action:hover {
+.applications-page .empty-state-action:hover {
   background: var(--brand-green-dark);
   color: var(--white);
 }
 
-/* Application Form Page */
+/* ==================== Application Form Page ==================== */
 .application-form-page {
   padding: 2rem 0;
   min-height: calc(100vh - 200px);
 }
 
-.form-container {
+.application-form-page .form-container {
   max-width: 800px;
   margin: 0 auto;
 }
 
-.form-card {
+.application-form-page .form-card {
   background: var(--card-bg);
   border-radius: var(--radius-xl);
   padding: 2.5rem;
   box-shadow: var(--shadow-sm);
 }
 
-.form-card h2 {
+.application-form-page .form-card h2 {
   font-size: 1.75rem;
   font-weight: 700;
   color: var(--text-primary);
@@ -297,7 +327,7 @@
   border-bottom: 2px solid var(--border-color);
 }
 
-.alert-message {
+.application-form-page .alert-message {
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
@@ -307,35 +337,35 @@
   font-weight: 500;
 }
 
-.alert-message.error {
+.application-form-page .alert-message.error {
   background: var(--danger-soft-bg);
   color: var(--danger-soft-text);
   border: 1px solid var(--danger-soft-border);
 }
 
-.alert-message.info {
+.application-form-page .alert-message.info {
   background: var(--info-soft-bg);
   color: var(--info-soft-text);
   border: 1px solid var(--info-soft-border);
 }
 
-.alert-message.warning {
+.application-form-page .alert-message.warning {
   background: var(--warning-soft-bg);
   border: 1px solid var(--warning-soft-border);
   color: var(--warning-soft-text);
   margin-bottom: var(--spacing-lg);
 }
 
-.alert-message-content {
+.application-form-page .alert-message-content {
   flex: 1;
 }
 
-.alert-message-content p {
+.application-form-page .alert-message-content p {
   margin: 0.5rem 0 0 0;
   font-size: 0.9rem;
 }
 
-.alert-message-link {
+.application-form-page .alert-message-link {
   display: inline-block;
   margin-top: var(--spacing-sm);
   color: var(--warning-soft-text);
@@ -343,7 +373,7 @@
   font-weight: 600;
 }
 
-.alert-close {
+.application-form-page .alert-close {
   margin-left: auto;
   background: none;
   border: none;
@@ -354,15 +384,15 @@
   opacity: 0.7;
 }
 
-.alert-close:hover {
+.application-form-page .alert-close:hover {
   opacity: 1;
 }
 
-.form-group {
+.application-form-page .form-group {
   margin-bottom: 1.5rem;
 }
 
-.form-label {
+.application-form-page .form-label {
   display: block;
   font-size: 0.95rem;
   font-weight: 600;
@@ -370,20 +400,20 @@
   margin-bottom: var(--spacing-sm);
 }
 
-.form-label .required {
+.application-form-page .form-label .required {
   color: var(--danger-color);
   margin-left: var(--spacing-xs);
 }
 
-.form-label .optional {
+.application-form-page .form-label .optional {
   color: var(--gray-400);
   font-weight: 400;
   margin-left: var(--spacing-xs);
 }
 
-.form-select,
-.form-input,
-.form-textarea {
+.application-form-page .form-select,
+.application-form-page .form-input,
+.application-form-page .form-textarea {
   width: 100%;
   padding: 0.75rem var(--spacing-md);
   border: 2px solid var(--border-color);
@@ -393,48 +423,48 @@
   background: var(--white);
 }
 
-.form-select:focus,
-.form-input:focus,
-.form-textarea:focus {
+.application-form-page .form-select:focus,
+.application-form-page .form-input:focus,
+.application-form-page .form-textarea:focus {
   outline: none;
   border-color: var(--brand-green);
 }
 
-.form-select:disabled,
-.form-input:disabled,
-.form-textarea:disabled {
+.application-form-page .form-select:disabled,
+.application-form-page .form-input:disabled,
+.application-form-page .form-textarea:disabled {
   background: var(--gray-100);
   color: var(--gray-400);
   cursor: not-allowed;
 }
 
-.form-select.error,
-.form-input.error,
-.form-textarea.error {
+.application-form-page .form-select.error,
+.application-form-page .form-input.error,
+.application-form-page .form-textarea.error {
   border-color: var(--danger-color);
 }
 
-.form-error {
+.application-form-page .form-error {
   display: block;
   font-size: var(--font-size-sm);
   color: var(--danger-color);
   margin-top: var(--spacing-sm);
 }
 
-.form-help {
+.application-form-page .form-help {
   display: block;
   font-size: var(--font-size-sm);
   color: var(--text-muted);
   margin-top: var(--spacing-sm);
 }
 
-.form-textarea {
+.application-form-page .form-textarea {
   resize: vertical;
   min-height: 150px;
   font-family: inherit;
 }
 
-.character-count {
+.application-form-page .character-count {
   display: block;
   font-size: var(--font-size-sm);
   color: var(--text-muted);
@@ -442,7 +472,7 @@
   text-align: right;
 }
 
-.form-actions {
+.application-form-page .form-actions {
   display: flex;
   gap: var(--spacing-md);
   margin-top: 2rem;
@@ -450,8 +480,8 @@
   border-top: 1px solid var(--border-color);
 }
 
-.btn-cancel,
-.btn-submit {
+.application-form-page .btn-cancel,
+.application-form-page .btn-submit {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -465,33 +495,33 @@
   text-decoration: none;
 }
 
-.btn-cancel {
+.application-form-page .btn-cancel {
   background: var(--gray-100);
   color: var(--gray-700);
   border: 2px solid var(--border-color);
 }
 
-.btn-cancel:hover:not(:disabled) {
+.application-form-page .btn-cancel:hover:not(:disabled) {
   background: var(--gray-200);
 }
 
-.btn-submit {
+.application-form-page .btn-submit {
   flex: 1;
   background: var(--brand-green);
   color: var(--white);
 }
 
-.btn-submit:hover:not(:disabled) {
+.application-form-page .btn-submit:hover:not(:disabled) {
   background: var(--brand-green-dark);
 }
 
-.btn-submit:disabled,
-.btn-cancel:disabled {
+.application-form-page .btn-submit:disabled,
+.application-form-page .btn-cancel:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.spinner {
+.application-form-page .spinner {
   width: 18px;
   height: 18px;
   border: 2px solid rgba(255, 255, 255, 0.3);
@@ -500,14 +530,8 @@
   animation: spin 0.6s linear infinite;
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 /* Success State */
-.success-state {
+.application-form-page .success-state {
   text-align: center;
   padding: 4rem 2rem;
   background: var(--card-bg);
@@ -517,27 +541,26 @@
   margin: 0 auto;
 }
 
-.success-icon {
+.application-form-page .success-icon {
   font-size: 5rem;
   color: var(--success-color);
   margin-bottom: var(--spacing-lg);
 }
 
-.success-state h2 {
+.application-form-page .success-state h2 {
   font-size: var(--font-size-2xl);
   font-weight: 700;
   color: var(--text-primary);
   margin-bottom: var(--spacing-md);
 }
 
-.success-state p {
+.application-form-page .success-state p {
   font-size: var(--font-size-lg);
   color: var(--text-muted);
   margin-bottom: var(--spacing-sm);
 }
 
-/* Modal — all selectors scoped under .modal-overlay so we do not override Bootstrap
-   .modal-content / .modal-header / .modal-body (e.g. admin party & position dialogs). */
+/* Modal */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -637,50 +660,50 @@
 
 /* Responsive */
 @media (max-width: 768px) {
-  .applications-header {
+  .applications-page .applications-header {
     flex-direction: column;
     align-items: stretch;
     gap: 1rem;
   }
 
-  .new-application-btn {
+  .applications-page .new-application-btn {
     width: 100%;
     justify-content: center;
   }
 
-  .applications-grid {
+  .applications-page .applications-grid {
     grid-template-columns: 1fr;
   }
 
-  .application-card-header {
+  .applications-page .application-card-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.75rem;
   }
 
-  .status-badge {
+  .applications-page .status-badge {
     align-self: flex-start;
   }
 
-  .application-actions {
+  .applications-page .application-actions {
     flex-direction: column;
   }
 
-  .btn-withdraw,
-  .btn-view-profile {
+  .applications-page .btn-withdraw,
+  .applications-page .btn-view-profile {
     width: 100%;
   }
 
-  .form-card {
+  .application-form-page .form-card {
     padding: 1.5rem;
   }
 
-  .form-actions {
+  .application-form-page .form-actions {
     flex-direction: column-reverse;
   }
 
-  .btn-cancel,
-  .btn-submit {
+  .application-form-page .btn-cancel,
+  .application-form-page .btn-submit {
     width: 100%;
   }
 
@@ -704,12 +727,12 @@
     padding: 1rem 0;
   }
 
-  .applications-header-content h1,
-  .form-card h2 {
+  .applications-page .applications-header-content h1,
+  .application-form-page .form-card h2 {
     font-size: 1.5rem;
   }
 
-  .application-card {
+  .applications-page .application-card {
     padding: 1.25rem;
   }
 }

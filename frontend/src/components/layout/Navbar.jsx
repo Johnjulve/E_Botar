@@ -91,6 +91,28 @@ const Navbar = () => {
     }
   }, []);
 
+  // Auto-close mobile menu when resizing to desktop (>= 992px)
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(min-width: 992px)');
+    const handleMediaChange = (e) => {
+      if (e.matches) {
+        setShowMenu(false);
+      }
+    };
+
+    if (mediaQuery.matches) {
+      setShowMenu(false);
+    }
+
+    mediaQuery.addEventListener('change', handleMediaChange);
+    return () => mediaQuery.removeEventListener('change', handleMediaChange);
+  }, []);
+
+  // Auto-close mobile menu on route changes
+  useEffect(() => {
+    setShowMenu(false);
+  }, [location.pathname]);
+
   const handleLogout = useCallback(() => {
     logout();
     navigate('/login');

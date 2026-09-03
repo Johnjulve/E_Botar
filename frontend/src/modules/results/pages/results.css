@@ -1,9 +1,7 @@
 /**
  * Modern Results Page Styles
- * Clean, professional design with smooth animations
- * 
- * Note: Foundation (variables, resets, typography) and global components
- * are loaded at app level in main.jsx. Only module-specific styles here.
+ * Horizontal grid card layout matching user specifications
+ * Scoped strictly under .results-page to prevent cross-module collisions.
  */
 
 .results-page {
@@ -13,7 +11,7 @@
 }
 
 /* Header Section */
-.results-header {
+.results-page .results-header {
   background: linear-gradient(135deg, var(--brand-green) 0%, var(--brand-green-dark) 100%);
   color: var(--white);
   padding: 2.5rem 0;
@@ -22,20 +20,20 @@
   border-radius: var(--radius-2xl);
 }
 
-.results-header-content {
+.results-page .results-header-content {
   max-width: 1500px;
   margin: 0 auto;
   padding: 0 var(--spacing-lg);
 }
 
-.results-header-top {
+.results-page .results-header-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: var(--spacing-lg);
 }
 
-.back-link {
+.results-page .back-link {
   display: inline-flex;
   align-items: center;
   gap: var(--spacing-sm);
@@ -49,13 +47,13 @@
   transition: all var(--transition-base);
 }
 
-.back-link:hover {
+.results-page .back-link:hover {
   background: color-mix(in srgb, var(--white) 20%, transparent);
   color: var(--white);
   transform: translateX(-4px);
 }
 
-.live-badge {
+.results-page .live-badge {
   display: inline-flex;
   align-items: center;
   gap: var(--spacing-sm);
@@ -69,7 +67,7 @@
   box-shadow: var(--shadow-md);
 }
 
-.live-indicator {
+.results-page .live-indicator {
   width: 8px;
   height: 8px;
   background: var(--white);
@@ -82,7 +80,7 @@
   50% { opacity: 0.5; transform: scale(1.2); }
 }
 
-.ended-badge {
+.results-page .ended-badge {
   display: inline-flex;
   align-items: center;
   gap: var(--spacing-sm);
@@ -95,7 +93,7 @@
   letter-spacing: 0.5px;
 }
 
-.results-title {
+.results-page .results-title {
   font-size: var(--font-size-4xl);
   font-weight: 800;
   margin: 0 0 var(--spacing-sm) 0;
@@ -103,21 +101,21 @@
   text-shadow: var(--shadow-xs);
 }
 
-.results-subtitle {
+.results-page .results-subtitle {
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-medium);
   margin: 0;
   opacity: 0.9;
 }
 
-.results-header-controls {
+.results-page .results-header-controls {
   display: flex;
   gap: var(--spacing-md);
   align-items: center;
   flex-wrap: wrap;
 }
 
-.auto-refresh-control {
+.results-page .auto-refresh-control {
   display: inline-flex;
   align-items: center;
   gap: 0.75rem;
@@ -128,11 +126,11 @@
   font-size: var(--font-size-sm);
 }
 
-.auto-refresh-control svg {
+.results-page .auto-refresh-control svg {
   flex-shrink: 0;
 }
 
-.auto-refresh-control svg.spinning {
+.results-page .auto-refresh-control svg.spinning {
   animation: spin 2s linear infinite;
 }
 
@@ -141,7 +139,7 @@
   to { transform: rotate(360deg); }
 }
 
-.refresh-toggle {
+.results-page .refresh-toggle {
   background: color-mix(in srgb, var(--white) 20%, transparent);
   border: 1px solid color-mix(in srgb, var(--white) 30%, transparent);
   color: var(--white);
@@ -153,20 +151,20 @@
   transition: all var(--transition-base);
 }
 
-.refresh-toggle:hover {
+.results-page .refresh-toggle:hover {
   background: color-mix(in srgb, var(--white) 30%, transparent);
   border-color: color-mix(in srgb, var(--white) 50%, transparent);
 }
 
 /* Statistics Grid */
-.stats-grid {
+.results-page .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: var(--spacing-lg);
   margin-bottom: 2.5rem;
 }
 
-.stat-card {
+.results-page .stat-card {
   background: var(--card-bg);
   border-radius: var(--radius-2xl);
   padding: 1.75rem;
@@ -178,44 +176,44 @@
   border: 2px solid transparent;
 }
 
-.stat-card:hover {
+.results-page .stat-card:hover {
   transform: translateY(-4px);
   box-shadow: var(--shadow-lg);
 }
 
-.stat-card.voters {
+.results-page .stat-card.voters {
   border-color: var(--primary-color);
 }
 
-.stat-card.voters .stat-icon {
+.results-page .stat-card.voters .stat-icon {
   background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
 }
 
-.stat-card.votes {
+.results-page .stat-card.votes {
   border-color: var(--success-color);
 }
 
-.stat-card.votes .stat-icon {
+.results-page .stat-card.votes .stat-icon {
   background: linear-gradient(135deg, var(--success-color) 0%, var(--success-hover) 100%);
 }
 
-.stat-card.positions {
+.results-page .stat-card.positions {
   border-color: var(--info-color);
 }
 
-.stat-card.positions .stat-icon {
+.results-page .stat-card.positions .stat-icon {
   background: linear-gradient(135deg, var(--info-color) 0%, var(--info-hover) 100%);
 }
 
-.stat-card.turnout {
+.results-page .stat-card.turnout {
   border-color: var(--warning-color);
 }
 
-.stat-card.turnout .stat-icon {
+.results-page .stat-card.turnout .stat-icon {
   background: linear-gradient(135deg, var(--warning-color) 0%, var(--warning-hover) 100%);
 }
 
-.stat-icon {
+.results-page .stat-icon {
   width: 64px;
   height: 64px;
   border-radius: var(--radius-lg);
@@ -226,11 +224,11 @@
   flex-shrink: 0;
 }
 
-.stat-content {
+.results-page .stat-content {
   flex: 1;
 }
 
-.stat-value {
+.results-page .stat-value {
   font-size: var(--font-size-3xl);
   font-weight: 800;
   color: var(--text-primary);
@@ -238,7 +236,7 @@
   margin-bottom: var(--spacing-xs);
 }
 
-.stat-label {
+.results-page .stat-label {
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
   color: var(--text-muted);
@@ -247,161 +245,136 @@
 }
 
 /* Results Container */
-.results-container {
+.results-page .results-container {
   display: grid;
   gap: 2.5rem;
 }
 
 /* Position Section */
-.position-section {
+.results-page .position-section {
   background: var(--card-bg);
   border-radius: var(--radius-2xl);
   padding: var(--spacing-xl);
   box-shadow: var(--shadow-md);
-  overflow: visible;
+  border: 1px solid var(--border-color);
   width: 100%;
   max-width: 100%;
 }
 
-.position-header {
+.results-page .position-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: var(--spacing-lg);
-  padding-bottom: var(--spacing-md);
-  border-bottom: 3px solid var(--brand-green);
+  padding-bottom: 1rem;
+  border-bottom: 2px solid var(--gray-200);
 }
 
-.position-title {
-  font-size: var(--font-size-2xl);
+.results-page .position-title {
+  font-size: 1.5rem;
   font-weight: 800;
   color: var(--brand-green);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   margin: 0;
 }
 
-.position-votes {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
+.results-page .position-votes {
+  font-size: 0.8rem;
+  font-weight: 700;
   color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   background: var(--gray-100);
-  padding: var(--spacing-sm) var(--spacing-md);
-  border-radius: var(--radius-lg);
+  padding: 0.35rem 0.85rem;
+  border-radius: var(--radius-md);
 }
 
-/* Candidates List */
-.candidates-list {
+/* Candidates Grid (Horizontal Card Layout) */
+.results-page .candidates-list {
   display: grid;
-  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
   width: 100%;
   max-width: 100%;
   overflow: visible;
 }
 
 /* Candidate Card */
-.candidate-card {
+.results-page .candidate-card {
+  background: var(--white);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  padding: 1.25rem 1.5rem;
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-md);
-  padding: var(--spacing-lg);
-  background: var(--gray-50);
-  border: 2px solid var(--border-color);
-  border-radius: var(--radius-lg);
+  justify-content: space-between;
+  min-height: 130px;
+  box-shadow: var(--shadow-sm);
   transition: all var(--transition-base);
-  overflow: visible;
-  width: 100%;
   position: relative;
   box-sizing: border-box;
 }
 
-.candidate-card-top {
-  display: flex;
-  align-items: flex-start;
-  gap: 1.25rem;
-  width: 100%;
-  min-width: 0;
-}
-
-.candidate-card:hover {
+.results-page .candidate-card:hover {
   background: var(--card-bg);
   box-shadow: var(--shadow-md);
   transform: translateY(-2px);
 }
 
-.candidate-card.winner {
-  background: linear-gradient(135deg, var(--warning-soft-bg) 0%, var(--warning-soft-alt-border) 100%);
-  border: 3px solid var(--warning-color);
-  box-shadow: var(--shadow-lg);
+/* Winner / Leading Candidate Card */
+.results-page .candidate-card.winner,
+.results-page .candidate-card.first {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  border: 2.5px solid #f59e0b;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.15);
 }
 
-.candidate-card.first {
-  border-left: 5px solid var(--warning-soft-border);
+.results-page .candidate-card.second {
+  border-color: var(--gray-300);
 }
 
-.candidate-card.second {
-  border-left: 5px solid var(--gray-400);
+.results-page .candidate-card.third {
+  border-color: var(--gray-300);
 }
 
-.candidate-card.third {
-  border-left: 5px solid var(--warning-color);
-}
-
-/* Rank */
-.candidate-rank {
+.results-page .candidate-card-top {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  flex-shrink: 0;
-  flex-grow: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  min-width: 0;
+  margin-bottom: 0.75rem;
 }
 
-.rank-icon {
-  filter: drop-shadow(0 2px 4px rgb(0 0 0 / 0.15));
-}
-
-.rank-icon.gold {
-  color: var(--warning-soft-border);
-}
-
-.rank-icon.silver {
-  color: var(--gray-400);
-}
-
-.rank-icon.bronze {
-  color: var(--warning-color);
-}
-
-.rank-number {
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-bold);
-  color: var(--text-muted);
+/* Candidate Rank */
+.results-page .candidate-rank {
+  display: none; /* Clean card design matching screenshot */
 }
 
 /* Candidate Info */
-.candidate-info {
-  flex: 1 1 0%;
-  min-width: 200px;
-  overflow: visible;
-  padding-right: var(--spacing-md);
-  box-sizing: border-box;
+.results-page .candidate-info {
+  width: 100%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
 }
 
-.candidate-name {
-  font-weight: var(--font-weight-bold);
+.results-page .candidate-name {
+  font-size: 1.15rem;
+  font-weight: 800;
   color: var(--text-primary);
-  margin-bottom: var(--spacing-xs);
+  margin-bottom: 0.25rem;
   display: block;
   width: 100%;
   max-width: 100%;
   line-height: var(--line-height-normal);
   min-width: 0;
-  text-align: center;
+  text-align: left;
 }
 
-.candidate-name .winner-badge {
+.results-page .candidate-name .winner-badge {
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
@@ -410,62 +383,63 @@
   white-space: nowrap;
 }
 
-.candidate-party {
-  font-size: var(--font-size-sm);
+.results-page .candidate-party {
+  font-size: 0.85rem;
   color: var(--text-muted);
-  font-weight: var(--font-weight-medium);
+  font-weight: 500;
+  text-align: left;
 }
 
-.winner-badge {
+.results-page .winner-badge {
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
   background: var(--warning-color);
   color: var(--white);
-  padding: 0.375rem 0.75rem;
-  border-radius: var(--radius-md);
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
   font-size: var(--font-size-xs);
   font-weight: 800;
   letter-spacing: 0.5px;
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-xs);
 }
 
-/* Candidate Stats */
-.candidate-stats {
+/* Candidate Stats (Bottom Row) */
+.results-page .candidate-stats {
   display: flex;
   flex-direction: row;
-  align-items: center;
-  gap: 1.5rem;
+  align-items: baseline;
+  justify-content: space-between;
   width: 100%;
   padding-top: 0.75rem;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid color-mix(in srgb, var(--border-color) 80%, transparent);
   box-sizing: border-box;
-  overflow: visible;
 }
 
-.vote-count {
+.results-page .vote-count {
   display: flex;
   flex-direction: row;
-  align-items: center;
-  gap: var(--spacing-sm);
+  align-items: baseline;
+  gap: 0.35rem;
 }
 
-.count-number {
-  font-size: var(--font-size-2xl);
+.results-page .count-number {
+  font-size: 1.25rem;
   font-weight: 800;
   color: var(--text-primary);
   line-height: 1;
 }
 
-.count-label {
-  font-size: var(--font-size-sm);
+.results-page .count-label {
+  font-size: 0.75rem;
   color: var(--text-muted);
-  font-weight: var(--font-weight-semibold);
+  font-weight: 700;
   text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.vote-percentage {
-  font-size: var(--font-size-2xl);
+.results-page .vote-percentage {
+  font-size: 1.25rem;
   font-weight: 800;
   color: var(--success-color);
   white-space: nowrap;
@@ -473,74 +447,29 @@
   margin-left: auto;
 }
 
-.vote-percentage.winner-percentage {
-  color: var(--warning-color);
+.results-page .vote-percentage.winner-percentage,
+.results-page .candidate-card.winner .vote-percentage,
+.results-page .candidate-card.first .vote-percentage {
+  color: #f59e0b;
 }
-
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .results-title {
+  .results-page .results-title {
     font-size: var(--font-size-3xl);
   }
   
-  .stats-grid {
+  .results-page .stats-grid {
     grid-template-columns: repeat(2, 1fr);
   }
   
-  .candidate-card-top {
-    gap: 0.75rem;
-  }
-  
-  .candidate-rank {
-    width: 40px;
-    height: 40px;
-  }
-  
-  .candidate-info {
-    min-width: 150px;
-  }
-  
-  .candidate-stats {
-    flex-direction: row;
-    align-items: center;
-    gap: 1rem;
-    padding-top: 0.75rem;
+  .results-page .candidates-list {
+    grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 480px) {
-  .stats-grid {
+  .results-page .stats-grid {
     grid-template-columns: 1fr;
-  }
-  
-  .candidate-card-top {
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-  
-  .candidate-rank {
-    width: 36px;
-    height: 36px;
-    align-self: flex-start;
-  }
-  
-  .candidate-info {
-    min-width: 0;
-    padding-right: 0;
-    width: 100%;
-    max-width: 100%;
-  }
-  
-  .candidate-stats {
-    flex-direction: row;
-    align-items: center;
-    gap: 1rem;
-    padding-top: 0.75rem;
-  }
-  
-  .rank-icon.gold {
-    width: 28px;
-    height: 28px;
   }
 }
