@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Container, Row, Col, Form } from 'react-bootstrap';
-import { LoadingSpinner } from '../../../components/common';
+import { LoadingSpinner, Icon } from '../../../components/common';
 import { useAuth } from '../../../hooks/useAuth';
 import { useBranding } from '../../../hooks/useBranding';
 import { DEFAULT_FEATURE_FLAGS } from '../../../services/systemService';
@@ -398,15 +398,21 @@ const LoginPage = () => {
                 </>
               )}
 
-              {registrationAllowed && (
+              {registrationAllowed ? (
                 <div className="auth-link-text">
                   Don&apos;t have an account?{' '}
                   <Link to="/register" className="auth-link">
                     Create one here
                   </Link>
                 </div>
+              ) : (
+                <div className="auth-link-text text-muted small mt-2">
+                  <Icon name="info" size={14} className="me-1 text-primary" />
+                  Student accounts are provisioned via registrar roster sync. First time? Sign in with your school Google account.
+                </div>
               )}
             </div>
+
 
             <div className="auth-footer">
               <p>

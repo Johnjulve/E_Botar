@@ -139,6 +139,25 @@ export const authService = {
     });
   },
 
+  // Student roster dry-run preview (staff/admin only)
+  previewStudentRoster: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/auth/students/roster-preview/', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+
+  // Student roster execution sync (staff/admin only)
+  importStudentRoster: (file, deactivateUnlisted = false) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('deactivate_unlisted', deactivateUnlisted);
+    return api.post('/auth/students/roster-import/', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+
   // Logout helper (clears local storage)
   logout: () => {
     localStorage.clear();

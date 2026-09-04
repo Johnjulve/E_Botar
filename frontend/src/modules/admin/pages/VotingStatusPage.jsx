@@ -5,11 +5,13 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Container } from '../../../components/layout';
-import { LoadingSpinner, SearchBar, Icon } from '../../../components/common';
+import { LoadingSpinner, Icon } from '../../../components/common';
 import { authService, electionService, votingService } from '../../../services';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { formatNumber } from '../../../utils/formatters';
 import { formatYearLevelNumeric, parseYearLevelNumber } from '../../../utils/helpers';
+import { useTableSort } from '../../../hooks/useTableSort';
+import { SortableHeader } from '../../../components/common/SortableHeader';
 import '../admin.css';
 
 const csvEscape = (val) => {
@@ -132,6 +134,14 @@ const VotingStatusPage = () => {
     });
   }, [courseCatalog, courseFilters.courseListSearch]);
 
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (filters.has_voted) count += 1;
+    if (courseFilters.advancedCourseCodes.length > 0) count += courseFilters.advancedCourseCodes.length;
+    if (courseFilters.advancedYearLevels.length > 0) count += courseFilters.advancedYearLevels.length;
+    return count;
+  }, [filters.has_voted, courseFilters.advancedCourseCodes, courseFilters.advancedYearLevels]);
+
   const fetchElections = async () => {
     try {
       setLoading(true);
@@ -230,9 +240,39 @@ const VotingStatusPage = () => {
   const safeCurrentPage = Math.min(Math.max(1, pagination.page), totalPages);
   const startIndexDisplay = totalCount === 0 ? 0 : (safeCurrentPage - 1) * pageSizeEffective + 1;
   const endIndexDisplay = Math.min(safeCurrentPage * pageSizeEffective, totalCount);
-  const paginatedRows = rows;
+
+  const getVotingSortValue = (u, key) => {
+
+    switch (key) {
+      case 'first_name':
+        return (u.user?.first_name || '').toLowerCase();
+      case 'middle_name':
+        return (u.middle_name || '').toLowerCase();
+      case 'last_name':
+        return (u.user?.last_name || '').toLowerCase();
+      case 'id':
+        return (u.student_id || u.user?.username || '').toLowerCase();
+      case 'course':
+        return (u.course?.name || u.course?.code || '').toLowerCase();
+      case 'year_level': {
+        const n = parseYearLevelNumber(u.year_level);
+        return n == null ? Number.POSITIVE_INFINITY : n;
+      }
+      case 'status':
+        return u.has_voted ? 1 : 0;
+      default:
+        return '';
+    }
+  };
+
+  const { sortedRows: sortedVotingRows, sortConfig, handleSort } = useTableSort(
+    rows,
+    getVotingSortValue
+  );
+  const paginatedRows = sortedVotingRows;
 
   const selectedElection = elections.find((e) => String(e.id) === String(selectedElectionId));
+
 
   const handleExportCsv = () => {
     const toExport = paginatedRows;
@@ -325,54 +365,102 @@ const VotingStatusPage = () => {
       </div>
 
       {selectedElection && summary && (
-        <div className="admin-info-grid">
-          <div className="admin-info-card">
-            <div className="admin-info-card-label">Total Eligible Students</div>
-            <div className="admin-info-card-value">
+        <div className="admin-users-stats-grid three-cols">
+          <div
+            className={`admin-users-stat-card ${filters.has_voted === '' ? 'active' : ''}`}
+            onClick={() => handleFilterChange('has_voted', '')}
+            title="Show all eligible students"
+          >
+            <div className="admin-users-stat-icon total">
+              <Icon name="users" size={20} />
+            </div>
+            <div className="admin-users-stat-value">
               {formatNumber(summary.total_eligible_students || 0)}
             </div>
+            <div className="admin-users-stat-label">Total Eligible</div>
           </div>
-          <div className="admin-info-card">
-            <div className="admin-info-card-label">Total Voted</div>
-            <div className="admin-info-card-value">
+          <div
+            className={`admin-users-stat-card ${filters.has_voted === 'true' ? 'active' : ''}`}
+            onClick={() => handleFilterChange('has_voted', 'true')}
+            title="Filter by voted students"
+          >
+            <div className="admin-users-stat-icon verified">
+              <Icon name="checkCircle" size={20} />
+            </div>
+            <div className="admin-users-stat-value">
               {formatNumber(summary.total_voted || 0)}
             </div>
+            <div className="admin-users-stat-label">Total Voted</div>
           </div>
-          <div className="admin-info-card">
-            <div className="admin-info-card-label">Total Not Voted</div>
-            <div className="admin-info-card-value">
+          <div
+            className={`admin-users-stat-card ${filters.has_voted === 'false' ? 'active' : ''}`}
+            onClick={() => handleFilterChange('has_voted', 'false')}
+            title="Filter by students who have not voted"
+          >
+            <div className="admin-users-stat-icon admin">
+              <Icon name="clock" size={20} />
+            </div>
+            <div className="admin-users-stat-value">
               {formatNumber(summary.total_not_voted || 0)}
             </div>
+            <div className="admin-users-stat-label">Total Not Voted</div>
           </div>
         </div>
       )}
 
       {selectedElectionId && (
-        <SearchBar
-          value={filters.search}
-          onChange={(value) => handleFilterChange('search', value)}
-          placeholder="Search by name, email, username, or student ID..."
-          label="Search"
-          onAdvancedToggle={() => setShowSearchFilters((prev) => !prev)}
-          advancedOpen={showSearchFilters}
-        >
-          <button
-            type="button"
-            className="admin-btn secondary"
-            onClick={handleExportCsv}
-            disabled={!rows.length}
-            title={
-              Number.isFinite(pagination.pageSize)
-                ? `Export current page (${paginatedRows.length} rows) as CSV`
-                : `Export current page (${paginatedRows.length} rows) as CSV`
-            }
-          >
-            <span className="admin-btn-inline-icon">
-              <Icon name="download" size={18} />
-            </span>
-            Export CSV
-          </button>
-        </SearchBar>
+        <div className="admin-users-toolbar-card">
+          <div className="admin-users-toolbar-left">
+            <div className="admin-users-search-pill">
+              <Icon name="search" size={16} className="admin-users-search-icon" />
+              <input
+                type="text"
+                value={filters.search}
+                onChange={(e) => handleFilterChange('search', e.target.value)}
+                placeholder="Search by name, email, username, or student ID..."
+                className="admin-users-search-input"
+              />
+              {filters.search && (
+                <button
+                  type="button"
+                  className="admin-users-search-clear"
+                  onClick={() => handleFilterChange('search', '')}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+
+            <button
+              type="button"
+              className={`admin-advanced-toggle-btn ${showSearchFilters ? 'active' : ''}`}
+              onClick={() => setShowSearchFilters((prev) => !prev)}
+            >
+              <Icon name="sliders" size={15} />
+              <span>Advanced Filters</span>
+              {activeFilterCount > 0 && (
+                <span className="admin-filter-badge">{activeFilterCount}</span>
+              )}
+            </button>
+          </div>
+
+          <div className="admin-users-toolbar-right">
+            <button
+              type="button"
+              className="admin-btn-export-csv"
+              onClick={handleExportCsv}
+              disabled={!rows.length}
+              title={
+                Number.isFinite(pagination.pageSize)
+                  ? `Export current page (${paginatedRows.length} rows) as CSV`
+                  : `Export current page (${paginatedRows.length} rows) as CSV`
+              }
+            >
+              <Icon name="download" size={16} />
+              <span>Export CSV</span>
+            </button>
+          </div>
+        </div>
       )}
 
       {selectedElectionId && showSearchFilters && (
@@ -549,15 +637,16 @@ const VotingStatusPage = () => {
               <table className="admin-table">
                 <thead>
                   <tr>
-                    <th>First Name</th>
-                    <th>Middle Name</th>
-                    <th>Last Name</th>
-                    <th>ID</th>
-                    <th>Course</th>
-                    <th>Year Level</th>
-                    <th className="text-center">Vote Status</th>
+                    <SortableHeader label="FIRST NAME" sortKey="first_name" sortConfig={sortConfig} onSort={handleSort} />
+                    <SortableHeader label="MIDDLE NAME" sortKey="middle_name" sortConfig={sortConfig} onSort={handleSort} />
+                    <SortableHeader label="LAST NAME" sortKey="last_name" sortConfig={sortConfig} onSort={handleSort} />
+                    <SortableHeader label="ID" sortKey="id" sortConfig={sortConfig} onSort={handleSort} />
+                    <SortableHeader label="COURSE" sortKey="course" sortConfig={sortConfig} onSort={handleSort} />
+                    <SortableHeader label="YEAR LEVEL" sortKey="year_level" sortConfig={sortConfig} onSort={handleSort} />
+                    <SortableHeader label="VOTE STATUS" sortKey="status" sortConfig={sortConfig} onSort={handleSort} align="center" />
                   </tr>
                 </thead>
+
                 <tbody>
                   {paginatedRows.map((u) => (
                     <tr key={u.id}>

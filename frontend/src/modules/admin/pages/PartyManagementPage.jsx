@@ -8,6 +8,8 @@ import { Container } from '../../../components/layout';
 import { Link } from 'react-router-dom';
 import { LoadingSpinner, Modal, Icon } from '../../../components/common';
 import { electionService } from '../../../services';
+import { useTableSort } from '../../../hooks/useTableSort';
+import { SortableHeader } from '../../../components/common/SortableHeader';
 import '../admin.css';
 
 const PartyManagementPage = () => {
@@ -165,17 +167,37 @@ const PartyManagementPage = () => {
     }
   };
 
-  if (loading) {
-    return <LoadingSpinner fullScreen text="Loading parties..." />;
-  }
-
   const filterButtons = [
     { key: 'all', label: 'All Parties' },
     { key: 'active', label: 'Active' },
     { key: 'inactive', label: 'Inactive' }
   ];
 
+  const getPartySortValue = (p, key) => {
+    switch (key) {
+      case 'name':
+        return (p.name || '').toLowerCase();
+      case 'description':
+        return (p.description || '').toLowerCase();
+      case 'status':
+        return p.is_active ? 1 : 0;
+      default:
+        return '';
+    }
+  };
+
+  const { sortedRows: sortedParties, sortConfig, handleSort } = useTableSort(
+    parties,
+    getPartySortValue
+  );
+
+  if (loading) {
+    return <LoadingSpinner fullScreen text="Loading parties..." />;
+  }
+
+
   return (
+
     <Container>
       <div className="admin-registry-page">
         <header className="admin-registry-header">
@@ -349,15 +371,16 @@ const PartyManagementPage = () => {
           <table className="admin-table">
             <thead>
               <tr>
-                <th>Name</th>
+                <SortableHeader label="NAME" sortKey="name" sortConfig={sortConfig} onSort={handleSort} />
                 <th>Color</th>
-                <th>Description</th>
-                <th>Status</th>
+                <SortableHeader label="DESCRIPTION" sortKey="description" sortConfig={sortConfig} onSort={handleSort} />
+                <SortableHeader label="STATUS" sortKey="status" sortConfig={sortConfig} onSort={handleSort} align="center" />
                 <th className="text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {parties.map(party => (
+              {sortedParties.map(party => (
+
                 <tr key={party.id}>
                   <td className="admin-table-cell-name">
                     {party.name}

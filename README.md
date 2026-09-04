@@ -1,260 +1,57 @@
-# E-Botar - Blockchain-Inspired Electronic Voting System
+# 🗳️ E-Botar
+### Blockchain-Inspired Electronic Voting Platform for Academic Institutions
 
-**Version 3.3.0** | A secure, privacy-preserving electronic voting platform for student government elections
+> A secure, privacy-preserving, and auditable electronic voting platform designed for university student councils and collegiate elections.
 
-[![Django](https://img.shields.io/badge/Django-5.2.8-green.svg)](https://www.djangoproject.com/)
-[![DRF](https://img.shields.io/badge/DRF-3.16.1-red.svg)](https://www.django-rest-framework.org/)
-[![React](https://img.shields.io/badge/React-19.2-blue.svg)](https://reactjs.org/)
-[![License](https://img.shields.io/badge/License-Proprietary-yellow.svg)](#)
-
----
-
-## 📖 Table of Contents
-
-- [Release Highlights (3.3.0)](#-release-highlights-330)
-- [Quick Start](#quick-start)
-- [Key Features](#key-features)
-- [Role-Based Access Control](#role-based-access-control)
-- [Documentation](#documentation)
-- [Quick Reference](#quick-reference)
-
-> 📚 **For setup and everyday use**, see [Document.md](Document.md). **For complete technical detail**, see [Information.md](Information.md).
+[![Python](https://img.shields.io/badge/Python-3.12-3776AB.svg?logo=python&logoColor=white)](#)
+[![Django](https://img.shields.io/badge/Django-5.2-092E20.svg?logo=django&logoColor=white)](https://www.djangoproject.com/)
+[![Django REST Framework](https://img.shields.io/badge/DRF-3.16-red.svg)](https://www.django-rest-framework.org/)
+[![React](https://img.shields.io/badge/React-19.2-61DAFB.svg?logo=react&logoColor=black)](https://reactjs.org/)
+[![Vite](https://img.shields.io/badge/Vite-7.2-646CFF.svg?logo=vite&logoColor=white)](https://vitejs.dev/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Status](https://img.shields.io/badge/Status-Active_v3.4.0-success.svg)](#)
 
 ---
 
-## 🚀 Release Highlights (3.3.0)
+## 📖 Quick Links & Documentation
 
-- **Modern Unified Admin Dashboard & Table Design System**:
-  - Standardized modern dashboard controls across [`UserManagementPage.jsx`](frontend/src/modules/admin/pages/UserManagementPage.jsx) and [`ReceiptAuditPage.jsx`](frontend/src/modules/admin/pages/ReceiptAuditPage.jsx), consolidated under [`frontend/src/modules/admin/admin.css`](frontend/src/modules/admin/admin.css).
-  - **Unified Search & Filter Toolbar**: Search pill with instant debounce and clear button, multi-select dropdown pills (`Course ▼`, `Year Level ▼`, `Role ▼`, `Election ▼`, `Vote Status ▼`) featuring live subtext tags (`Selected: ...`), and collapsible advanced filters with active count badge.
-  - **5-Card Admin Summary Metric Bar**: Responsive summary stat cards (`Total Users`, `Administrators`, `Staff`, `Students`, `Verified`) with interactive category filtering.
-  - **Card Table Layout**: Rounded table containers (`.admin-users-table-container`) with hover highlights, circular avatar cells displaying period-free initials (e.g. `AC`, `PC`, `VA`), soft-tinted status/role pills (`Administrator`, `Staff`, `Student`, `Active`, `Inactive`, `Verified`, `Missing Ballot`, `Hash Mismatch`), and square outline action buttons (Edit, Reset/Lock, Delete/Archive, Reveal Hash/Receipt).
-  - **Modular Table Footer & Pagination**: Configurable page-size selector (`Show [ 10/20/50/100 ▼ ] entries`) with numeric pagination (`< Previous [1][2][3] Next >`).
-  - **Add User & Multi-Select User Management**: Integrated administrative Add User modal form and multi-row selection with bulk archive/deactivation support.
-- **Custom SVG Icons Expansion**: Added `sliders` and `archive` vector icons to [`frontend/src/components/common/Icon.jsx`](frontend/src/components/common/Icon.jsx).
-- **Receipt Audit Blank Page Crash Resolved**: Fixed missing component import runtime errors in [`ReceiptAuditPage.jsx`](frontend/src/modules/admin/pages/ReceiptAuditPage.jsx).
-- **CSS Isolation & Lazy-Loaded Route Leaks**: Scoped module stylesheets (`results.css`, `elections.css`, `candidates.css`, `applications.css`) to their respective container classes to strictly prevent cross-route CSS bleed under route-level code splitting.
-- **Election Results Horizontal Card Grid Standardization**: Standardized `.results-page .candidates-list` into a multi-column horizontal responsive grid layout (`repeat(auto-fill, minmax(280px, 1fr))`) with golden winner badges and percentage progress meters.
-- **Responsive Navbar Dual-Display Bug Fix**: Resolved dual sidebar/drawer rendering during responsive viewport resizing in [`Navbar.jsx`](frontend/src/components/layout/Navbar.jsx) and [`layout.css`](frontend/src/assets/styles/global/layout.css).
-
-### Previous Highlights (3.2.0 & 3.1.0)
-
-- **Profile Avatar & Candidate Picture Dynamic Sync**: Implemented dynamic avatar fallback (`resolve_candidate_photo_url`) across all candidate serializers, voting ballot cards, candidate listings, and receipt audits so updating student profile pictures immediately reflects across all election UI surfaces.
-- **Search Bar Continuous Typing & Input Debounce**: Eliminated full-screen loading unmount cycles during search typing in admin views (`UserManagementPage`, `VotingStatusPage`), preserving cursor focus and typing state seamlessly with custom `useDebounce` hook.
-- **Direct SQL Results Aggregation & Ballot Submit Batching**: Optimized database queries for live results and ballot submission down to fast indexed queries and atomic bulk creates.
-- **Route-Level Lazy Loading & Code Splitting**: Converted all 30+ pages in [`frontend/src/routes/AppRoutes.jsx`](frontend/src/routes/AppRoutes.jsx) to dynamic `React.lazy()` imports with `<Suspense>`, shrinking the initial JavaScript bundle by **68.7%** (from `1,049 kB` down to `328 kB`).
-
-- **Production Cloud Deployment (`Procfile` & `.gitattributes`)**: Standardized Gunicorn web server process configuration for Railway/Render/Fly.io deployments and enforced universal `LF` line-ending normalization across all operating systems.
-- **Cloudinary 503 & Profile Image Fix**: Completely eliminated profile update crashes and 503 errors when modifying or clearing avatars by removing unsafe remote `.open('rb')` reads and delegating upload parameters directly to `django-cloudinary-storage`.
-- **Unified Environment Settings**: Fully consolidated [`backend/backend/settings.py`](backend/backend/settings.py) with dynamic multi-engine `DATABASE_URL` parsing (PostgreSQL, MySQL, SQLite), configurable rate-limiting, and modern `STORAGES` dictionary formatting.
-
-- **Pre-Aggregated Data Export Analytics**: Added single-query SQL aggregation for demographic vote breakdowns (`GET /api/voting/results/breakdown/`) and student turnout status rosters (`GET /api/voting/results/student_roster/`).
-- **Cloudinary Media Storage**: Seamless cloud media uploads with ID-based file naming (`profile_photos/<student_id>.<ext>`) and folder isolation (`E-Botar/`).
-- **Google Sign-In (OAuth 2)**: Full integration with Google Identity Services with automatic account linking and rate-limited token exchange.
-- **Append-Only Blockchain Vote Ledger**: Immutable `VoteBlock` ledger with SHA-256 hash chaining, genesis block initialization, tamper detection, and zero-knowledge voter receipt verification (`ABCD-EFGH`).
-
-### Previous Highlights (1.0.0)
-
-- **App Version Single Source of Truth**: UI version (e.g. "E-Botar v2.1.0") is driven from one constant in `frontend/src/constants.js` (`APP_VERSION`). Navbar (sidebar and mobile) imports it; bump the version in one place to update the label everywhere.
-- **Admin User Directory (Read-Only)**: Students/staff/admin directory with advanced multi-field filters, summary cards (colleges/courses), and client-side pagination.
-- **Voting Status (Per Election)**: Read-only per-election voting completion status page with client-side pagination.
-- **`GET /api/auth/user-count/` (Staff/Admin)**, **`GET /api/auth/directory/` (Staff/Admin)**, **`GET /api/voting/voting-status/` (Staff/Admin)** for admin metrics and directory flows.
-- **Admin Tables Upgrade**, **Application Pages Upgrade**, **Data Export PDF Improvements**, **Layout + Responsiveness Fixes** (full notes in [CHANGELOG.md](CHANGELOG.md) for 1.0.0).
-
-### Documentation & environment (since 1.0.0)
-
-- **`Document.md` handbook**: Step-by-step install, env configuration, role-based usage, troubleshooting, and where each core markdown file belongs in the docs set.
-- **`Information.md` refresh**: Handbook linked from the docs index plus a documentation map for developers, admins, and release notes (`CHANGELOG.md`).
-- **Unified `.env.example`**: Template at repository root [`.env.example`](.env.example) covers Django and documented Vite build variables. Copy to `.env` in the same folder (not committed).
-- **Load order**: Django loads the repo-root `.env`, then optional `backend/.env` (backend file overrides). See [`backend/backend/settings.py`](backend/backend/settings.py).
-- **Admin UI consistency**: Party, position, and election management use the same registry-style layout; add/edit party and position run in modals with scoped CSS so Bootstrap dialogs stay centered.
-
-### Previous Highlights (0.7.8)
-
-- **College Terminology Alignment**: UI now consistently uses "College" (instead of "Department") for program-type labels and profile academic info, while keeping existing data model values (`department`, `course`) unchanged.
-- **Program Type Badge**: Program list badges now show "College" for department-type entries and "Course" for courses.
-- **Profile Edit Terminology**: Academic info fields and placeholders use "College," plus the dependent course selector now prompts "Select College First."
-- **Data Export Terminology**: Data export pages updated to use "College" terminology consistently throughout PDF exports, labels, dropdowns, and election type references.
-- **Election Creation & Management**: Spam-click prevention (frontend ref guard + backend 10s rate limit), duplicate A.Y. prevention (cannot create another election for same academic year and category—USC or department), and Delete option on edit election for superusers (with confirmation).
-- **Academic Year Selector (Home)**: Dashboard academic year dropdown shortened to 2 years past and 5 years ahead (8 options total) for a manageable list.
-
-### Previous Highlights (0.7.7)
-
-- **Results Hidden During Voting**: Protect election integrity by withholding live results and statistics from non-admin users until the election ends, showing a lock notice with the scheduled end date.
-
-- **Profile Completeness Validation**: Enhanced data integrity with profile completeness checks
-  - **Candidate Applications**: Users must complete their profile (Student ID, Department, Course, Year Level) before applying as candidates
-  - **Voting Restrictions**: Users cannot vote until their profile is complete, with clear warnings and guidance
-  - **Frontend Warnings**: Incomplete profile warnings displayed on application and voting pages with links to profile edit
-  - **Backend Validation**: Server-side validation prevents incomplete profile submissions for both applications and votes
-  - **Missing Fields Display**: Users see exactly which fields need to be completed
-
-- **Position Management Improvements**: Streamlined position ordering system
-  - **Auto-Assignment**: Display order automatically assigned starting from 1 (no manual input required)
-  - **Smart Reordering**: Swap-based reordering ensures unique and contiguous ordering without gaps
-  - **Button Controls**: Move up/down buttons with proper boundary checks (disabled at top/bottom)
-  - **Simplified UI**: Removed display order input field from form for cleaner interface
-
-- **Candidate Directory Enhancements**: Improved candidate information display
-  - **Course/Year Display**: Replaced "Voting Period" with "Course/Year" showing format "BSCS (course code) - 4 (Year level)"
-  - **Visual Updates**: View Election button matches green theme color (#0b6e3b)
-  - **Profile Picture Styling**: Slight gray gradient for profile pictures with grayscale filter
-  - **Simplified Design**: Removed glow effects and extra design elements for cleaner appearance
-
-- **Student Count Fix**: Accurate student statistics for all users
-  - **New Endpoint**: Added `/api/auth/student-count/` endpoint for total student count
-  - **Permission Fix**: Non-admin users can now see correct total student count (previously showed only 1)
-  - **Election Statistics**: Results pages now show accurate eligible student counts
-  - **Dashboard Accuracy**: Homepage dashboard displays correct student statistics
-
-- **Guest Mode Privacy**: Enhanced privacy for unauthenticated users
-  - **Statistics Visibility**: Statistics cards (Students, Votes Recorded) are hidden for guest/unauthenticated users
-  - **Conditional Data Fetching**: Student count and vote statistics only fetched when user is authenticated
-  - **Public Data Access**: Guest users can still view elections, candidates, and winners (public information)
-  - **Security Enhancement**: Prevents unauthorized access to sensitive statistics
-
-### Previous Highlights (0.7.6)
-- **General-Purpose Algorithm Library**: Comprehensive suite of efficient algorithms for data processing
-  - **Sorting Algorithms**: Quicksort and Merge Sort implementations for efficient data sorting
-  - **Searching Algorithms**: Binary search and linear search with flexible key functions
-  - **Grouping & Aggregation**: Hash-based grouping and multi-level aggregation algorithms
-  - **Cryptographic Algorithms**: Centralized SHA-256 and MD5 hashing for security operations
-  - **Type-Agnostic Design**: Works with dictionaries, objects, lists, and any iterable data structures
-  - **Performance Optimized**: All algorithms documented with time/space complexity analysis
-  - **Production Ready**: Fully tested and integrated into voting, election, and data processing modules
-
-### New Features (0.7.6)
-- **Algorithm Integration**: Replaced manual implementations with optimized algorithms
-  - Candidate sorting in election results now uses optimized quicksort algorithm
-  - Cache key generation uses centralized MD5 hashing algorithm
-  - Vote receipt and vote hash generation use centralized SHA-256 algorithm
-  - Vote counting and statistics use aggregation algorithms for efficient processing
-  - Memoization added to expensive operations in services for performance optimization
-  - All algorithms are general-purpose and reusable across any feature
-
-- **Performance Testing Suite**: Comprehensive performance evaluation tools
-  - **Built-in Performance Tests**: Algorithm benchmarks and API endpoint testing
-  - **Load Testing with Locust**: Industry-standard load testing configuration
-  - **Performance Metrics**: Response time, throughput, error rate, and quality scoring
-  - **Database Query Analysis**: Query count and execution time monitoring
-  - **Throttling Management**: Command-line tool to reset rate limiting for testing
-
-- **Throttling Management**: Rate limiting control and testing tools
-  - **Reset Command**: `python manage.py reset_throttling` to clear throttle limits
-  - **User-Specific Reset**: Reset throttling for specific users during testing
-  - **Cache-Based Throttling**: Efficient in-memory throttling with LocMemCache
-
-### Previous Highlights (0.7.5)
-- **Automatic Session Timeout**: Enhanced security with auto-logout after inactivity
-  - **5-Minute Inactivity Timeout**: Users are automatically logged out after 5 minutes of inactivity
-  - **Comprehensive Activity Tracking**: Monitors mouse movements, keyboard input, clicks, scroll, and touch events
-  - **Smart Tab Handling**: Pauses timer when tab is hidden, resumes when tab becomes active
-  - **Silent Operation**: No warnings or notifications - seamless automatic logout for security
-  - **Production Ready**: Works reliably in both development and production environments
-  - **Security Enhancement**: Prevents unauthorized access from unattended sessions
-
-### New Features (0.7.5)
-- **Staff Role Permissions**: Configured granular access control for staff members
-  - Staff can create and manage elections, review applications, and export data
-  - Staff cannot access programs, positions, parties, user management, or system logs
-  - Navigation menu automatically adapts based on user's role
-
-- **Enhanced Student Data Export**: Advanced PDF export with student name display
-  - **Show Student Names Option**: Display individual student names in organized table format
-  - **Voting Status Tracking**: See which students have voted (✓) or not voted (✗) for each election
-  - **Course-Specific Export**: Select a specific course to view detailed student lists with voting status
-  - **Professional Table Format**: Clean two-column layout with student names and voting status
-  - **Year Level Organization**: Students grouped by year level for easy reference
-
-### Bug Fixes (0.7.5)
-- **UI/UX Improvements**: Fixed login and register button resizing issue during loading states for smoother user experience
-- **Data Export Fixes**: Fixed staff access to data export, improved mock student generation, and enhanced PDF formatting
-
-### Previous Highlights (0.7.4)
-
-- **Enhanced Data Export System**: Comprehensive PDF export functionality for administrators
-  - **Unified Data Export Page**: Centralized admin interface for exporting election results and student data
-  - **Election Results Export**: Professional PDF format with formatted results, statistics, and categorized vote counts
-  - **Vote Categorization**: Optional feature to categorize vote counts by department, course, and year level
-    - University elections: Department → Course → Year Level breakdown
-    - Department elections: Course → Year Level breakdown (department is fixed)
-  - **Student Data Export**: PDF export organized by department, course, and year level with summary counts only
-  - **Mock Data Testing**: Frontend-only mock data generation (150 students, 70-90% voting rate) for testing without database pollution
-  - **Privacy-Focused**: PDF exports show only summary statistics, no individual student names or IDs
-  - **Automatic Cleanup**: Mock data automatically cleared after export
-
-- **Admin Management Pages**: Complete frontend interfaces for Party and Position Management
-  - **Party Management**: Full CRUD operations for political parties with active status toggling
-  - **Position Management**: Full CRUD operations for election positions with reordering functionality
-  - Consistent design pattern matching Program Management for intuitive user experience
-  - Integrated into admin sidebar navigation with appropriate icons
-
-- **Dashboard Enhancements**: Improved homepage and results page statistics
-  - Homepage shows "Current Administration" (winners from last finished election)
-  - Updated statistics cards: "Students" and "Votes Recorded" instead of generic counts
-  - Better visual alignment and layout for officer cards
-
-- **System Logs Improvements**: Enhanced filtering and consistent summary counts
-  - Granular filtering options: log type, resource type, action, and search
-  - Summary counts remain consistent regardless of active filters
-  - Better organization and user experience
-
-### Previous Highlights (0.7.3)
-
-- **Election Type System**: Support for University Student Council (USC) and Department Elections
-  - **USC Elections**: Open to all students across all departments
-  - **Department Elections**: Restricted to specific departments only
-  - Auto-generated titles: "USC Election AY 2025-2026" or "[DEPT_CODE] Election AY 2025-2026"
-  - Academic Year (AY) format instead of School Year (SY)
-  - Eligibility checks for voting and candidate applications
-  - Visual badges showing election type on all election pages
-
-- **Enhanced Profile Management**: Academic information optional for administrators
-  - Admins/Staff can leave academic fields blank (Student ID, Year Level, Department, Course)
-  - Students still require all academic information
-  - Clear UI indicators showing optional fields for admins
-  - Improved profile display logic for different user roles
-
-- **Program Management Module**: Complete admin interface for managing departments and courses
-  - Full CRUD operations (Create, Read, Update, Delete)
-  - Filter by program type (All, Departments, Courses)
-  - CSV Import/Export with overwrite functionality
-  - Integrated into admin sidebar navigation
-
-- **Robust Empty Data Handling**: System now gracefully handles empty databases and missing data
-  - All API endpoints return empty arrays/zeros instead of errors when data is missing
-  - Safe handling of missing ballots, positions, candidates, and elections
-  - Division by zero protection in all percentage calculations
-  - Backend fully functional with completely empty database
-  - Comprehensive error handling prevents crashes from null/empty data
-
-- **Production Database Resilience**: Fixed production errors when security/activity logging tables are missing
-  - Admin interface handles missing `SecurityEvent` and `ActivityLog` tables gracefully
-  - Security logging middleware continues to function even if tables don't exist
-  - Login/logout signal handlers handle missing tables without crashing
-  - System remains fully operational even when audit logging tables are unavailable
-
-### Previous Highlights (0.7.2)
-- **CSV Import/Export**: Bulk management of programs via CSV files
-  - Export programs as CSV (includes template even with no data)
-  - Import CSV to bulk import/update programs
-  - Automatically overwrites existing programs (matching code + program_type)
-  - Detailed import results showing created vs updated programs
-  - Excel-compatible format with comprehensive error reporting
-
-### Previous Highlights (0.7.1)
-- **Production API Fixes**: Fixed `/me` endpoint access issues in production with enhanced error handling, automatic token refresh, and improved CORS configuration.
-- **Backend Error Resolution**: Resolved 500 Internal Server Error on `/me` endpoint by fixing serializer handling of None values and adding comprehensive error handling.
-- **Database Migration Fixes**: Fixed "no such table" errors by adding explicit table names to all models across all apps, ensuring consistent database schema in production.
-- **Automatic Token Refresh**: API service now automatically refreshes expired JWT tokens, providing seamless user experience without manual re-authentication.
-- **Enhanced CORS Support**: Backend now properly supports multiple frontend URLs and improved production deployment configuration.
-
-> ⚠️ **Important**: After deploying this update, run `python manage.py migrate` in production to create/update database tables.
-
-### Previous Highlights (0.7.0)
-- **Production Deployment**: Added Vercel deployment configuration and production-ready build settings for frontend and backend.
+| Resource | Purpose |
+|:---|:---|
+| 🚀 **[Quick Start Guide](#-quick-start)** | Clone, configure environment, and spin up local dev servers |
+| 🎯 **[System Overview & Architecture](#-overview)** | Blockchain ledger concept, privacy model, and research background |
+| ✨ **[Key Features](#-key-features)** | Voting privacy, roster sync, candidate workflows, and exports |
+| 👥 **[Role-Based Access Control](#-role-based-access-control)** | Student, Staff, and Administrator capabilities |
+| 📚 **[User & Admin Handbook](Document.md)** | Step-by-step usage workflows, deployment, and troubleshooting |
+| 🔬 **[Technical Reference](Information.md)** | Complete database models, cryptographic specs, and API documentation |
+| 📜 **[Full Changelog Archive](CHANGELOG.md)** | Complete chronological history of all versions and patch notes |
 
 ---
+
+## 🚀 What's New in v3.4.0
+
+E-Botar **v3.4.0** introduces official registrar student roster synchronization, system-wide click-to-sort admin tables, seamless Google OAuth account linking, centralized testing architecture, and universal modal ergonomics:
+
+
+- 🔀 **Global Click-to-Sort Data Tables**:
+  - Full click-to-sort functionality across all primary admin tables: **User Directory**, **Receipt Audit**, **Voting Turnout Status**, **Program Management**, and **Political Parties**.
+  - Smooth 3-state cycling (`None` → `Ascending` → `Descending` → `None`) with visual chevron indicators and full screen-reader accessibility (`aria-sort`).
+- 📊 **Official Registrar Roster Synchronization (Excel & CSV)**:
+  - **Drag-and-Drop Import**: Bulk provision student voters directly from university registrar spreadsheets (`.xlsx` and `.csv`).
+  - **Pre-Flight Dry-Run Preview**: In-memory parser calculates diffs (`New Students`, `Profile Updates`, `Unlisted Accounts`) and highlights row-level data errors before committing to the database.
+  - **Atomic Transaction Guarantee**: Commits user creations, year-level updates, audit trails (`ActivityLog`), and cache invalidations within a single `transaction.atomic()` context.
+- ⚡ **Seamless Google OAuth Auto-Link & Roster Lockdown**:
+  - Pre-imported students can now sign in with their school Google account instantly without needing an initial temporary password.
+  - Public self-registration is locked down by default (`user_registration: false`), rejecting unlisted emails while safeguarding verified roster students.
+- 🛠️ **Universal Modal Interoperability**:
+  - Dual prop support for `show`/`isOpen` and `onHide`/`onClose` in the shared modal system, guaranteeing responsive "X" close buttons and smooth dialog triggers across all devices.
+- 🧪 **Centralized Global Test Architecture**:
+  - Consolidated top-level test suite (`backend/tests/`) running custom verbose status reporting (`VerboseTestRunner`) across accounts, voting ledgers, candidates, and elections (**33/33 tests passing**).
+
+> 📜 **Looking for earlier release notes?** Check out the complete archive of past version updates (v0.7.0 – v3.3.0) in [CHANGELOG.md](CHANGELOG.md).
+
+---
+
+
 
 ## 🎯 Overview
 
@@ -681,12 +478,25 @@ python manage.py check
 python manage.py reset_throttling
 python manage.py reset_throttling --username test_user
 
-# Performance testing
-python performance_tests.py
-
-# Load testing (requires Locust)
-locust -f locustfile.py --host=http://localhost:8000
+# Run backend unit & API test suite (33 passing tests)
+python manage.py test tests
 ```
+
+---
+
+## 🧪 Testing Architecture
+
+E-Botar employs a structured two-tier testing methodology to guarantee software reliability and academic verifiability:
+
+- **Tier 1 (Unit & API Tests)**: Located in [`backend/tests/`](backend/tests/), providing fast automated regression testing for models, serializers, business rules, and API endpoints (`python manage.py test tests`).
+- **Tier 2 (System, Performance, Security & UAT)**: Located in the root [`Testing/`](Testing/) directory, structuring higher-level quality verification:
+  - **[System Testing](Testing/System/)**: End-to-end integration and voter journeys.
+  - **[Performance Testing](Testing/Performance/)**: Concurrency benchmarks, load generation, and latency metrics.
+  - **[Security Audit](Testing/Security/)**: Cryptographic ledger validation, tampering tests, and vulnerability scanning.
+  - **[User Acceptance Testing](Testing/UAT/)**: Participant evaluation rubrics, usability surveys, and academic sign-offs.
+
+---
+
 
 ### Key Files
 - `Document.md` (repository root) - Setup-and-use handbook
@@ -698,9 +508,18 @@ locust -f locustfile.py --host=http://localhost:8000
 
 ---
 
-**E-Botar v2.1.0** | Last Updated: May 2026 | Performance Tested & Optimized  
+## 📄 License
+
+This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+
+---
+
+**E-Botar v3.4.0** | Performance Tested & Optimized  
 **Status**: Production Ready | Full Stack Complete
+
+
 
 > 📖 **Handbook**: [Document.md](Document.md) · **Technical reference**: [Information.md](Information.md)
 
 **Built with ❤️ for democratic student governance**
+

@@ -26,6 +26,9 @@ urlpatterns = [
     path('token/', views.CustomTokenObtainPairView.as_view(), name='token-obtain'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
     path('google/', views.google_login, name='google-login'),
+    # Student Roster Synchronization
+    path('students/roster-preview/', views.student_roster_preview, name='student-roster-preview'),
+    path('students/roster-import/', views.student_roster_import, name='student-roster-import'),
     # ViewSet routes
     path('', include(router.urls)),
 ]

@@ -146,7 +146,7 @@ const AdminDashboardPage = () => {
           <Icon name="zap" size={20} className="admin-icon-warning" />
           Quick Actions
         </h5>
-        <div className="admin-flex-row">
+        <div className="admin-quick-actions-grid">
           <Link to="/admin/elections/create" className="admin-btn">
             <Icon name="plus" size={16} />
             Create Election

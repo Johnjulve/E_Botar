@@ -5,6 +5,76 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.0] - 2026-09-04
+
+### Added
+- **Official Registrar Student Roster Synchronization**:
+  - **Dual-Format Parser (`backend/apps/accounts/services/roster_sync.py`)**: High-performance streaming parser supporting `.xlsx` (via `openpyxl`) and `.csv` roster files with UTF-8 BOM auto-detection and forgiving column normalization.
+  - **Pre-Flight Dry-Run Preview (`POST /api/auth/students/roster-preview/`)**: In-memory inspection and validation without database mutation; calculates categorized diffs (`to_create`, `to_update`, `to_deactivate`) and returns row-level validation errors.
+  - **Atomic Transaction Execution (`POST /api/auth/students/roster-import/`)**: Commits user creation, profile update, optional unlisted account deactivation, `ActivityLog` audit entries, and cache invalidation within a single `transaction.atomic()` block.
+  - **Roster Sync Admin Interface (`RosterSyncModal.jsx`)**: Drag-and-drop file upload, instant CSV template download, live 4-card metric summary, tabbed diff inspector, and toggle for unlisted account deactivation in `UserManagementPage.jsx`.
+- **Roster-Restricted Authentication & Registration Lockdown**:
+  - Closed public self-registration by default (`user_registration: false` feature flag); unauthenticated calls return `403 Forbidden` (`registration_closed`), while administrators retain the ability to manually add users.
+  - Enforced roster restriction on Google OAuth: unlisted emails are rejected with `403 Forbidden` (`unlisted_roster_email`), while pre-imported students are seamlessly auto-linked on first Google sign-in.
+  - **Mandatory First-Login Password Reset (`FirstLoginPasswordModal.jsx`)**: Mounted modal requiring pre-registered students with temporary credentials (`must_change_password=True`) to set a permanent password before gaining full platform access.
+- **Global Click-to-Sort Rollout Across All Admin Tables**:
+  - Integrated the reusable [`useTableSort`](frontend/src/hooks/useTableSort.js) hook and [`SortableHeader`](frontend/src/components/common/SortableHeader.jsx) component across all primary administration data tables:
+    - **User Directory** ([`UserDirectoryPage.jsx`](frontend/src/modules/admin/pages/UserDirectoryPage.jsx)): sortable by User (name), Contact (email), College / Course, Year Level, Status, and Verified flag.
+    - **Receipt Audit** ([`ReceiptAuditPage.jsx`](frontend/src/modules/admin/pages/ReceiptAuditPage.jsx)): sortable by Student (name/ID), Election, Receipt Code, Created At (timestamp), and Verification Status.
+    - **Voting Status** ([`VotingStatusPage.jsx`](frontend/src/modules/admin/pages/VotingStatusPage.jsx)): sortable by First Name, Middle Name, Last Name, ID, Course, Year Level, and Vote Status.
+    - **Program Management** ([`ProgramManagementPage.jsx`](frontend/src/modules/admin/pages/ProgramManagementPage.jsx)): sortable by Name, Code, Type (College vs Course), Colleges, and Status.
+    - **Parties Management** ([`PartyManagementPage.jsx`](frontend/src/modules/admin/pages/PartyManagementPage.jsx)): sortable by Name, Description, and Status.
+  - Features 3-state cycling (`None` → `Ascending` → `Descending` → `None`), visual directional indicator chevrons, and full accessibility labels (`aria-sort`).
+- **Project Licensing**:
+  - Formally licensed the platform under the open-source **MIT License** with copyright attribution to John Julve & E-Botar Research Team (`LICENSE` added in both `E_Botar` and `E_Botar-Lite`).
+- **Global Verbose Testing Architecture**:
+  - Consolidated unit tests from disparate app directories into a centralized `backend/tests/` package with `VerboseTestRunner` (`verbosity=2`) displaying individual test pass/fail results.
+  - Cleaned up repository root and backend directories, isolating local test scripts and benchmarking logs via `.gitignore`.
+
+### Fixed & Improved
+- **System-Wide Mobile Responsiveness Overhaul**:
+  - Replaced legacy vertical column tab stacking with touch-friendly horizontal scrolling tabs (`.admin-filter-tabs`) featuring iOS/Android momentum scrolling and hidden scrollbars.
+  - Implemented responsive mobile toolbar stacking (`.admin-registry-toolbar-row`): full-width search pill on the top row, smooth horizontally scrolling filter pills underneath.
+  - Redesigned mobile Admin Dashboard Quick Actions into a balanced, thumb-friendly 2-column grid (`.admin-quick-actions-grid`).
+  - Restructured mobile action buttons into flexible rows instead of full-width blocks to maximize screen estate and eliminate unnecessary scrolling.
+- **Voting Status Design System Elevation (`VotingStatusPage.jsx`)**:
+  - Brought `/admin/voting-status` into full parity with `/admin/users` (User Management).
+  - Integrated `.admin-users-toolbar-card` with magnifying search pill, 300ms debouncing, and one-click clear (`×`) button.
+  - Integrated collapsible Advanced Filters button with dynamic active filter badge counter (`(1)`).
+  - Replaced raw text metric summaries with interactive 3-card stat grid (`.admin-users-stats-grid.three-cols`) allowing administrators to filter by "Total Voted" or "Total Not Voted" with a single click.
+- **Global Theme & Token Harmonization**:
+  - Aligned primary action buttons, active tab indicators, and brand accents to SSCT Deep Forest Green (`#0b6e3b`).
+  - Enforced strict preservation of Red (`#ef4444`) exclusively for destructive/delete/archive actions.
+  - Harmonized toolbar search pills across Elections (`/admin/elections`), Applications (`/admin/applications`), and Voting Status (`/admin/voting-status`).
+  - Centralized responsive layout utility classes (`.admin-metrics-stats-grid`, `.admin-toolbar-card`, `.admin-search-pill`) in `admin.css` for future extensibility and simplified debugging.
+    - **User Directory** ([`UserDirectoryPage.jsx`](frontend/src/modules/admin/pages/UserDirectoryPage.jsx)): sortable by User (name), Contact (email), College / Course, Year Level, Status, and Verified flag.
+    - **Receipt Audit** ([`ReceiptAuditPage.jsx`](frontend/src/modules/admin/pages/ReceiptAuditPage.jsx)): sortable by Student (name/ID), Election, Receipt Code, Created At (timestamp), and Verification Status.
+    - **Voting Status** ([`VotingStatusPage.jsx`](frontend/src/modules/admin/pages/VotingStatusPage.jsx)): sortable by First Name, Middle Name, Last Name, ID, Course, Year Level, and Vote Status.
+    - **Program Management** ([`ProgramManagementPage.jsx`](frontend/src/modules/admin/pages/ProgramManagementPage.jsx)): sortable by Name, Code, Type (College vs Course), Colleges, and Status.
+    - **Parties Management** ([`PartyManagementPage.jsx`](frontend/src/modules/admin/pages/PartyManagementPage.jsx)): sortable by Name, Description, and Status.
+  - Features 3-state cycling (`None` → `Ascending` → `Descending` → `None`), visual directional indicator chevrons, and full accessibility labels (`aria-sort`).
+- **Project Licensing**:
+  - Formally licensed the platform under the open-source **MIT License** with copyright attribution to John Julve & E-Botar Research Team (`LICENSE` added in both `E_Botar` and `E_Botar-Lite`).
+- **Global Verbose Testing Architecture**:
+  - Consolidated unit tests from disparate app directories into a centralized `backend/tests/` package with `VerboseTestRunner` (`verbosity=2`) displaying individual test pass/fail results.
+
+### Fixed & Improved
+- **Universal Modal Prop Interoperability (`Modal.jsx`)**:
+  - Enhanced [`frontend/src/components/common/Modal.jsx`](frontend/src/components/common/Modal.jsx) to recognize both `show` and `isOpen` visibility props, and both `onHide` and `onClose` dismissal callback functions.
+  - Fixed the header close ("X") button in Add User, Edit User, Password Reset, and Deletion dialogs which previously failed when passed `onClose`.
+  - Resolved Roster Sync modal launch where passing `isOpen` resulted in an unrendered dialog.
+- **Streamlined Repository README**:
+  - Cleaned up over 200 lines of cascading historical changelog notes in `README.md`, introducing a modern quick-links navigation table, badge row, and focused release highlights.
+- **User Management & Roster Table Interactivity & Verification Column**:
+  - Added the missing **VERIFIED** sortable column to [`UserManagementPage.jsx`](frontend/src/modules/admin/pages/UserManagementPage.jsx) with instant sorting and live state reflections.
+  - Converted static `Active`/`Inactive` and `Verified`/`Unverified` badges in [`UserManagementPage.jsx`](frontend/src/modules/admin/pages/UserManagementPage.jsx) and [`UserDirectoryPage.jsx`](frontend/src/modules/admin/pages/UserDirectoryPage.jsx) into clickable, animated interactive buttons allowing administrators and staff to toggle account active status and student verification on the fly with optimistic UI updates.
+  - Added **Status** and **Verified** indicator columns to [`RosterSyncModal.jsx`](frontend/src/modules/admin/components/RosterSyncModal.jsx) Tab 1 (New Students) and Tab 3 (Unlisted Accounts).
+  - Resolved React hook order violation in [`ProgramManagementPage.jsx`](frontend/src/modules/admin/pages/ProgramManagementPage.jsx) and [`PartyManagementPage.jsx`](frontend/src/modules/admin/pages/PartyManagementPage.jsx) ensuring `useTableSort` executes unconditionally before any early returns.
+- **Cross-Workspace Parity (`E_Botar-Lite`)**:
+  - Synchronized `Modal.jsx`, `SortableHeader.jsx`, and interactive Status/Verified user table buttons to `E_Botar-Lite` with verified 0-error production builds.
+
+
+
 ## [3.3.0] - 2026-09-02
 
 ### Added

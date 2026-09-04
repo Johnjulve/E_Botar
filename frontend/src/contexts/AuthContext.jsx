@@ -213,6 +213,19 @@ export const AuthProvider = ({ children }) => {
     return isStaff() || isAdmin();
   };
 
+  const refreshCurrentUser = async () => {
+    try {
+      const response = await authService.getCurrentUser();
+      const updatedUser = response.data;
+      setUser(updatedUser);
+      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updatedUser));
+      return updatedUser;
+    } catch (err) {
+      console.error('Failed to refresh user profile:', err);
+      return null;
+    }
+  };
+
   const value = {
     user,
     loading,
@@ -224,7 +237,8 @@ export const AuthProvider = ({ children }) => {
     loginWithGoogle,
     register,
     logout,
-    updateUser
+    updateUser,
+    refreshCurrentUser,
   };
 
   return (

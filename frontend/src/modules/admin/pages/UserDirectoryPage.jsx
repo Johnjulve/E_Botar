@@ -7,7 +7,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Container } from '../../../components/layout';
 import { LoadingSpinner, SearchBar, Icon } from '../../../components/common';
 import { authService } from '../../../services';
-import { getInitials, formatYearLevelNumeric } from '../../../utils/helpers';
+import { getInitials, formatYearLevelNumeric, parseYearLevelNumber } from '../../../utils/helpers';
+import { useTableSort } from '../../../hooks/useTableSort';
+import { SortableHeader } from '../../../components/common/SortableHeader';
 import '../admin.css';
 
 const UserDirectoryPage = () => {
@@ -60,7 +62,41 @@ const UserDirectoryPage = () => {
     }
   };
 
+  const handleToggleActive = async (u) => {
+    try {
+      await authService.toggleUserActive(u.id);
+      setUsers((prev) =>
+        prev.map((item) =>
+          item.id === u.id
+            ? { ...item, user: { ...item.user, is_active: !item.user?.is_active } }
+            : item
+        )
+      );
+    } catch (error) {
+      console.error('Error toggling active status:', error);
+      alert(error.response?.data?.detail || error.message || 'Failed to update user status.');
+      fetchDirectory();
+    }
+  };
+
+  const handleToggleVerified = async (u) => {
+    const nextVerified = !u.is_verified;
+    try {
+      await authService.setUserVerified(u.id, nextVerified);
+      setUsers((prev) =>
+        prev.map((item) =>
+          item.id === u.id ? { ...item, is_verified: nextVerified } : item
+        )
+      );
+    } catch (error) {
+      console.error('Error toggling verification status:', error);
+      alert(error.response?.data?.detail || error.message || 'Failed to update verification status.');
+      fetchDirectory();
+    }
+  };
+
   const handleFilterChange = (field, value) => {
+
     setFilters((prev) => ({
       ...prev,
       [field]: value,
@@ -153,7 +189,34 @@ const UserDirectoryPage = () => {
     return data;
   }, [users, filters, searchFields]);
 
+  const getDirectorySortValue = (u, key) => {
+    switch (key) {
+      case 'user':
+        return `${u.user?.first_name || ''} ${u.user?.last_name || ''}`.trim().toLowerCase();
+      case 'contact':
+        return (u.user?.email || '').toLowerCase();
+      case 'course':
+        return (u.course?.code || u.course?.name || u.department?.name || '').toLowerCase();
+      case 'year_level': {
+        const n = parseYearLevelNumber(u.year_level);
+        return n == null ? Number.POSITIVE_INFINITY : n;
+      }
+      case 'status':
+        return u.user?.is_active ? 1 : 0;
+      case 'verified':
+        return u.is_verified ? 1 : 0;
+      default:
+        return '';
+    }
+  };
+
+  const { sortedRows: sortedUsers, sortConfig, handleSort } = useTableSort(
+    filteredUsers,
+    getDirectorySortValue
+  );
+
   const summary = useMemo(() => {
+
     if (!filteredUsers.length) {
       return {
         total: 0,
@@ -345,16 +408,17 @@ const UserDirectoryPage = () => {
             <table className="admin-table">
               <thead>
                 <tr>
-                  <th>User</th>
-                  <th>Contact</th>
-                  <th>College / Course</th>
-                  <th>Year Level</th>
-                  <th className="text-center">Status</th>
-                  <th className="text-center">Verified</th>
+                  <SortableHeader label="USER" sortKey="user" sortConfig={sortConfig} onSort={handleSort} />
+                  <SortableHeader label="CONTACT" sortKey="contact" sortConfig={sortConfig} onSort={handleSort} />
+                  <SortableHeader label="COLLEGE / COURSE" sortKey="course" sortConfig={sortConfig} onSort={handleSort} />
+                  <SortableHeader label="YEAR LEVEL" sortKey="year_level" sortConfig={sortConfig} onSort={handleSort} />
+                  <SortableHeader label="STATUS" sortKey="status" sortConfig={sortConfig} onSort={handleSort} align="center" />
+                  <SortableHeader label="VERIFIED" sortKey="verified" sortConfig={sortConfig} onSort={handleSort} align="center" />
                 </tr>
               </thead>
               <tbody>
-                {filteredUsers.map((u) => (
+                {sortedUsers.map((u) => (
+
                   <tr key={u.id}>
                     <td>
                       <div className="admin-user-cell">
@@ -398,29 +462,33 @@ const UserDirectoryPage = () => {
                       )}
                     </td>
                     <td className="text-center">
-                      {u.user?.is_active ? (
-                        <span className="admin-status-badge-table admin-status-badge-active-table">
-                          Active
-                        </span>
-                      ) : (
-                        <span className="admin-status-badge-table admin-status-badge-inactive-table">
-                          Inactive
-                        </span>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleToggleActive(u)}
+                        className={`admin-status-badge-table ${
+                          u.user?.is_active ? 'admin-status-badge-active-table' : 'admin-status-badge-inactive-table'
+                        }`}
+                        title={u.user?.is_active ? "Click to set Inactive" : "Click to set Active"}
+                      >
+                        <Icon name={u.user?.is_active ? "checkCircle" : "clock"} size={13} />
+                        {u.user?.is_active ? 'Active' : 'Inactive'}
+                      </button>
                     </td>
                     <td className="text-center">
-                      {u.is_verified ? (
-                        <span className="admin-status-badge-table admin-status-badge-active-table">
-                          <Icon name="checkCircle" size={14} />
-                          Verified
-                        </span>
-                      ) : (
-                        <span className="admin-status-badge-table admin-status-badge-inactive-table">
-                          Not Verified
-                        </span>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleToggleVerified(u)}
+                        className={`admin-status-badge-table ${
+                          u.is_verified ? 'admin-status-badge-active-table' : 'admin-status-badge-inactive-table'
+                        }`}
+                        title={u.is_verified ? "Click to revoke verification" : "Click to mark as Verified"}
+                      >
+                        <Icon name={u.is_verified ? "checkCircle" : "xCircle"} size={13} />
+                        {u.is_verified ? 'Verified' : 'Unverified'}
+                      </button>
                     </td>
                   </tr>
+
                 ))}
               </tbody>
             </table>

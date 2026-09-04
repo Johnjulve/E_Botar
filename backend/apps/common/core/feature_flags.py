@@ -14,10 +14,11 @@ FEATURE_FLAGS_STORAGE_KEY = 'feature_flags'
 
 DEFAULT_FEATURE_FLAGS = {
     'data_export': True,
-    'user_registration': True,
+    'user_registration': False,
     'google_login': True,
     'staff_preview_disabled_features': True,
 }
+
 
 
 def coerce_feature_flags_dict(raw_payload) -> dict:

@@ -46,6 +46,16 @@ from .serializers import (
     UserRegistrationSerializer,
     UserSerializer,
 )
+from .oauth import (
+    authenticate_or_link_google_user,
+    get_google_client_id_from_social_app,
+    google_token_payload_from_access_token,
+)
+from .services.roster_sync import (
+    StudentRosterParser,
+    classify_roster_diff,
+    execute_roster_sync,
+)
 from .utils import staff_can_manage_student_profile
 
 
@@ -55,68 +65,6 @@ _PROFILE_EDIT_DENIED = (
     'You do not have permission to edit this profile. '
     'Staff may only edit student profiles at or below their own year level.'
 )
-
-
-def _get_google_client_id_from_social_app(request):
-    current_site = get_current_site(request)
-    site_specific_social_app = (
-        SocialApp.objects.filter(provider='google', sites=current_site)
-        .order_by('id')
-        .first()
-    )
-    if site_specific_social_app:
-        return site_specific_social_app.client_id
-
-    fallback_social_app = SocialApp.objects.filter(provider='google').order_by('id').first()
-    return fallback_social_app.client_id if fallback_social_app else None
-
-
-def _google_token_payload_from_access_token(access_token, expected_client_id):
-    """Validate a Google OAuth access token and return a normalized userinfo payload."""
-    try:
-        tokeninfo_response = requests.get(
-            'https://oauth2.googleapis.com/tokeninfo',
-            params={'access_token': access_token},
-            timeout=10,
-        )
-    except requests.RequestException:
-        return None
-
-    if tokeninfo_response.status_code != 200:
-        return None
-
-    tokeninfo = tokeninfo_response.json()
-    token_audience = tokeninfo.get('aud') or tokeninfo.get('azp')
-    if token_audience != expected_client_id:
-        logger.warning(
-            'Google access token audience mismatch: expected=%s got=%s',
-            expected_client_id,
-            token_audience,
-        )
-        return None
-
-    email_verified_raw = tokeninfo.get('email_verified')
-    email_verified = str(email_verified_raw).lower() in ('true', '1', 'yes')
-
-    return {
-        'email': (tokeninfo.get('email') or '').strip().lower(),
-        'email_verified': email_verified,
-        'sub': tokeninfo.get('sub'),
-        'given_name': tokeninfo.get('given_name') or '',
-        'family_name': tokeninfo.get('family_name') or '',
-    }
-
-
-def _build_unique_username_from_email(email_value):
-    local_part = (email_value or "").split("@")[0]
-    normalized_base = re.sub(r"[^a-zA-Z0-9_]", "", local_part).lower() or "google_user"
-    candidate_username = normalized_base[:150]
-    sequence = 1
-    while User.objects.filter(username=candidate_username).exists():
-        suffix = f"_{sequence}"
-        candidate_username = f"{normalized_base[: max(150 - len(suffix), 1)]}{suffix}"
-        sequence += 1
-    return candidate_username
 
 
 def handle_current_user_password_change(request):
@@ -145,6 +93,10 @@ def handle_current_user_password_change(request):
 
     user.set_password(new_password)
     user.save()
+    profile = getattr(user, 'profile', None)
+    if profile and profile.must_change_password:
+        profile.must_change_password = False
+        profile.save(update_fields=['must_change_password'])
     user = User.objects.get(pk=request.user.pk)
 
     verified = user.check_password(new_password)
@@ -212,6 +164,25 @@ class UserRegistrationView(generics.CreateAPIView):
     permission_classes = [AllowAny]
 
     def create(self, request, *args, **kwargs):
+        is_staff_or_admin = (
+            request.user
+            and request.user.is_authenticated
+            and (request.user.is_staff or request.user.is_superuser)
+        )
+        flags = load_feature_flags()
+        if not is_staff_or_admin and not flags.get('user_registration', False):
+            return Response(
+                {
+                    'error': (
+                        'Public self-registration is closed. Student accounts are officially '
+                        'provisioned through the university registrar roster. '
+                        'Please sign in with your school Google account or contact the Office of Student Affairs.'
+                    ),
+                    'code': 'registration_closed',
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         enforce_scope_throttle(
             request,
             self,
@@ -259,7 +230,7 @@ def google_login(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    google_client_id = _get_google_client_id_from_social_app(request)
+    google_client_id = get_google_client_id_from_social_app(request)
     if not google_client_id:
         return Response(
             {'error': 'Google Social App is not configured on the server.'},
@@ -279,7 +250,7 @@ def google_login(request):
                 status=status.HTTP_401_UNAUTHORIZED,
             )
     else:
-        token_payload = _google_token_payload_from_access_token(
+        token_payload = google_token_payload_from_access_token(
             google_access_token,
             google_client_id,
         )
@@ -289,130 +260,12 @@ def google_login(request):
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
-    email_value = (token_payload.get('email') or '').strip().lower()
-    email_verified = str(token_payload.get('email_verified')).lower() == 'true'
-    google_subject = token_payload.get('sub')
-
-    if not email_value or not google_subject:
-        return Response(
-            {'error': 'Google account payload is missing required identity fields.'},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-    if not email_verified:
-        return Response(
-            {'error': 'Google email must be verified before sign in.'},
-            status=status.HTTP_403_FORBIDDEN,
-        )
-
-    existing_social_account = SocialAccount.objects.filter(
-        provider='google',
-        uid=str(google_subject),
-    ).select_related('user').first()
-    if existing_social_account:
-        user = existing_social_account.user
-    else:
-        conflicting_email_accounts = User.objects.filter(email__iexact=email_value)
-        ambiguous_email_conflict_count = conflicting_email_accounts.count()
-        if ambiguous_email_conflict_count > 1:
-            return Response(
-                {
-                    'error': (
-                        'Several local accounts share this verified email. '
-                        'Contact an administrator to resolve duplicate accounts.'
-                    ),
-                    'code': 'ambiguous_email_accounts',
-                },
-                status=status.HTTP_409_CONFLICT,
-            )
-        matching_user = conflicting_email_accounts.first()
-
-        if matching_user:
-            if not existing_account_password:
-                return Response(
-                    {
-                        'error': 'Password confirmation is required before linking this Google account.',
-                        'requires_password': True,
-                        'email': email_value,
-                    },
-                    status=status.HTTP_409_CONFLICT,
-                )
-            if not matching_user.check_password(existing_account_password):
-                return Response(
-                    {'error': 'Invalid password for existing account.'},
-                    status=status.HTTP_401_UNAUTHORIZED,
-                )
-            if not matching_user.is_active:
-                return Response(
-                    {'error': 'This account is inactive and cannot be linked.'},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
-
-            try:
-                SocialAccount.objects.create(
-                    user=matching_user,
-                    provider='google',
-                    uid=str(google_subject),
-                    extra_data=token_payload,
-                )
-            except IntegrityError:
-                raced_social_link = SocialAccount.objects.filter(
-                    provider='google',
-                    uid=str(google_subject),
-                ).select_related('user').first()
-                if raced_social_link:
-                    user = raced_social_link.user
-                else:
-                    logger.exception('Google linking IntegrityError without recoverable SocialAccount')
-                    return Response(
-                        {'error': 'Unable to link Google account (database conflict). Please try again shortly.'},
-                        status=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    )
-            else:
-                user = matching_user
-        else:
-            first_name = (token_payload.get('given_name') or '').strip()
-            last_name = (token_payload.get('family_name') or '').strip()
-            unique_username = _build_unique_username_from_email(email_value)
-            try:
-                with transaction.atomic():
-                    user = User.objects.create_user(
-                        username=unique_username,
-                        email=email_value,
-                        password=None,
-                        first_name=first_name,
-                        last_name=last_name,
-                    )
-                    SocialAccount.objects.create(
-                        user=user,
-                        provider='google',
-                        uid=str(google_subject),
-                        extra_data=token_payload,
-                    )
-                    UserProfile.objects.get_or_create(user=user)
-            except IntegrityError:
-                raced_google_user_flow = SocialAccount.objects.filter(
-                    provider='google',
-                    uid=str(google_subject),
-                ).select_related('user').first()
-                if raced_google_user_flow:
-                    user = raced_google_user_flow.user
-                else:
-                    logger.exception('Google new-user IntegrityError without matching SocialAccount')
-                    return Response(
-                        {
-                            'error': (
-                                'Unable to finalize Google sign-in because of an account naming conflict '
-                                '(try again shortly or contact support).'
-                            ),
-                        },
-                        status=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    )
-
-    if not user.is_active:
-        return Response(
-            {'error': 'This account is inactive.'},
-            status=status.HTTP_403_FORBIDDEN,
-        )
+    user, error_data, status_code = authenticate_or_link_google_user(
+        token_payload,
+        existing_account_password=existing_account_password,
+    )
+    if error_data:
+        return Response(error_data, status=status_code)
 
     jwt_refresh_token = RefreshToken.for_user(user)
     return Response(
@@ -424,7 +277,130 @@ def google_login(request):
     )
 
 
+# --- Student Roster Synchronization --------------------------------------------
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated, IsStaffOrSuperUser])
+def student_roster_preview(request):
+    """
+    Dry-run endpoint for student roster synchronization.
+    Parses uploaded .xlsx or .csv, validates formatting, and calculates diffs
+    without mutating the database.
+    """
+    enforce_scope_throttle(
+        request,
+        student_roster_preview,
+        scope='roster_preview',
+        message='Too many roster preview requests. Please wait a moment before trying again.',
+    )
+
+    uploaded_file = request.FILES.get('file')
+    if not uploaded_file:
+        return Response(
+            {'error': 'A valid spreadsheet file (.xlsx or .csv) is required.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    parser = StudentRosterParser()
+    valid_rows, error_rows = parser.parse_file(uploaded_file, uploaded_file.name)
+
+    if not valid_rows and error_rows and error_rows[0].get('field') in ('format', 'dependency', 'file', 'header'):
+        return Response(
+            {
+                'error': error_rows[0]['error'],
+                'errors': error_rows,
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    diff = classify_roster_diff(valid_rows)
+
+    return Response(
+        {
+            'filename': uploaded_file.name,
+            'stats': {
+                'total_rows': len(valid_rows) + len(error_rows),
+                'valid_count': len(valid_rows),
+                'error_count': len(error_rows),
+                'to_create_count': diff['stats']['to_create_count'],
+                'to_update_count': diff['stats']['to_update_count'],
+                'to_deactivate_count': diff['stats']['to_deactivate_count'],
+            },
+            'errors': error_rows,
+            'preview': {
+                'to_create': diff['to_create'][:100],
+                'to_update': diff['to_update'][:100],
+                'to_deactivate': diff['to_deactivate'][:100],
+            },
+        },
+        status=status.HTTP_200_OK,
+    )
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated, IsStaffOrSuperUser])
+def student_roster_import(request):
+    """
+    Atomic execution endpoint for student roster synchronization.
+    Parses uploaded file, executes creates/updates within a single database transaction,
+    flags must_change_password=True for new accounts, logs ActivityLog, and clears cache.
+    """
+    enforce_scope_throttle(
+        request,
+        student_roster_import,
+        scope='roster_import',
+        message='A roster import was recently processed or is currently running. Please wait a moment.',
+    )
+
+    uploaded_file = request.FILES.get('file')
+    if not uploaded_file:
+        return Response(
+            {'error': 'A valid spreadsheet file (.xlsx or .csv) is required.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    deactivate_unlisted_raw = request.data.get('deactivate_unlisted', 'false')
+    deactivate_unlisted = str(deactivate_unlisted_raw).lower() in ('true', '1', 'yes')
+
+    parser = StudentRosterParser()
+    valid_rows, error_rows = parser.parse_file(uploaded_file, uploaded_file.name)
+
+    if not valid_rows:
+        return Response(
+            {
+                'error': 'No valid student records were found in the uploaded file.',
+                'errors': error_rows,
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    diff = classify_roster_diff(valid_rows)
+
+    result = execute_roster_sync(
+        diff=diff,
+        deactivate_unlisted=deactivate_unlisted,
+        actor_user=request.user,
+        ip_address=get_client_ip(request),
+    )
+
+    return Response(
+        {
+            'message': 'Student roster synchronized successfully.',
+            'created_count': result['created_count'],
+            'updated_count': result['updated_count'],
+            'deactivated_count': result['deactivated_count'],
+            'total_synced': result['total_synced'],
+            'errors_count': len(error_rows),
+            'errors': error_rows,
+        },
+        status=status.HTTP_200_OK,
+    )
+
+
+
 # --- Profiles -----------------------------------------------------------------
+
 
 
 class UserProfileViewSet(viewsets.ModelViewSet):

@@ -4,6 +4,8 @@ import { LoadingSpinner, Modal, Icon } from '../../../components/common';
 import { electionService, votingService } from '../../../services';
 import { getInitials } from '../../../utils/helpers';
 import { formatDate } from '../../../utils/formatters';
+import { useTableSort } from '../../../hooks/useTableSort';
+import { SortableHeader } from '../../../components/common/SortableHeader';
 import '../admin.css';
 
 const STATUS_LABELS = {
@@ -143,7 +145,34 @@ const ReceiptAuditPage = () => {
     return pages;
   }, [pagination.totalPages]);
 
+
+  const getAuditSortValue = (row, key) => {
+
+    switch (key) {
+      case 'student':
+        return (row.user_full_name || row.user_username || '').toLowerCase();
+      case 'election':
+        return (row.election_title || '').toLowerCase();
+      case 'receipt':
+        return (row.masked_receipt_code || row.receipt_code || '').toLowerCase();
+      case 'created_at': {
+        const t = row.created_at ? new Date(row.created_at).getTime() : 0;
+        return Number.isFinite(t) ? t : 0;
+      }
+      case 'status':
+        return (row.verification_status || '').toLowerCase();
+      default:
+        return '';
+    }
+  };
+
+  const { sortedRows, sortConfig, handleSort } = useTableSort(
+    rows,
+    getAuditSortValue
+  );
+
   return (
+
     <Container>
       {/* Header */}
       <div className="admin-header">
@@ -288,17 +317,18 @@ const ReceiptAuditPage = () => {
             <table className="admin-users-table">
               <thead>
                 <tr>
-                  <th>STUDENT</th>
-                  <th>ELECTION</th>
-                  <th>RECEIPT CODE</th>
-                  <th>CREATED AT</th>
-                  <th className="text-center">STATUS</th>
+                  <SortableHeader label="STUDENT" sortKey="student" sortConfig={sortConfig} onSort={handleSort} />
+                  <SortableHeader label="ELECTION" sortKey="election" sortConfig={sortConfig} onSort={handleSort} />
+                  <SortableHeader label="RECEIPT CODE" sortKey="receipt" sortConfig={sortConfig} onSort={handleSort} />
+                  <SortableHeader label="CREATED AT" sortKey="created_at" sortConfig={sortConfig} onSort={handleSort} />
+                  <SortableHeader label="STATUS" sortKey="status" sortConfig={sortConfig} onSort={handleSort} align="center" />
                   <th>BLOCK HASH</th>
                   <th>PREVIOUS HASH</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row) => {
+                {sortedRows.map((row) => {
+
                   const studentName = row.user_full_name || row.user_username || 'Student';
                   const cleanInitials = getInitials(studentName).replace(/\./g, '').toUpperCase() || 'U';
 

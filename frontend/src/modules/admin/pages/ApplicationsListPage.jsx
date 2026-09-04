@@ -17,6 +17,7 @@ const ApplicationsListPage = () => {
   const [filteredApps, setFilteredApps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all, pending, approved, rejected
+  const [searchQuery, setSearchQuery] = useState('');
   const [pageSize, setPageSize] = useState(20); // 20 | 50 | Infinity (All)
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -26,11 +27,11 @@ const ApplicationsListPage = () => {
 
   useEffect(() => {
     filterApplications();
-  }, [filter, applications]);
+  }, [filter, applications, searchQuery]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filter, pageSize]);
+  }, [filter, pageSize, searchQuery]);
 
   const fetchApplications = async () => {
     try {
@@ -45,11 +46,22 @@ const ApplicationsListPage = () => {
   };
 
   const filterApplications = () => {
-    if (filter === 'all') {
-      setFilteredApps(applications);
-    } else {
-      setFilteredApps(applications.filter(app => app.status === filter));
+    let list = applications;
+    if (filter !== 'all') {
+      list = list.filter(app => app.status === filter);
     }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter(app => {
+        const fullName = `${app.user?.first_name || ''} ${app.user?.last_name || ''}`.toLowerCase();
+        const email = (app.user?.email || '').toLowerCase();
+        const pos = (app.position?.name || '').toLowerCase();
+        const elec = (app.election?.title || '').toLowerCase();
+        const party = (app.party?.name || '').toLowerCase();
+        return fullName.includes(q) || email.includes(q) || pos.includes(q) || elec.includes(q) || party.includes(q);
+      });
+    }
+    setFilteredApps(list);
   };
 
   const totalRows = filteredApps.length;
@@ -92,28 +104,51 @@ const ApplicationsListPage = () => {
         </div>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="admin-filter-tabs">
-        {filterButtons.map(btn => {
-          const isActive = filter === btn.key;
-          const btnClass = isActive 
-            ? (btn.key === 'pending' ? 'admin-filter-btn-pending' :
-               btn.key === 'approved' ? 'admin-filter-btn-approved' :
-               btn.key === 'rejected' ? 'admin-filter-btn-rejected' :
-               'admin-filter-btn-default')
-            : 'admin-filter-btn-inactive';
-          
-          return (
+      {/* Search & Filter Toolbar */}
+      <div className="admin-registry-toolbar-row">
+        <div className="admin-users-search-pill">
+          <Icon name="search" size={16} className="admin-users-search-icon" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search candidate, position, or election..."
+            className="admin-users-search-input"
+          />
+          {searchQuery && (
             <button
-              key={btn.key}
-              onClick={() => setFilter(btn.key)}
-              className={`admin-filter-btn ${btnClass}`}
+              type="button"
+              className="admin-users-search-clear"
+              onClick={() => setSearchQuery('')}
             >
-              <Icon name={btn.icon} size={16} />
-              {btn.label}
+              ×
             </button>
-          );
-        })}
+          )}
+        </div>
+
+        {/* Filter Tabs */}
+        <div className="admin-filter-tabs">
+          {filterButtons.map(btn => {
+            const isActive = filter === btn.key;
+            const btnClass = isActive 
+              ? (btn.key === 'pending' ? 'admin-filter-btn-pending' :
+                 btn.key === 'approved' ? 'admin-filter-btn-approved' :
+                 btn.key === 'rejected' ? 'admin-filter-btn-rejected' :
+                 'admin-filter-btn-default')
+              : 'admin-filter-btn-inactive';
+            
+            return (
+              <button
+                key={btn.key}
+                onClick={() => setFilter(btn.key)}
+                className={`admin-filter-btn ${btnClass}`}
+              >
+                <Icon name={btn.icon} size={16} />
+                {btn.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Applications Grid */}
@@ -126,7 +161,7 @@ const ApplicationsListPage = () => {
             return (
               <div key={application.id} className="admin-card">
                 <div className="admin-app-card-header">
-                  <div className="admin-avatar primary">
+                  <div className="admin-avatar primary" style={{ borderRadius: '50%' }}>
                     {getInitials(`${application.user?.first_name} ${application.user?.last_name}`)}
                   </div>
                   <div className="admin-flex-1 admin-min-width-0">
@@ -245,10 +280,14 @@ const ApplicationsListPage = () => {
       ) : (
         <div className="admin-card-container admin-empty-state">
           <h5 className="admin-empty-state-title">
-            No {filter !== 'all' ? filter : ''} Applications
+            {searchQuery
+              ? `No applications matching "${searchQuery}"`
+              : `No ${filter !== 'all' ? filter : ''} Applications`}
           </h5>
           <p className="admin-empty-state-message">
-            There are no {filter !== 'all' ? filter : ''} applications at this time.
+            {searchQuery
+              ? 'Try adjusting your search keywords or clear the search field.'
+              : `There are no ${filter !== 'all' ? filter : ''} applications at this time.`}
           </p>
         </div>
       )}

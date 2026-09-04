@@ -298,3 +298,10 @@ scripts/start*.bat
 # Agent customizations and local agent skills/rules
 .agents/
 .agent/
+
+# Independent Multi-Purpose Testing CLI & Artifacts
+Testing/
+run_tests.py
+test.cmd
+.pytest_cache/
+*performance_report.json

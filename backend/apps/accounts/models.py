@@ -94,14 +94,19 @@ class UserProfile(models.Model):
         limit_choices_to={'program_type': Program.ProgramType.COURSE},
         to_field='code'
     )
-    year_level = models.CharField(max_length=20, blank=True)
+    year_level = models.CharField(max_length=20, blank=True, db_index=True)
     section = models.CharField(
         max_length=50,
         blank=True,
         help_text='Class section (e.g. A, B, or block code)',
     )
     avatar = models.ImageField(upload_to=avatar_upload_path, blank=True, null=True)
-    is_verified = models.BooleanField(default=False)
+    is_verified = models.BooleanField(default=False, db_index=True)
+    must_change_password = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text='Mandates password change upon next login (e.g. for bulk-imported accounts)',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -143,3 +148,8 @@ class UserProfile(models.Model):
         verbose_name = 'User Profile'
         verbose_name_plural = 'User Profiles'
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['department', 'year_level'], name='acc_userprof_dept_yr_idx'),
+            models.Index(fields=['course', 'year_level'], name='acc_userprof_course_yr_idx'),
+        ]
+

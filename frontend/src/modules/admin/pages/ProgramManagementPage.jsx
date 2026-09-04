@@ -7,6 +7,8 @@ import React, { useState, useEffect } from 'react';
 import { Container } from '../../../components/layout';
 import { LoadingSpinner, Icon } from '../../../components/common';
 import { programService } from '../../../services';
+import { useTableSort } from '../../../hooks/useTableSort';
+import { SortableHeader } from '../../../components/common/SortableHeader';
 import '../admin.css';
 
 const ProgramManagementPage = () => {
@@ -309,23 +311,47 @@ const ProgramManagementPage = () => {
     }
   };
 
-  if (loading) {
-    return <LoadingSpinner fullScreen text="Loading programs..." />;
-  }
-
   const filterButtons = [
     { key: 'all', label: 'All Programs', icon: 'building' },
     { key: 'department', label: 'Colleges', icon: 'building' },
     { key: 'course', label: 'Courses', icon: 'book' }
   ];
 
-// Friendly labels for program types
-const typeLabels = {
-  department: 'College',
-  course: 'Course'
-};
+  // Friendly labels for program types
+  const typeLabels = {
+    department: 'College',
+    course: 'Course'
+  };
+
+  const getProgramSortValue = (p, key) => {
+    switch (key) {
+      case 'name':
+        return (p.name || '').toLowerCase();
+      case 'code':
+        return (p.code || '').toLowerCase();
+      case 'type':
+        return (p.program_type || '').toLowerCase();
+      case 'colleges':
+        return (p.department?.name || p.department?.code || '').toLowerCase();
+      case 'status':
+        return p.is_active ? 1 : 0;
+      default:
+        return '';
+    }
+  };
+
+  const { sortedRows: sortedPrograms, sortConfig, handleSort } = useTableSort(
+    programs,
+    getProgramSortValue
+  );
+
+  if (loading) {
+    return <LoadingSpinner fullScreen text="Loading programs..." />;
+  }
+
 
   return (
+
     <Container>
       {/* Header */}
       <div className="admin-header">
@@ -340,7 +366,7 @@ const typeLabels = {
           <div className="admin-program-header-actions">
             <button
               onClick={() => handleExport(filter !== 'all' ? filter : null)}
-              className="admin-btn admin-btn-success"
+              className="admin-btn secondary"
             >
               <Icon name="download" size={16} />
               Export CSV
@@ -598,22 +624,26 @@ const typeLabels = {
         ))}
       </div>
 
+
       {/* Programs Table */}
       {programs.length > 0 ? (
+
+
         <div className="admin-table-container">
           <table className="admin-table">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Code</th>
-                <th>Type</th>
-                <th>Colleges</th>
-                <th>Status</th>
+                <SortableHeader label="NAME" sortKey="name" sortConfig={sortConfig} onSort={handleSort} />
+                <SortableHeader label="CODE" sortKey="code" sortConfig={sortConfig} onSort={handleSort} />
+                <SortableHeader label="TYPE" sortKey="type" sortConfig={sortConfig} onSort={handleSort} />
+                <SortableHeader label="COLLEGES" sortKey="colleges" sortConfig={sortConfig} onSort={handleSort} />
+                <SortableHeader label="STATUS" sortKey="status" sortConfig={sortConfig} onSort={handleSort} align="center" />
                 <th className="text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {programs.map(program => (
+              {sortedPrograms.map(program => (
+
                 <tr key={program.id}>
                   <td className="admin-table-cell-name">
                     {program.name}

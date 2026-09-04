@@ -11,11 +11,13 @@
   --brand-yellow: #f4cc5c;
   --brand-yellow-dark: #f0b429;
   
-  /* Status Colors */
-  --primary-color: #2563eb;
-  --primary-hover: #1d4ed8;
+  /* Status & Brand Theme Colors */
+  --primary-color: #0b6e3b;
+  --primary-hover: #075a30;
+  --primary-active: #054020;
   --success-color: #10b981;
   --success-hover: #059669;
+
   --danger-color: #ef4444;
   --danger-hover: #dc2626;
   --warning-color: #f59e0b;
@@ -51,8 +53,11 @@
   --info-soft-text: #1e40af;
   --info-soft-text-alt: #1e3a8a;
 
-  /* Primary (blue) soft */
-  --primary-soft-bg: #eff6ff;
+  /* Primary brand soft */
+  --primary-soft-bg: #ecfdf5;
+  --primary-soft-border: #a7f3d0;
+  --primary-soft-text: #065f46;
+
 
   /* Accent (purple) - receipts, etc. */
   --accent-purple: #8b5cf6;

@@ -1,17 +1,20 @@
+"""
+Centralized Voting, Blockchain Ledger & Receipt Audit Tests.
+"""
+
 from datetime import timedelta
 from unittest.mock import patch
 
-from django.core.cache import cache
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.candidates.models import Candidate
 from apps.elections.models import ElectionPosition, SchoolElection, SchoolPosition
-
-from .models import VoteBlock, VoteReceipt
-from .vote_ledger import verify_election_vote_chain
+from apps.voting.models import VoteBlock, VoteReceipt
+from apps.voting.vote_ledger import verify_election_vote_chain
 
 
 class ResultsStatisticsPositionStatsTests(TestCase):
@@ -74,7 +77,6 @@ class ResultsStatisticsPositionStatsTests(TestCase):
             'apps.voting.views.VotingDataService.get_election_statistics',
             return_value=stats_payload,
         ):
-            # DRF router names are not reliably reverse()d at project root; path matches guide.html.
             response = self.client.get(
                 '/api/voting/results/statistics/',
                 {'election_id': self.election.id},
