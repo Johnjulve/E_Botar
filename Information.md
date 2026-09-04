@@ -1,17 +1,17 @@
 # E-Botar - System Information
 
-**Version 3.3.0** | Complete system documentation and technical details
+**Version 3.4.0** | Complete system documentation and technical details
 
 [![Django](https://img.shields.io/badge/Django-5.2.8-green.svg)](https://www.djangoproject.com/)
 [![DRF](https://img.shields.io/badge/DRF-3.16.1-red.svg)](https://www.django-rest-framework.org/)
 [![React](https://img.shields.io/badge/React-19.2-blue.svg)](https://reactjs.org/)
-[![License](https://img.shields.io/badge/License-Proprietary-yellow.svg)](#)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
 
 ## 📖 Table of Contents
 
-- [Release Highlights (3.3.0)](#-release-highlights-330)
+- [Release Highlights (3.4.0)](#-release-highlights-340)
 - [Overview](#overview)
 - [Research Foundation](#research-foundation)
 - [Algorithms & Data Structures](#-algorithms--data-structures)
@@ -28,7 +28,24 @@
 
 ---
 
-## 🚀 Release Highlights (3.3.0)
+## 🚀 Release Highlights (3.4.0)
+
+
+- **Global Click-to-Sort Rollout Across All Admin Tables**:
+  - Full three-state sort cycling (`None` → `Ascending` → `Descending` → `None`) integrated across **User Directory**, **Receipt Audit**, **Voting Status**, **Program Management**, and **Political Parties**.
+  - Accessible `aria-sort` screen reader announcements and dynamic directional chevron indicators.
+- **Universal Modal Prop Interoperability (`Modal.jsx`)**:
+  - Dual prop support for `show`/`isOpen` and `onHide`/`onClose` in the shared modal system, guaranteeing responsive "X" close buttons and smooth dialog triggers across all devices.
+- **Registrar Roster Sync Engine (`.xlsx` & `.csv`)**:
+  - Streaming dual-format parser with BOM auto-detection, in-memory diff preview calculation (`POST /api/auth/students/roster-preview/`), and atomic database commits (`POST /api/auth/students/roster-import/`).
+- **Registration Lockdown & Roster-Restricted OAuth**:
+  - Closed public self-registration by default (`user_registration: false`), rejecting unlisted emails while safeguarding verified roster students.
+  - Mandatory first-login password reset modal for accounts created with temporary credentials (`must_change_password=True`).
+- **Centralized Test Architecture & Full Verification**:
+  - Centralized test suite in `backend/tests/` with `VerboseTestRunner` (33/33 tests passing with 0 warnings).
+
+### Previous Highlights (3.3.0)
+
 
 - **Modern Unified Admin Dashboard & Table Design System**:
   - Standardized modern dashboard controls across [`UserManagementPage.jsx`](frontend/src/modules/admin/pages/UserManagementPage.jsx) and [`ReceiptAuditPage.jsx`](frontend/src/modules/admin/pages/ReceiptAuditPage.jsx), consolidated under [`frontend/src/modules/admin/admin.css`](frontend/src/modules/admin/admin.css).

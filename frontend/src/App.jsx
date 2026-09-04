@@ -8,6 +8,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { BrandingProvider } from './contexts/BrandingContext';
 import { Navbar, Footer } from './components/layout';
+import { FirstLoginPasswordModal } from './modules/auth/components/FirstLoginPasswordModal';
 import AppRoutes from './routes/AppRoutes';
 /* Note: Global styles are now loaded in main.jsx at app level */
 
@@ -23,10 +24,12 @@ function App() {
             </main>
             <Footer />
           </div>
+          <FirstLoginPasswordModal />
         </BrandingProvider>
       </AuthProvider>
     </BrowserRouter>
   );
 }
+
 
 export default App;

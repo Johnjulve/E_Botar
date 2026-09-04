@@ -38,9 +38,9 @@ const Button = ({
 
   const variantStyles = {
     primary: {
-      background: '#2563eb',
+      background: 'var(--primary-color, #0b6e3b)',
       color: 'white',
-      borderColor: '#2563eb'
+      borderColor: 'var(--primary-color, #0b6e3b)'
     },
     secondary: {
       background: 'white',
@@ -48,9 +48,9 @@ const Button = ({
       borderColor: '#d1d5db'
     },
     success: {
-      background: '#22c55e',
+      background: 'var(--brand-green, #0b6e3b)',
       color: 'white',
-      borderColor: '#22c55e'
+      borderColor: 'var(--brand-green, #0b6e3b)'
     },
     danger: {
       background: '#ef4444',
@@ -63,33 +63,34 @@ const Button = ({
       borderColor: '#eab308'
     },
     info: {
-      background: '#3b82f6',
+      background: 'var(--primary-color, #0b6e3b)',
       color: 'white',
-      borderColor: '#3b82f6'
+      borderColor: 'var(--primary-color, #0b6e3b)'
     },
     outline: {
       background: 'transparent',
-      color: '#2563eb',
-      borderColor: '#2563eb'
+      color: 'var(--primary-color, #0b6e3b)',
+      borderColor: 'var(--primary-color, #0b6e3b)'
     },
     link: {
       background: 'transparent',
-      color: '#2563eb',
+      color: 'var(--primary-color, #0b6e3b)',
       border: 'none',
       padding: '0.25rem 0.5rem'
     }
   };
 
   const hoverStyles = {
-    primary: { background: '#1d4ed8', borderColor: '#1d4ed8' },
+    primary: { background: 'var(--primary-hover, #075a30)', borderColor: 'var(--primary-hover, #075a30)' },
     secondary: { background: '#f3f4f6', borderColor: '#9ca3af' },
-    success: { background: '#16a34a', borderColor: '#16a34a' },
+    success: { background: 'var(--brand-green-dark, #075a30)', borderColor: 'var(--brand-green-dark, #075a30)' },
     danger: { background: '#dc2626', borderColor: '#dc2626' },
     warning: { background: '#d97706', borderColor: '#d97706' },
-    info: { background: '#2563eb', borderColor: '#2563eb' },
-    outline: { background: '#eff6ff', color: '#1d4ed8' },
+    info: { background: 'var(--primary-hover, #075a30)', borderColor: 'var(--primary-hover, #075a30)' },
+    outline: { background: 'var(--primary-soft-bg, #ecfdf5)', color: 'var(--primary-hover, #075a30)' },
     link: { opacity: '0.8' }
   };
+
 
   const [isHovered, setIsHovered] = React.useState(false);
 

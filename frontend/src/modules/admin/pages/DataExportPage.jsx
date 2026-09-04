@@ -12,6 +12,7 @@ import { useBranding } from '../../../hooks/useBranding';
 import { formatNumber } from '../../../utils/formatters';
 import jsPDF from 'jspdf';
 import './studentExport.css';
+import '../admin.css';
 
 // Reshape the `/voting/results/breakdown/` response into the
 // `studentsByDept` and `votesByCategory` structures the PDF generators

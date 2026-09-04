@@ -9,7 +9,9 @@ import Button from './Button';
 
 const Modal = ({ 
   show,
+  isOpen,
   onHide,
+  onClose,
   title,
   children,
   footer,
@@ -24,22 +26,26 @@ const Modal = ({
   confirmLoading = false,
   ...props
 }) => {
+  const isVisible = show !== undefined ? Boolean(show) : Boolean(isOpen);
+  const closeHandler = onHide || onClose;
+
   const handleCancel = () => {
     if (onCancel) {
       onCancel();
-    } else {
-      onHide();
+    } else if (closeHandler) {
+      closeHandler();
     }
   };
 
   return (
     <BootstrapModal
-      show={show}
-      onHide={onHide}
+      show={isVisible}
+      onHide={closeHandler}
       size={size}
       centered={centered}
       {...props}
     >
+
       {title && (
         <BootstrapModal.Header closeButton={showCloseButton}>
           <BootstrapModal.Title>{title}</BootstrapModal.Title>

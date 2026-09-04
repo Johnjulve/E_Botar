@@ -189,13 +189,13 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'department', 'department_code',
             'course', 'course_code',
             'year_level', 'section', 'avatar', 'avatar_url',
-            'is_verified', 'is_profile_complete', 'missing_fields',
+            'is_verified', 'must_change_password', 'is_profile_complete', 'missing_fields',
             'created_at', 'updated_at',
             'first_name', 'last_name',
         ]
         read_only_fields = [
             'id', 'created_at', 'updated_at', 'avatar_url', 'department', 'course',
-            'is_verified', 'is_profile_complete', 'missing_fields',
+            'is_verified', 'must_change_password', 'is_profile_complete', 'missing_fields',
         ]
 
     def get_is_profile_complete(self, obj):
@@ -305,6 +305,7 @@ class UserProfileListSerializer(serializers.ModelSerializer):
             'year_level': instance.year_level or '',
             'section': instance.section or '',
             'is_verified': instance.is_verified,
+            'must_change_password': instance.must_change_password,
             'user': {
                 'id': user.id,
                 'username': user.username,
@@ -397,7 +398,10 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         attrs['username'] = username
         attrs.pop('email', None)
-        return super().validate(attrs)
+        data = super().validate(attrs)
+        profile = getattr(self.user, 'profile', None)
+        data['must_change_password'] = bool(profile and profile.must_change_password)
+        return data
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):

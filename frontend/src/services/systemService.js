@@ -3,10 +3,11 @@ import api, { cachedGet, clearApiCache } from './api';
 /** Default branding when API is unavailable (template fallback) */
 export const DEFAULT_FEATURE_FLAGS = Object.freeze({
   data_export: true,
-  user_registration: true,
+  user_registration: false,
   google_login: true,
   staff_preview_disabled_features: true,
 });
+
 
 export const DEFAULT_BRANDING = Object.freeze({
   institution_name: 'SURIGAO DEL NORTE',

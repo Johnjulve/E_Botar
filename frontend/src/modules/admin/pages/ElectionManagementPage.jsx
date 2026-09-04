@@ -3,7 +3,7 @@
  * Manage all elections (CRUD operations)
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Container } from '../../../components/layout';
 import { LoadingSpinner, Icon } from '../../../components/common';
@@ -18,6 +18,7 @@ const ElectionManagementPage = () => {
   const [loading, setLoading] = useState(true);
   const [busyElectionId, setBusyElectionId] = useState(null);
   const [filter, setFilter] = useState('all'); // all, active, upcoming, finished
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     fetchElections();
@@ -49,6 +50,17 @@ const ElectionManagementPage = () => {
       setLoading(false);
     }
   };
+
+  const filteredElections = useMemo(() => {
+    if (!searchQuery.trim()) return elections;
+    const q = searchQuery.toLowerCase().trim();
+    return elections.filter((e) => {
+      const title = (e.title || '').toLowerCase();
+      const desc = (e.description || '').toLowerCase();
+      const dept = (e.allowed_department_code || '').toLowerCase();
+      return title.includes(q) || desc.includes(q) || dept.includes(q);
+    });
+  }, [elections, searchQuery]);
 
   const handleDeleteElection = async (election) => {
     if (
@@ -150,25 +162,47 @@ const ElectionManagementPage = () => {
           </div>
         </header>
 
-      {/* Filter Tabs */}
-      <div className="admin-filter-tabs admin-registry-filters" role="group" aria-label="Filter elections">
-        {filterButtons.map(btn => (
-          <button
-            key={btn.key}
-            type="button"
-            onClick={() => setFilter(btn.key)}
-            className={`admin-filter-btn ${filter === btn.key ? 'active' : ''}`}
-          >
-            <Icon name={btn.icon} size={16} />
-            {btn.label}
-          </button>
-        ))}
+      {/* Toolbar with Search and Filter Tabs */}
+      <div className="admin-registry-toolbar-row">
+        <div className="admin-users-search-pill">
+          <Icon name="search" size={16} className="admin-users-search-icon" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search elections by title or department..."
+            className="admin-users-search-input"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              className="admin-users-search-clear"
+              onClick={() => setSearchQuery('')}
+            >
+              ×
+            </button>
+          )}
+        </div>
+
+        <div className="admin-filter-tabs admin-registry-filters" role="group" aria-label="Filter elections">
+          {filterButtons.map(btn => (
+            <button
+              key={btn.key}
+              type="button"
+              onClick={() => setFilter(btn.key)}
+              className={`admin-filter-btn ${filter === btn.key ? 'active' : ''}`}
+            >
+              <Icon name={btn.icon} size={16} />
+              {btn.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Elections Grid */}
-      {elections.length > 0 ? (
+      {filteredElections.length > 0 ? (
         <div className="admin-card-grid">
-          {elections.map(election => {
+          {filteredElections.map(election => {
             const status = getElectionStatus(election);
             
             return (
@@ -211,19 +245,15 @@ const ElectionManagementPage = () => {
                   </div>
                 </div>
 
-                <div className="admin-election-stats-grid">
-                  <div className="admin-election-stat-box">
-                    <div className="admin-election-stat-value admin-election-stat-value-primary">
-                      {election.total_votes || 0}
-                    </div>
-                    <small className="admin-election-stat-label">Votes</small>
-                  </div>
-                  <div className="admin-election-stat-box">
-                    <div className="admin-election-stat-value admin-election-stat-value-success">
-                      {election.total_positions || 0}
-                    </div>
-                    <small className="admin-election-stat-label">Positions</small>
-                  </div>
+                <div className="admin-election-metrics-row">
+                  <span className="admin-election-metric-chip votes">
+                    <Icon name="checkCircle" size={14} />
+                    <strong>{election.total_votes || 0}</strong> Votes
+                  </span>
+                  <span className="admin-election-metric-chip positions">
+                    <Icon name="users" size={14} />
+                    <strong>{election.total_positions || 0}</strong> Positions
+                  </span>
                 </div>
 
                 <div className="admin-card-actions">
@@ -291,10 +321,16 @@ const ElectionManagementPage = () => {
         <div className="admin-empty-card admin-registry-empty">
           <Icon name="calendar" size={40} className="admin-empty-icon" />
           <h2 className="admin-empty-title">
-            {filter === 'all' ? 'No elections yet' : `No ${filter} elections`}
+            {searchQuery
+              ? `No elections matching "${searchQuery}"`
+              : filter === 'all'
+              ? 'No elections yet'
+              : `No ${filter} elections`}
           </h2>
           <p className="admin-empty-text">
-            {filter === 'all'
+            {searchQuery
+              ? 'Try adjusting your search terms or clear the search filter.'
+              : filter === 'all'
               ? 'Create an election to open nominations, voting, and results.'
               : 'Try another filter or create a new election.'}
           </p>

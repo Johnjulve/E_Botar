@@ -121,4 +121,6 @@ const SortableHeader = ({
   );
 };
 
+export { SortableHeader };
 export default SortableHeader;
+

@@ -768,26 +768,64 @@ button:hover,
   }
 
   .admin-filter-tabs {
-    flex-direction: column;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    width: 100%;
+    scrollbar-width: none;
+  }
+
+  .admin-filter-tabs::-webkit-scrollbar {
+    display: none;
   }
 
   .admin-filter-btn {
-    width: 100%;
-    justify-content: center;
+    width: auto;
+    flex-shrink: 0;
+    white-space: nowrap;
+    padding: 0.45rem 0.85rem;
+    font-size: 0.825rem;
   }
 
   .admin-header h1 {
     font-size: 1.5rem;
   }
 
-  .admin-header-actions {
-    flex-direction: column;
+  .admin-header-actions,
+  .admin-registry-header-actions {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.5rem;
     width: 100%;
   }
 
   .admin-header-actions button,
-  .admin-header-actions a {
+  .admin-header-actions a,
+  .admin-registry-header-actions .admin-btn {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 120px;
+    text-align: center;
+    justify-content: center;
+  }
+
+  .admin-registry-toolbar-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
     width: 100%;
+  }
+
+  .admin-registry-toolbar-row .admin-users-search-pill,
+  .admin-registry-toolbar-row .admin-search-pill {
+    max-width: 100% !important;
+    width: 100% !important;
+    min-width: 0 !important;
   }
 
   .admin-action-buttons {
@@ -1414,24 +1452,26 @@ button:hover,
 
 .admin-election-stats-grid {
   display: grid;
-    grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 0.75rem;
   margin: 1rem 0;
-  padding: 1rem 0;
+  padding: 0.85rem 0;
   border-top: 1px solid var(--border-color);
   border-bottom: 1px solid var(--border-color);
 }
 
 .admin-election-stat-box {
   background: var(--gray-50);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-lg);
   padding: 0.75rem;
   text-align: center;
+  transition: all var(--transition-fast);
 }
 
 .admin-election-stat-value {
   font-weight: var(--font-weight-bold);
-  font-size: 1.1rem;
+  font-size: 1.15rem;
 }
 
 .admin-election-stat-value-primary {
@@ -1439,11 +1479,72 @@ button:hover,
 }
 
 .admin-election-stat-value-success {
-  color: var(--success-color);
+  color: var(--primary-hover);
 }
 
 .admin-election-stat-label {
   color: var(--text-muted);
+  font-weight: 500;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.admin-election-metrics-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 1rem 0;
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  flex-wrap: wrap;
+}
+
+.admin-election-metric-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 9999px;
+  background: var(--gray-50);
+  border: 1px solid var(--gray-200);
+  font-size: 0.825rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  transition: all var(--transition-fast);
+}
+
+.admin-election-metric-chip.votes {
+  background: var(--primary-soft-bg);
+  border-color: rgba(11, 110, 59, 0.2);
+  color: var(--primary-color);
+}
+
+.admin-election-metric-chip.positions {
+  background: #fefce8;
+  border-color: #fef08a;
+  color: #854d0e;
+}
+
+.admin-registry-toolbar-row {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin-bottom: var(--spacing-lg);
+}
+
+.admin-registry-toolbar-row .admin-users-search-pill,
+.admin-registry-toolbar-row .admin-search-pill {
+  min-width: 260px;
+  max-width: 380px;
+  flex: 1 1 auto;
+}
+
+.admin-registry-toolbar-row .admin-filter-tabs {
+  margin: 0;
 }
 
 /* User Management Page Styles */
@@ -1872,6 +1973,24 @@ button:hover,
   font-weight: var(--font-weight-medium);
 }
 
+button.admin-status-badge-table {
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-family: inherit;
+  line-height: inherit;
+  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
+}
+
+button.admin-status-badge-table:hover {
+  filter: brightness(0.92);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+button.admin-status-badge-table:active {
+  transform: translateY(0);
+}
+
 .admin-status-badge-active-table {
   background: var(--success-soft-bg);
   color: var(--success-soft-text);
@@ -1881,6 +2000,7 @@ button:hover,
   background: color-mix(in srgb, var(--gray-400) 15%, transparent);
   color: var(--gray-700);
 }
+
 
 .admin-user-joined {
   color: var(--text-muted);
@@ -2343,32 +2463,39 @@ button:hover,
 }
 
 .admin-export-tabs {
-  display: flex;
-  gap: var(--spacing-sm);
+  display: inline-flex;
+  gap: 0.5rem;
+  padding: 0.35rem;
+  background: var(--gray-100);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
   margin-bottom: var(--spacing-lg);
-  border-bottom: 2px solid var(--border-color);
 }
 
 .admin-export-tab {
-  padding: 0.75rem 1.5rem;
+  padding: 0.6rem 1.25rem;
   border: none;
-  border-bottom: 3px solid transparent;
-  border-radius: 0.5rem 0.5rem 0 0;
+  border-radius: var(--radius-md);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .admin-export-tab-active {
-  background: var(--brand-green);
+  background: var(--primary-color);
   color: var(--white);
-  border-bottom-color: var(--brand-green);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .admin-export-tab-inactive {
   background: transparent;
   color: var(--text-muted);
+}
+
+.admin-export-tab-inactive:hover {
+  color: var(--text-primary);
+  background: rgba(0, 0, 0, 0.04);
 }
 
 .admin-export-card-content {
@@ -2520,11 +2647,24 @@ button:hover,
 }
 
 .admin-btn-export {
-  background: var(--danger-hover);
+  background: var(--primary-color);
   color: var(--white);
   padding: 0.75rem 1.5rem;
   font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-semibold);
+  border: none;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all var(--transition-fast);
+}
+
+.admin-btn-export:hover:not(:disabled) {
+  background: var(--primary-hover);
+  box-shadow: 0 4px 12px rgba(11, 110, 59, 0.25);
+  transform: translateY(-1px);
 }
 
 .admin-btn-export:disabled {
@@ -3358,12 +3498,23 @@ button:hover,
   font-weight: var(--font-weight-bold);
 }
 
-/* ==================== Modern User Management Styles ==================== */
-.admin-users-stats-grid {
+/* ==================== Modern Admin Metric & Stats System ==================== */
+.admin-users-stats-grid,
+.admin-metrics-stats-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 1.25rem;
   margin-bottom: 1.5rem;
+}
+
+.admin-users-stats-grid.three-cols,
+.admin-metrics-stats-grid.three-cols {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.admin-users-stats-grid.four-cols,
+.admin-metrics-stats-grid.four-cols {
+  grid-template-columns: repeat(4, 1fr);
 }
 
 .admin-users-stat-card {
@@ -3418,9 +3569,10 @@ button:hover,
 }
 
 .admin-users-stat-icon.student {
-  background: #eff6ff;
-  color: #2563eb;
+  background: var(--primary-soft-bg);
+  color: var(--primary-color);
 }
+
 
 .admin-users-stat-icon.verified {
   background: #dcfce7;
@@ -3441,8 +3593,9 @@ button:hover,
   color: var(--text-muted);
 }
 
-/* Toolbar */
-.admin-users-toolbar-card {
+/* ==================== Modern Admin Toolbar System ==================== */
+.admin-users-toolbar-card,
+.admin-toolbar-card {
   background: var(--white);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-2xl);
@@ -3615,9 +3768,9 @@ button:hover,
 }
 
 .admin-btn-add-user {
-  background: #0f4c81;
+  background: var(--primary-color);
   color: #ffffff !important;
-  border: 1px solid #0f4c81;
+  border: 1px solid var(--primary-color);
   border-radius: var(--radius-lg);
   padding: 0.55rem 1.1rem;
   font-size: 0.875rem;
@@ -3630,8 +3783,8 @@ button:hover,
 }
 
 .admin-btn-add-user:hover {
-  background: #0a365c;
-  border-color: #0a365c;
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
 }
 
 .admin-btn-export-csv {
@@ -3782,8 +3935,8 @@ button:hover,
 }
 
 .admin-role-badge-student {
-  background: #eff6ff;
-  color: #2563eb;
+  background: var(--primary-soft-bg);
+  color: var(--primary-color);
 }
 
 /* Status Pills */
@@ -3918,21 +4071,221 @@ button:hover,
 }
 
 @media (max-width: 1024px) {
-  .admin-users-stats-grid {
+  .admin-users-stats-grid,
+  .admin-metrics-stats-grid {
     grid-template-columns: repeat(3, 1fr);
   }
 }
 
 @media (max-width: 768px) {
-  .admin-users-stats-grid {
+  .admin-users-stats-grid,
+  .admin-metrics-stats-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .admin-users-stats-grid.three-cols,
+  .admin-metrics-stats-grid.three-cols {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .admin-users-toolbar-card,
+  .admin-toolbar-card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    padding: 0.875rem 1rem;
+  }
+
+  .admin-users-toolbar-left,
+  .admin-toolbar-left {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .admin-users-search-pill,
+  .admin-search-pill {
+    max-width: 100% !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .admin-users-toolbar-right,
+  .admin-toolbar-right {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .admin-users-toolbar-right .admin-btn-export-csv,
+  .admin-users-toolbar-right .admin-btn-add-user,
+  .admin-users-toolbar-right .admin-btn-sync-roster {
+    flex: 1 1 auto;
+    justify-content: center;
   }
 }
 
 @media (max-width: 480px) {
-  .admin-users-stats-grid {
+  .admin-users-stats-grid,
+  .admin-metrics-stats-grid,
+  .admin-users-stats-grid.three-cols,
+  .admin-metrics-stats-grid.three-cols {
     grid-template-columns: 1fr;
   }
 }
+
+/* -------------------------------------------------------------------------
+   STUDENT ROSTER SYNCHRONIZATION STYLES
+   ------------------------------------------------------------------------- */
+.admin-btn-sync-roster {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1rem;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+  color: var(--white);
+  border: none;
+  font-weight: var(--font-weight-semibold);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: 0 1px 3px rgba(11, 110, 59, 0.2);
+}
+
+.admin-btn-sync-roster:hover {
+  background: linear-gradient(135deg, var(--primary-hover) 0%, var(--primary-active) 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(11, 110, 59, 0.3);
+}
+
+.roster-dropzone {
+  border: 2px dashed var(--gray-300);
+  border-radius: var(--radius-lg);
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+  background: var(--gray-50);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.roster-dropzone:hover,
+.roster-dropzone.dragging {
+  border-color: var(--primary-color);
+  background: var(--primary-soft-bg);
+}
+
+.roster-dropzone.has-file {
+  border-color: var(--primary-color);
+  background: var(--primary-soft-bg);
+}
+
+.roster-dropzone-icon {
+  color: var(--gray-400);
+  transition: color var(--transition-fast);
+}
+
+.roster-dropzone:hover .roster-dropzone-icon,
+.roster-dropzone.dragging .roster-dropzone-icon {
+  color: var(--primary-color);
+}
+
+.roster-dropzone.has-file .roster-dropzone-icon {
+  color: var(--primary-color);
+}
+
+.roster-template-card {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+}
+
+.roster-chip-columns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.roster-stats-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+}
+
+@media (max-width: 768px) {
+  .roster-stats-summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.roster-stat-box {
+  padding: 0.85rem 0.5rem;
+  border-radius: var(--radius-md);
+  text-align: center;
+  background: var(--gray-50);
+  border: 1px solid var(--gray-200);
+  transition: all var(--transition-fast);
+}
+
+.roster-stat-box.cursor-pointer:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+}
+
+.roster-stat-box.active {
+  border-color: var(--primary-color);
+  background: rgba(14, 159, 110, 0.08);
+}
+
+.roster-stat-box.create.active {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.roster-stat-box.update.active {
+  border-color: #0284c7;
+  background: rgba(2, 132, 199, 0.08);
+}
+
+.roster-stat-box.deactivate.active {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.roster-stat-box.error.active {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.roster-stat-num {
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.roster-stat-box.create .roster-stat-num { color: #10b981; }
+.roster-stat-box.update .roster-stat-num { color: #0284c7; }
+.roster-stat-box.deactivate .roster-stat-num { color: #f59e0b; }
+.roster-stat-box.error .roster-stat-num { color: #ef4444; }
+
+.roster-stat-lbl {
+  font-size: 0.75rem;
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-top: 0.25rem;
+}
+
+.roster-table-wrapper {
+  max-height: 280px;
+  overflow-y: auto;
+}
+
 
 

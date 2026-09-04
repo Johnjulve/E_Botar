@@ -69,6 +69,8 @@ REST_FRAMEWORK = {
         "receipt_verify": os.getenv('THROTTLE_RECEIPT_VERIFY', '15/minute'),
         "admin_action": os.getenv('THROTTLE_ADMIN_ACTION', '60/minute'),
         "profile_update": os.getenv('THROTTLE_PROFILE_UPDATE', '20/minute'),
+        "roster_preview": os.getenv('THROTTLE_ROSTER_PREVIEW', '20/minute'),
+        "roster_import": os.getenv('THROTTLE_ROSTER_IMPORT', '5/minute'),
     },
 }
 
@@ -108,6 +110,7 @@ INSTALLED_APPS = [
     "apps.candidates",
     "apps.voting",
     "apps.common",
+    "tests",
 ]
 
 # Cloudinary - Add if configured
@@ -400,3 +403,9 @@ if _csrf_origins:
     CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in _csrf_origins.split(',') if origin.strip()]
 elif IS_PRODUCTION and BACKEND_BASE_URL:
     CSRF_TRUSTED_ORIGINS = [BACKEND_BASE_URL]
+
+# ---------------------------------------------------------------------------
+# TEST RUNNER
+# ---------------------------------------------------------------------------
+TEST_RUNNER = 'tests.runner.VerboseTestRunner'
+

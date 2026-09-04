@@ -1,1 +1,0 @@
-# Accounts tests package

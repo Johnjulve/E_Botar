@@ -12,6 +12,7 @@ import { useTableSort } from '../../../hooks/useTableSort';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { getInitials, parseYearLevelNumber, formatYearLevelNumeric } from '../../../utils/helpers';
 import { formatDate } from '../../../utils/formatters';
+import { RosterSyncModal } from '../components/RosterSyncModal';
 import '../admin.css';
 
 const csvEscape = (val) => {
@@ -58,6 +59,7 @@ const UserManagementPage = () => {
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showRoleModal, setShowRoleModal] = useState(false);
+  const [showSyncModal, setShowSyncModal] = useState(false);
 
   const [editDepartments, setEditDepartments] = useState([]);
   const [editCourses, setEditCourses] = useState([]);
@@ -271,7 +273,10 @@ const UserManagementPage = () => {
       }
       case 'status':
         return u.user?.is_active ? 1 : 0;
+      case 'verified':
+        return u.is_verified ? 1 : 0;
       case 'joined': {
+
         const raw = u.user?.date_joined || u.created_at;
         const t = raw ? new Date(raw).getTime() : 0;
         return Number.isFinite(t) ? t : 0;
@@ -507,7 +512,47 @@ const UserManagementPage = () => {
     }
   };
 
+  const handleToggleActive = async (user) => {
+    if (!isAdmin && !isStaff) return;
+    try {
+      await authService.toggleUserActive(user.id);
+      setUsers((prevUsers) =>
+        prevUsers.map((u) =>
+          u.id === user.id
+            ? { ...u, user: { ...u.user, is_active: !u.user?.is_active } }
+            : u
+        )
+      );
+    } catch (error) {
+      console.error('Error toggling user status:', error);
+      const detail = error.response?.data?.detail || error.message || 'Failed to update user status.';
+      alert(detail);
+      await fetchUsers();
+    }
+  };
+
+  const handleToggleVerified = async (user) => {
+    if (!isAdmin && !isStaff) return;
+    const nextVerified = !user.is_verified;
+    try {
+      await authService.setUserVerified(user.id, nextVerified);
+      setUsers((prevUsers) =>
+        prevUsers.map((u) =>
+          u.id === user.id
+            ? { ...u, is_verified: nextVerified }
+            : u
+        )
+      );
+    } catch (error) {
+      console.error('Error toggling verification status:', error);
+      const detail = error.response?.data?.detail || error.message || 'Failed to update verification status.';
+      alert(detail);
+      await fetchUsers();
+    }
+  };
+
   const handleAddUserSubmit = async (e) => {
+
     e.preventDefault();
     if (modalSubmitting) return;
     try {
@@ -775,6 +820,18 @@ const UserManagementPage = () => {
           {isAdmin && (
             <button
               type="button"
+              className="admin-btn-sync-roster"
+              onClick={() => setShowSyncModal(true)}
+              title="Upload and synchronize active student roster (.xlsx or .csv)"
+            >
+              <Icon name="upload" size={16} />
+              <span>Sync Roster</span>
+            </button>
+          )}
+
+          {isAdmin && (
+            <button
+              type="button"
               className="admin-btn-add-user"
               onClick={() => setShowAddModal(true)}
             >
@@ -891,8 +948,10 @@ const UserManagementPage = () => {
                   <SortableHeader label="SECTION" sortKey="section" sortConfig={sortConfig} onSort={handleSort} />
                   <SortableHeader label="ROLE" sortKey="role" sortConfig={sortConfig} onSort={handleSort} />
                   <SortableHeader label="STATUS" sortKey="status" sortConfig={sortConfig} onSort={handleSort} align="center" />
+                  <SortableHeader label="VERIFIED" sortKey="verified" sortConfig={sortConfig} onSort={handleSort} align="center" />
                   <SortableHeader label="JOINED/CREATED" sortKey="joined" sortConfig={sortConfig} onSort={handleSort} />
                   <th className="text-right">ACTIONS</th>
+
                 </tr>
               </thead>
               <tbody>
@@ -960,23 +1019,39 @@ const UserManagementPage = () => {
                         )}
                       </td>
                       
-                      {/* Status Pill */}
+                      {/* Status Pill (Clickable) */}
                       <td className="text-center">
-                        {user.user?.is_active ? (
-                          <span className="admin-status-badge-table admin-status-badge-active-table">
-                            <Icon name="checkCircle" size={13} />
-                            Active
-                          </span>
-                        ) : (
-                          <span className="admin-status-badge-table admin-status-badge-inactive-table">
-                            <Icon name="clock" size={13} />
-                            Inactive
-                          </span>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleToggleActive(user)}
+                          className={`admin-status-badge-table ${
+                            user.user?.is_active ? 'admin-status-badge-active-table' : 'admin-status-badge-inactive-table'
+                          }`}
+                          title={user.user?.is_active ? "Click to set Inactive" : "Click to set Active"}
+                        >
+                          <Icon name={user.user?.is_active ? "checkCircle" : "clock"} size={13} />
+                          {user.user?.is_active ? 'Active' : 'Inactive'}
+                        </button>
+                      </td>
+
+                      {/* Verified Pill (Clickable) */}
+                      <td className="text-center">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleVerified(user)}
+                          className={`admin-status-badge-table ${
+                            user.is_verified ? 'admin-status-badge-active-table' : 'admin-status-badge-inactive-table'
+                          }`}
+                          title={user.is_verified ? "Click to revoke verification" : "Click to mark as Verified"}
+                        >
+                          <Icon name={user.is_verified ? "checkCircle" : "xCircle"} size={13} />
+                          {user.is_verified ? 'Verified' : 'Unverified'}
+                        </button>
                       </td>
                       
                       {/* Joined/Created */}
                       <td className="admin-user-joined">
+
                         {formatDate(user.user?.date_joined || user.created_at, 'date')}
                       </td>
                       
@@ -1500,7 +1575,22 @@ const UserManagementPage = () => {
           </div>
         </Modal>
       )}
+
+      {/* Student Roster Sync Modal */}
+      {showSyncModal && (
+        <RosterSyncModal
+          show={showSyncModal}
+          isOpen={showSyncModal}
+          onHide={() => setShowSyncModal(false)}
+          onClose={() => setShowSyncModal(false)}
+          onSuccess={() => {
+            fetchUsers();
+          }}
+        />
+      )}
+
     </Container>
+
   );
 };
 

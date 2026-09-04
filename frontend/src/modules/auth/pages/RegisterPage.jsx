@@ -171,38 +171,72 @@ const RegisterPage = () => {
     return 'Strong';
   };
 
+  const isRegistrationDisabled = (branding?.feature_flags?.user_registration ?? false) === false;
+
   return (
     <div className="auth-page d-flex align-items-center">
       <Container className="auth-container">
         <Row className="justify-content-center">
           <Col md={10} lg={9} xl={8}>
             <div className="auth-header">
-              <h1>Create Your Account</h1>
-              <p>Join {branding.app_name} and participate in student elections</p>
+              <h1>{isRegistrationDisabled ? 'Student Registration' : 'Create Your Account'}</h1>
+              <p>
+                {isRegistrationDisabled
+                  ? `Voter accounts in ${branding.app_name} are provisioned via registrar roster sync`
+                  : `Join ${branding.app_name} and participate in student elections`}
+              </p>
             </div>
 
             <div className="auth-card">
-              {errorMessage && (
-                <div className="auth-alert alert-danger" role="alert">
-                  <i className="fas fa-exclamation-circle"></i>
-                  <span>{errorMessage}</span>
-                  <button 
-                    type="button" 
-                    className="btn-close ms-auto" 
-                    onClick={() => setErrorMessage('')}
-                    aria-label="Close"
-                  ></button>
+              {isRegistrationDisabled ? (
+                <div className="text-center py-4 px-2">
+                  <div
+                    className="d-inline-flex align-items-center justify-content-center rounded-circle mb-3"
+                    style={{
+                      width: '64px',
+                      height: '64px',
+                      backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                      color: '#2563eb',
+                    }}
+                  >
+                    <i className="fas fa-user-shield fa-2x"></i>
+                  </div>
+                  <h4 className="fw-bold mb-2 text-dark">Public Self-Registration Closed</h4>
+                  <p className="text-muted mb-4 mx-auto" style={{ maxWidth: '440px' }}>
+                    Student voter accounts are officially synchronized and provisioned through the university
+                    registrar roster. If you are an enrolled student, sign in directly using your school Google
+                    account or temporary student credentials.
+                  </p>
+                  <div className="d-flex justify-content-center gap-2">
+                    <Link to="/login" className="btn btn-primary px-4 py-2">
+                      <i className="fas fa-sign-in-alt me-2"></i> Go to Sign In
+                    </Link>
+                  </div>
                 </div>
-              )}
-              
-              {successMessage && (
-                <div className="auth-alert alert-success" role="alert">
-                  <i className="fas fa-check-circle"></i>
-                  <span>{successMessage}</span>
-                </div>
-              )}
+              ) : (
+                <>
+                  {errorMessage && (
+                    <div className="auth-alert alert-danger" role="alert">
+                      <i className="fas fa-exclamation-circle"></i>
+                      <span>{errorMessage}</span>
+                      <button 
+                        type="button" 
+                        className="btn-close ms-auto" 
+                        onClick={() => setErrorMessage('')}
+                        aria-label="Close"
+                      ></button>
+                    </div>
+                  )}
+                  
+                  {successMessage && (
+                    <div className="auth-alert alert-success" role="alert">
+                      <i className="fas fa-check-circle"></i>
+                      <span>{successMessage}</span>
+                    </div>
+                  )}
 
-              <Form onSubmit={handleSubmit} className="auth-form">
+                  <Form onSubmit={handleSubmit} className="auth-form">
+
                 <div className="auth-two-column">
                   <Form.Group className="form-group">
                     <Form.Label>
@@ -416,7 +450,10 @@ const RegisterPage = () => {
                   </Link>
                 </div>
               </Form>
+              </>
+              )}
             </div>
+
 
             <div className="auth-footer">
               <p>
