@@ -8,14 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.4.0] - 2026-09-04
 
 ### Added
-- **Universal Test & Simulation CLI Terminal Application**:
-  - Interactive terminal CLI application (`Testing/tester.py` and root launcher `run_tests.py` / `test.cmd`) supporting multiple projects, live test suites, and progressive concurrency simulations.
-  - Automatic logical CPU thread context detection (`os.cpu_count()`) dynamically calibrating simulated Gunicorn worker counts (e.g. 12 workers on 12 threads) and calculating server utilization profiles.
-  - Progressive ramp-up curve generation (`10 -> 25 -> 50 -> 100 -> 200 -> 500 -> 1000 -> 2000 -> target`) with adaptive sample population scaling for high-traffic custom loads.
-- **Clean Two-Tier Testing Architecture & Git Isolation**:
-  - Relocated all analytical load simulations (`simulate_concurrent_load.py`), baseline logs (`simulate_output.txt`), API latency benchmarks (`performance_tests.py`), fast smoke tests (`quick_performance_test.py`), and algorithm benchmarks (`test_algorithms.py`) from `backend/` into `Testing/Performance/`.
-  - Added `Testing/`, `run_tests.py`, and `test.cmd` to `.gitignore` to prevent testing artifacts from polluting repository commits.
-  - Established ready-to-initiate standalone hub architecture at `d:\System Projects\UniversalTester` with modular framework adapters (`BaseAdapter`, `DjangoAdapter`, `NodeAdapter`).
 - **Official Registrar Student Roster Synchronization**:
   - **Dual-Format Parser (`backend/apps/accounts/services/roster_sync.py`)**: High-performance streaming parser supporting `.xlsx` (via `openpyxl`) and `.csv` roster files with UTF-8 BOM auto-detection and forgiving column normalization.
   - **Pre-Flight Dry-Run Preview (`POST /api/auth/students/roster-preview/`)**: In-memory inspection and validation without database mutation; calculates categorized diffs (`to_create`, `to_update`, `to_deactivate`) and returns row-level validation errors.
@@ -37,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Formally licensed the platform under the open-source **MIT License** with copyright attribution to John Julve & E-Botar Research Team (`LICENSE` added in both `E_Botar` and `E_Botar-Lite`).
 - **Global Verbose Testing Architecture**:
   - Consolidated unit tests from disparate app directories into a centralized `backend/tests/` package with `VerboseTestRunner` (`verbosity=2`) displaying individual test pass/fail results.
+  - Cleaned up repository root and backend directories, isolating local test scripts and benchmarking logs via `.gitignore`.
 
 ### Fixed & Improved
 - **System-Wide Mobile Responsiveness Overhaul**:
