@@ -90,7 +90,7 @@ class ActivityLog(models.Model):
 class SystemSettings(models.Model):
     """Model for system-wide settings"""
     key = models.CharField(max_length=100, unique=True, db_index=True)
-    value = models.CharField(max_length=255)
+    value = models.TextField()
     description = models.TextField(blank=True)
     updated_at = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='updated_settings')
@@ -102,7 +102,8 @@ class SystemSettings(models.Model):
         ordering = ['key']
     
     def __str__(self):
-        return f"{self.key}: {self.value}"
+        val_preview = (self.value[:47] + '...') if len(self.value) > 50 else self.value
+        return f"{self.key}: {val_preview}"
     
     @classmethod
     def get_value(cls, key, default=None):
@@ -117,15 +118,39 @@ class SystemSettings(models.Model):
         """Set a setting value by key"""
         setting, created = cls.objects.get_or_create(
             key=key,
-            defaults={'value': value, 'description': description, 'updated_by': user}
+            defaults={'value': str(value), 'description': description, 'updated_by': user}
         )
         if not created:
-            setting.value = value
+            setting.value = str(value)
             if description:
                 setting.description = description
             if user:
                 setting.updated_by = user
             setting.save()
         return setting
+
+    @classmethod
+    def get_branding_dict(cls):
+        """Aggregate all branding configuration keys with canonical defaults."""
+        defaults = {
+            'institution_name': 'E-Botar',
+            'institution_name_line2': '',
+            'institution_acronym': 'EB',
+            'app_name': 'E-Botar',
+            'tagline': 'Student Government Electronic Voting System',
+            'support_email': '',
+            'website_url': '',
+            'primary_color': '#0b6e3b',
+            'secondary_color': '#f4cc5c',
+            'institution_logo': '',
+            'institution_favicon': '',
+            'institution_seal': '',
+            'is_custom_branded': 'false',
+        }
+        branding = {}
+        for key, default_val in defaults.items():
+            branding[key] = cls.get_value(key, default=default_val)
+        return branding
+
 
 

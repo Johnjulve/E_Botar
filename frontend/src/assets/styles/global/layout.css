@@ -5,7 +5,7 @@
 
 /* ==================== Topbar ==================== */
 .topbar {
-  background: var(--brand-green-dark);
+  background: var(--topbar-bg, linear-gradient(135deg, var(--primary-color, #0b6e3b) 0%, var(--primary-hover, #075a30) 100%));
   color: var(--white);
   padding: 8px 0;
   position: sticky;
@@ -15,7 +15,9 @@
   height: 88px;
   display: flex;
   align-items: center;
+  transition: background 0.3s ease;
 }
+
 
 .topbar .container {
   padding-left: 0 var(--spacing-md);
@@ -31,6 +33,36 @@
   height: 64px;
   border-radius: 8px;
   object-fit: contain;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.brand-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Special Case for Default E-Botar Logo */
+.brand-default-ebotar .brand-logo {
+  width: 175px;
+  height: 66px;
+  padding: 2px 0;
+}
+
+.brand-default-ebotar .brand-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
+}
+
+@media (max-width: 576px) {
+  .brand-default-ebotar .brand-logo {
+    width: 135px;
+    height: 52px;
+  }
 }
 
 .brand-text {
@@ -210,12 +242,14 @@
   left: 0;
   width: 300px;
   height: calc(100vh - 88px);
-  background: #f4cc5c;
+  background: var(--sidebar-bg, #f4cc5c);
   padding: 16px;
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.08);
   z-index: 950;
   overflow: hidden;
+  transition: width 0.3s ease, background 0.3s ease;
 }
+
 
 .desktop-sidebar.collapsed {
   width: 80px;
@@ -372,11 +406,12 @@
 }
 
 .desktop-sidebar .side-item.active {
-  background: #fde68a;
-  color: #111827;
-  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.05);
+  background: var(--sidebar-item-active-bg, #fde68a);
+  color: var(--sidebar-item-active-text, #111827);
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.08);
   font-weight: 800;
 }
+
 
 .desktop-sidebar .side-item.disabled {
   opacity: 0.5;
@@ -689,9 +724,10 @@
 /* ==================== Offcanvas (Mobile Sidebar) ==================== */
 .offcanvas.offcanvas-end {
   width: 320px;
-  background: #f4cc5c;
+  background: var(--sidebar-bg, #f4cc5c);
   display: flex;
   flex-direction: column;
+  transition: background 0.3s ease;
 }
 
 .offcanvas .offcanvas-body {
@@ -742,10 +778,11 @@
 }
 
 .offcanvas .list-group-item.active {
-  background: #fde68a;
-  color: #111827;
-  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.05);
+  background: var(--sidebar-item-active-bg, #fde68a);
+  color: var(--sidebar-item-active-text, #111827);
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.08);
 }
+
 
 .offcanvas .list-group-item.disabled {
   opacity: 0.5;

@@ -1,6 +1,6 @@
 # E-Botar - System Information
 
-**Version 3.4.0** | Complete system documentation and technical details
+**Version 4.0.0** | Complete system documentation and technical details
 
 [![Django](https://img.shields.io/badge/Django-5.2.8-green.svg)](https://www.djangoproject.com/)
 [![DRF](https://img.shields.io/badge/DRF-3.16.1-red.svg)](https://www.django-rest-framework.org/)
@@ -11,6 +11,7 @@
 
 ## 📖 Table of Contents
 
+- [Release Highlights (4.0.0)](#-release-highlights-400)
 - [Release Highlights (3.4.0)](#-release-highlights-340)
 - [Overview](#overview)
 - [Research Foundation](#research-foundation)
@@ -28,23 +29,27 @@
 
 ---
 
-## 🚀 Release Highlights (3.4.0)
+## 🚀 Release Highlights (4.0.0)
 
+- **Multi-Institution Branding & Custom Theming Engine**:
+  - Administrative branding customization console at `/admin/branding` for modifying institutional identity, school logos, tab favicons, and real-time color palettes.
+  - **Dynamic Theme Engine (`themeEngine.js`)**: Dynamic HSL/RGB computation injecting CSS custom properties on `document.documentElement` (`--primary-color`, `--primary-hover`, `--topbar-bg`, `--sidebar-bg`, `--sidebar-item-active-bg`) without full page reloads.
+  - **Institutional Preset Management**: Switch between client presets (**Surigao del Norte State University (SNSU)** with Emerald and Yellow identity, UP Diliman, Ateneo, DLSU, UST), save new custom presets via `+ Save Current as Preset`, and delete presets when no longer needed.
+  - **Single Universal Brand Asset with Auto-Compression**: Primary Institution Logo automatically doubles as the browser tab Favicon. Media uploads exceeding 2MB are automatically compressed client-side via HTML5 canvas and checked on the backend via Pillow.
+  - **Brand Asset Library & Deduplication System**:
+    - **Visual Brand Asset Gallery**: Displays all previously uploaded logos with thumbnail previews, active system badges, formatted file sizes, and timestamps.
+    - **Re-Select Without Re-Uploading**: Admins can activate any existing uploaded logo directly from the library without re-uploading duplicate files to storage.
+    - **SHA-256 Deduplication Guard**: Uploading identical file content automatically detects existing assets, re-activates the asset, and avoids duplicate storage writes.
+    - **Safe Asset Deletion**: Unused brand assets can be permanently deleted from storage with confirmation modal; deleting the active logo automatically falls back to canonical default `logo.png`.
+  - **High-Resolution Banner Logo & Circular Favicon**:
+    - Auto-trimmed default **E-Botar Banner Logo** (`logo.png`) eliminates letterboxing margins and scales up to `175px x 66px`.
+    - Dedicated circular **"E" + Checkmark** browser tab favicon (`favicon.png` & `favicon.ico`) with tight bounding box for maximum legibility at 16×16 and 32×32 pixel sizes.
+    - Special-case layout suppresses duplicate adjacent text labels when the default E-Botar logo is active, while preserving standard institutional titles for client universities.
+  - **Dynamic Navigation Adaptivity**: Header topbar (`.topbar`), desktop sidebar (`.desktop-sidebar`), and offcanvas menu (`.offcanvas.offcanvas-end`) react immediately to active theme CSS variables.
+  - **Canonical Default Reset**: Superusers can restore the generic clean baseline **E-Botar** identity (`logo.png`) with a single click.
+  - **Expanded Testing**: Added `backend/tests/test_branding.py` with 9 comprehensive tests; entire backend test suite verified at 42/42 passing tests.
 
-- **Global Click-to-Sort Rollout Across All Admin Tables**:
-  - Full three-state sort cycling (`None` → `Ascending` → `Descending` → `None`) integrated across **User Directory**, **Receipt Audit**, **Voting Status**, **Program Management**, and **Political Parties**.
-  - Accessible `aria-sort` screen reader announcements and dynamic directional chevron indicators.
-- **Universal Modal Prop Interoperability (`Modal.jsx`)**:
-  - Dual prop support for `show`/`isOpen` and `onHide`/`onClose` in the shared modal system, guaranteeing responsive "X" close buttons and smooth dialog triggers across all devices.
-- **Registrar Roster Sync Engine (`.xlsx` & `.csv`)**:
-  - Streaming dual-format parser with BOM auto-detection, in-memory diff preview calculation (`POST /api/auth/students/roster-preview/`), and atomic database commits (`POST /api/auth/students/roster-import/`).
-- **Registration Lockdown & Roster-Restricted OAuth**:
-  - Closed public self-registration by default (`user_registration: false`), rejecting unlisted emails while safeguarding verified roster students.
-  - Mandatory first-login password reset modal for accounts created with temporary credentials (`must_change_password=True`).
-- **Centralized Test Architecture & Full Verification**:
-  - Centralized test suite in `backend/tests/` with `VerboseTestRunner` (33/33 tests passing with 0 warnings).
-
-### Previous Highlights (3.3.0)
+### Previous Highlights (3.4.0)
 
 
 - **Modern Unified Admin Dashboard & Table Design System**:

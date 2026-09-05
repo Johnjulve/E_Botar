@@ -9,7 +9,7 @@
 [![React](https://img.shields.io/badge/React-19.2-61DAFB.svg?logo=react&logoColor=black)](https://reactjs.org/)
 [![Vite](https://img.shields.io/badge/Vite-7.2-646CFF.svg?logo=vite&logoColor=white)](https://vitejs.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/Status-Active_v3.4.0-success.svg)](#)
+[![Status](https://img.shields.io/badge/Status-Active_v4.0.0-success.svg)](#)
 
 ---
 
@@ -19,35 +19,41 @@
 |:---|:---|
 | 🚀 **[Quick Start Guide](#-quick-start)** | Clone, configure environment, and spin up local dev servers |
 | 🎯 **[System Overview & Architecture](#-overview)** | Blockchain ledger concept, privacy model, and research background |
-| ✨ **[Key Features](#-key-features)** | Voting privacy, roster sync, candidate workflows, and exports |
+| ✨ **[Key Features](#-key-features)** | Multi-institution branding, roster sync, privacy voting, exports |
 | 👥 **[Role-Based Access Control](#-role-based-access-control)** | Student, Staff, and Administrator capabilities |
-| 📚 **[User & Admin Handbook](Document.md)** | Step-by-step usage workflows, deployment, and troubleshooting |
 | 🔬 **[Technical Reference](Information.md)** | Complete database models, cryptographic specs, and API documentation |
 | 📜 **[Full Changelog Archive](CHANGELOG.md)** | Complete chronological history of all versions and patch notes |
 
 ---
 
-## 🚀 What's New in v3.4.0
+## 🚀 What's New in v4.0.0
 
-E-Botar **v3.4.0** introduces official registrar student roster synchronization, system-wide click-to-sort admin tables, seamless Google OAuth account linking, centralized testing architecture, and universal modal ergonomics:
+E-Botar **v4.0.0** transforms the platform into a turnkey **multi-institution electronic voting platform** with dynamic real-time CSS theming, client institutional presets, client-side & server-side media compression, and navbar theme synchronization:
 
+- 🎨 **Multi-Institution Branding & Custom System Theming (`/admin/branding`)**:
+  - Superusers and administrators can customize university names, line-2 campus subtitles, acronyms, taglines, support contacts, and official websites.
+  - **Dynamic Theme Engine**: Derives primary, hover, active, soft backgrounds, borders, and sidebar tokens directly on `document.documentElement` with zero page reloads.
+  - **Institutional Presets**: Includes client preset **Surigao del Norte State University (SNSU)** (`#0b6e3b` / `#f4cc5c`), UP Diliman, Ateneo de Manila, De La Salle, and UST.
+  - **Custom Preset Manager**: Save the active form configuration into new custom presets via `+ Save Current as Preset`, preserve them across browser sessions, and delete obsolete presets.
+  - **One-Click Baseline Default Reset**: Easily restore clean baseline **E-Botar** defaults with the canonical system logo (`logo.png`).
+- 🖼️ **High-Resolution Brand Assets & Circular Favicon**:
+  - Auto-trimmed default **E-Botar Banner Logo** (`logo.png`) eliminates letterboxing transparent margins and scales crisply up to `175px x 66px`.
+  - Dedicated circular **"E" + Checkmark** browser tab favicon (`favicon.png` & `favicon.ico`) with tight bounding box for maximum legibility.
+  - Automatically suppresses redundant adjacent text labels when the default E-Botar logo is active, while preserving standard institutional titles for client universities.
+  - Client-side (HTML5 canvas) and server-side (Pillow) auto-compression for custom uploads > 2MB.
+- 🗃️ **Brand Asset Library & Deduplication System**:
+  - **Visual Asset Gallery**: View all previously uploaded logos with thumbnail previews, file size badges, and active badges.
+  - **Re-Select Without Re-Uploading**: Switch active logos with one click from the library without duplicate file uploads.
+  - **SHA-256 Upload Deduplication Guard**: Prevents duplicate uploads of identical images by reactivating the existing asset.
+  - **Safe Asset Deletion with Fallback**: Unused assets can be permanently deleted; deleting the active logo automatically reverts branding back to canonical `logo.png`.
+- 🔔 **Modern Floating Toast Popup Notifications**:
+  - Replaced inline alert banners with a fixed floating toast popup notification with auto-dismiss (3.5s) and slide-in animation.
+- 🧭 **Dynamic Navbar & Sidebar Theme Adaptation**:
+  - Header topbar (`.topbar`), desktop sidebar (`.desktop-sidebar`), and mobile offcanvas (`.offcanvas.offcanvas-end`) immediately adapt to the chosen institutional theme colors.
+- 🧪 **Expanded Backend Test Suite**:
+  - Dedicated test suite `test_branding.py` validating public access, superuser permissions, hex regex validation, image compression, deduplication, asset library listing, activation, deletion fallback, and canonical resets (**42/42 total backend tests passing**).
 
-- 🔀 **Global Click-to-Sort Data Tables**:
-  - Full click-to-sort functionality across all primary admin tables: **User Directory**, **Receipt Audit**, **Voting Turnout Status**, **Program Management**, and **Political Parties**.
-  - Smooth 3-state cycling (`None` → `Ascending` → `Descending` → `None`) with visual chevron indicators and full screen-reader accessibility (`aria-sort`).
-- 📊 **Official Registrar Roster Synchronization (Excel & CSV)**:
-  - **Drag-and-Drop Import**: Bulk provision student voters directly from university registrar spreadsheets (`.xlsx` and `.csv`).
-  - **Pre-Flight Dry-Run Preview**: In-memory parser calculates diffs (`New Students`, `Profile Updates`, `Unlisted Accounts`) and highlights row-level data errors before committing to the database.
-  - **Atomic Transaction Guarantee**: Commits user creations, year-level updates, audit trails (`ActivityLog`), and cache invalidations within a single `transaction.atomic()` context.
-- ⚡ **Seamless Google OAuth Auto-Link & Roster Lockdown**:
-  - Pre-imported students can now sign in with their school Google account instantly without needing an initial temporary password.
-  - Public self-registration is locked down by default (`user_registration: false`), rejecting unlisted emails while safeguarding verified roster students.
-- 🛠️ **Universal Modal Interoperability**:
-  - Dual prop support for `show`/`isOpen` and `onHide`/`onClose` in the shared modal system, guaranteeing responsive "X" close buttons and smooth dialog triggers across all devices.
-- 🧪 **Centralized Global Test Architecture**:
-  - Consolidated top-level test suite (`backend/tests/`) running custom verbose status reporting (`VerboseTestRunner`) across accounts, voting ledgers, candidates, and elections (**33/33 tests passing**).
-
-> 📜 **Looking for earlier release notes?** Check out the complete archive of past version updates (v0.7.0 – v3.3.0) in [CHANGELOG.md](CHANGELOG.md).
+> 📜 **Looking for earlier release notes?** Check out the complete archive of past version updates (v0.7.0 – v3.4.0) in [CHANGELOG.md](CHANGELOG.md).
 
 ---
 

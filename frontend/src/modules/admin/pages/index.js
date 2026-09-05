@@ -9,3 +9,5 @@ export { default as ProgramManagementPage } from './ProgramManagementPage';
 export { default as PartyManagementPage } from './PartyManagementPage';
 export { default as PositionManagementPage } from './PositionManagementPage';
 export { default as DataExportPage } from './DataExportPage';
+export { default as BrandingSettingsPage } from './BrandingSettingsPage';
+

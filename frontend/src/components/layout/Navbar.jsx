@@ -189,6 +189,12 @@ const Navbar = () => {
       if (isAdmin) {
         let maintenanceLinks = [
           {
+            key: 'admin-branding',
+            label: 'Branding & Theming',
+            to: '/admin/branding',
+            icon: 'palette',
+          },
+          {
             key: 'admin-maint-features',
             label: 'Feature availability',
             to: '/admin/maintenance/features',
@@ -196,6 +202,7 @@ const Navbar = () => {
           },
           { key: 'admin-logs', label: 'System Logs', to: '/admin/logs', icon: 'activity' },
         ];
+
         maintenanceLinks = mapNavChildren(maintenanceLinks, resolvedSidebarFlags, sidebarAudience);
         sections.push({
           key: 'maintenance',
@@ -504,25 +511,39 @@ const Navbar = () => {
     <>
       <header className="topbar">
         <div className="container d-flex align-items-center justify-content-between">
-          <Link
-            to="/"
-            className="brand d-flex align-items-center gap-2 text-decoration-none"
-            style={{ color: 'inherit' }}
-          >
-            <div className="brand-logo d-flex align-items-center justify-content-center">
-              <img
-                src={branding.institution_logo_url || logoImg}
-                alt={`${branding.institution_full_name} Logo`}
-                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                onError={(e) => { e.target.onerror = null; e.target.src = logoImg; }}
-              />
-            </div>
-            <span className="brand-text">
-              {branding.institution_name}
-              <br />
-              {branding.institution_name_line2}
-            </span>
-          </Link>
+          {(() => {
+            const hasCustomLogo = Boolean(branding.institution_logo_url);
+            const instName = branding.institution_name?.trim() || '';
+            const isDefaultEBotar = !hasCustomLogo && (instName === '' || instName.toLowerCase() === 'e-botar');
+
+            return (
+              <Link
+                to="/"
+                className={`brand d-flex align-items-center gap-2 text-decoration-none ${isDefaultEBotar ? 'brand-default-ebotar' : ''}`}
+                style={{ color: 'inherit' }}
+              >
+                <div className="brand-logo d-flex align-items-center justify-content-center">
+                  <img
+                    src={branding.institution_logo_url || logoImg}
+                    alt={`${branding.institution_full_name || 'E-Botar'} Logo`}
+                    className="brand-logo-img"
+                    onError={(e) => { e.target.onerror = null; e.target.src = logoImg; }}
+                  />
+                </div>
+                {!isDefaultEBotar && (
+                  <span className="brand-text">
+                    {branding.institution_name}
+                    {branding.institution_name_line2 ? (
+                      <>
+                        <br />
+                        {branding.institution_name_line2}
+                      </>
+                    ) : null}
+                  </span>
+                )}
+              </Link>
+            );
+          })()}
 
           <button
             className="menu-btn d-lg-none"

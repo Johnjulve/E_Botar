@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0] - 2026-09-05
+
+### Added
+- **Multi-Institution Branding & Dynamic Theming Engine**:
+  - **Administrative Branding & Settings Hub (`/admin/branding`)**: Dedicated interface for superusers and institution administrators to configure university identity, acronyms, taglines, support channels, and real-time color palettes.
+  - **Dynamic Theme Engine (`themeEngine.js`)**: Real-time CSS token generator deriving `--primary-color`, `--primary-hover`, `--primary-active`, `--primary-soft-bg`, `--primary-soft-border`, `--primary-soft-text`, `--topbar-bg`, `--sidebar-bg`, and `--sidebar-item-active-bg` directly on `document.documentElement` without page reloads.
+  - **Institutional Preset Management**: Switchable client configuration presets (including default client preset **Surigao del Norte State University (SNSU)** with Emerald and Yellow identity, UP Diliman, ADMU, DLSU, and UST).
+  - **Custom Preset Creation & Deletion**: Administrators can save the current form configuration as a custom preset via `+ Save Current as Preset`, store presets across browser sessions in local storage, and delete unwanted presets with a single click.
+  - **Live Real-Time Viewport Preview**: Interactive preview cards simulating the topbar navigation header and voter ballot card updating instantaneously as colors or institutional names change.
+  - **Single Unified Brand Asset & Auto-Compression**: Primary Institution Logo automatically synchronizes with the browser tab Favicon. Media assets exceeding 2MB are automatically compressed both on the client side via HTML5 canvas and verified server-side with Pillow.
+  - **Uploaded Brand Asset Library & Deduplication**:
+    - **Visual Asset Gallery**: Display all previously uploaded logos with live thumbnail previews, file size badges, upload timestamps, and active status indicators.
+    - **Re-Select Without Re-Uploading**: Admins can activate any previously uploaded logo from the library with a single click, eliminating redundant file uploads and storage bloat.
+    - **Duplicate Upload Prevention**: Server-side SHA-256 hash checking detects identical files on upload, automatically re-activating the existing asset and informing the administrator without saving duplicate files.
+    - **Asset Deletion with Safe Fallback**: Admins can delete unused assets from storage; if the deleted asset is currently active, the system cleanly reverts active branding back to the canonical E-Botar default (`logo.png`).
+- **Backend Branding API & Storage Architecture**:
+  - Upgraded `SystemSettings.value` from `CharField(max_length=255)` to `TextField()` to support flexible, rich institutional metadata and URLs.
+  - Public cached endpoint `GET /api/common/branding/` (cached with 5-minute TTL, zero redundant database queries per page load).
+  - Superuser mutation endpoint `PATCH /api/common/branding/` with strict hex color regex validation (`^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$`) and `ActivityLog` audit records.
+  - Media asset upload endpoint `POST /api/common/branding/upload-asset/` with Pillow compression fallback, SHA-256 deduplication, and automatic favicon mirroring.
+  - Asset library endpoints `GET /api/common/branding/assets/`, `POST /api/common/branding/assets/<asset_id>/activate/`, and `DELETE /api/common/branding/assets/<asset_id>/`.
+  - Canonical factory reset endpoint `POST /api/common/branding/reset-defaults/` restoring the clean baseline **E-Botar** identity.
+
+- **Brand Asset Architecture & Auto-Compression**:
+  - Replaced legacy default logo with the newly designed, high-resolution **E-Botar Banner Logo** (`logo.png`).
+  - Auto-trimmed transparent margin padding on `logo.png` from `(1024, 1024)` canvas down to `(951, 352)` tight bounding box to prevent letterboxing.
+  - Deployed dedicated circular **"E" + Checkmark** browser tab favicon (`favicon.png` & `favicon.ico`) with tight `(868, 868)` bounding box for maximum legibility at 16×16 and 32×32 pixel sizes.
+  - Automatically compressed image uploads exceeding 2MB both client-side (HTML5 canvas) and server-side (Pillow).
+
+### Fixed & Improved
+- **Navbar & Sidebar Layout Theme Adaptation**:
+  - Updated navigation topbar (`.topbar`) to dynamically bind to `--topbar-bg`, generating smooth gradient transitions matching the active institution theme.
+  - Updated desktop sidebar (`.desktop-sidebar`) and mobile offcanvas (`.offcanvas.offcanvas-end`) to reflect `--sidebar-bg` and active menu items to `--sidebar-item-active-bg` and `--sidebar-item-active-text`.
+  - **Special-Case Large Logo Rendering (`.brand-default-ebotar`)**: Enlarged default E-Botar logo container to `175px x 66px` (responsive on mobile to `135px x 52px`), and suppressed duplicate adjacent "E-BOTAR" text label since the banner logo inherently contains the system title.
+  - Preserved standard side-by-side title and subtitle layout for custom client institutions (e.g. Surigao del Norte State University).
+- **Comprehensive Testing**:
+  - Added dedicated test suite `backend/tests/test_branding.py` with 9 comprehensive tests covering public access, superuser permissions, strict hex validation, large image auto-compression, duplicate prevention, asset library listing, activation, deletion fallback, and canonical default reset. Full backend test suite passing at 42/42 tests.
+
 ## [3.4.0] - 2026-09-04
 
 ### Added
