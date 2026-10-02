@@ -1,6 +1,6 @@
 # E-Botar - System Information
 
-**Version 4.0.0** | Complete system documentation and technical details
+**Version 4.1.0** | Complete system documentation and technical details
 
 [![Django](https://img.shields.io/badge/Django-5.2.8-green.svg)](https://www.djangoproject.com/)
 [![DRF](https://img.shields.io/badge/DRF-3.16.1-red.svg)](https://www.django-rest-framework.org/)
@@ -11,6 +11,7 @@
 
 ## 📖 Table of Contents
 
+- [Release Highlights (4.1.0)](#-release-highlights-410)
 - [Release Highlights (4.0.0)](#-release-highlights-400)
 - [Release Highlights (3.4.0)](#-release-highlights-340)
 - [Overview](#overview)
@@ -26,6 +27,17 @@
 - [Development](#development)
 - [Documentation](#documentation)
 - [Roadmap](#roadmap)
+
+---
+
+## 🚀 Release Highlights (4.1.0)
+
+- **System Efficiency & Architectural Refactoring**:
+  - **Lazy Data Pipelines via Generator Streaming**: Implemented Django `StreamingHttpResponse` generator pipelines across results CSV exports (`GET /api/voting/results/export-csv/`), program registry exports (`GET /api/programs/export_csv/`), and receipt audit log exports (`GET /api/voting/receipts/audit-log/`). Preserves a flat $O(1)$ server memory footprint regardless of dataset size.
+  - **Headless Sliding-Window Client Cache (`useSlidingWindowPagination.js`)**: Headless React pagination primitive enforcing a strictly bounded FIFO Map cache (`windowSize = 4`), in-flight request cancellation guard, and dependency reset triggers to achieve zero-lag page navigation without memory leaks.
+  - **Gateway Adapter Pattern (`userAdapter.js`)**: Client-side adapter insulating UI components from backend schema migrations, normalizing flat/lean and legacy nested payloads into consistent, immutable ViewModels.
+  - **Lean Payload Serialization Mode (`?lean=1`)**: Added lightweight profile serialization mode on `/api/auth/profiles/` and `/api/auth/directory/` reducing network payload size by up to ~60%.
+  - **Unified Admin Design System**: Unified `.admin-header` across User Management, Voting Status, and Data Export. Standardized toolbar card with interactive dropdown pills matching `ReceiptAuditPage`, and modernized filter tabs into rounded brand-green pills across Data Export and Program Management.
 
 ---
 

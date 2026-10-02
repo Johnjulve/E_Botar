@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.0] - 2026-10-03
+
+### Added
+- **Headless Sliding-Window Pagination Hook (`useSlidingWindowPagination.js`)**:
+  - Implemented a headless pagination primitive featuring a bounded FIFO cache (`windowSize = 4`), in-flight request cancellation guard (`activeFetchIdRef`), and dependency reset triggers.
+  - Guarantees immediate zero-lag transitions when toggling between recently viewed pages and enforces a strictly bounded browser memory footprint.
+  - Integrated into Receipt Audit (`ReceiptAuditPage.jsx`) and Voting Status (`VotingStatusPage.jsx`).
+- **User Gateway Adapter Pattern (`userAdapter.js`)**:
+  - Implemented client-side Gateway Adapters (`adaptUserProfileListItem`, `adaptUserProfileList`, `adaptVotingStatusList`) that normalize flat/lean and nested payloads into consistent, immutable ViewModels.
+  - Synthesizes backward-compatible `user`, `course`, and `department` accessors to protect UI components from backend schema shifts.
+- **Streamed Receipt Audit CSV Export**:
+  - Added dedicated streaming CSV export action to the Receipt Audit admin toolbar, delivering cryptographically verifiable audit trails directly via chunked transfers.
+
+### Performance
+- **Lazy Data Pipelines via Generator Streaming (`StreamingHttpResponse`)**:
+  - Replaced in-memory string concatenations and large QuerySet list evaluations with Django `StreamingHttpResponse` generator pipelines across all system CSV exports.
+  - Streamed results breakdown export (`GET /api/voting/results/export-csv/`), program registry export (`GET /api/programs/export_csv/`), and receipt audit log export (`GET /api/voting/receipts/audit-log/`).
+  - Achieves $O(1)$ memory consumption on the server regardless of student population size or ballot count.
+- **Lean Payload Serialization Mode (`UserProfileListSerializer`)**:
+  - Introduced lightweight serialization mode (`?lean=1`) on `/api/auth/profiles/` and `/api/auth/directory/` stripping heavy nested object graphs and reducing payload transfer size by up to ~60%.
+
+### Fixed & Improved
+- **Admin Design System Parity & Unified Toolbar Controls**:
+  - **Voting Status (`VotingStatusPage.jsx`)**: Hoisted pagination hooks to eliminate the temporal dead zone white-screen crash, replaced the standalone election card with an interactive Election dropdown pill and Vote Status dropdown pill in the gold-standard `.admin-users-toolbar-card`, and standardized CSV export controls.
+  - **User Management (`UserManagementPage.jsx`)**: Added standard `.admin-header` title and icon block, wired the Gateway Adapter to restore full names and course tags under lean serialization, and added direct property fallbacks for role badges.
+  - **Data Export (`DataExportPage.jsx`)**: Replaced custom isolated export headers and wrapper backgrounds with standard `.admin-header` and rounded brand-green `.admin-filter-tabs` pills.
+  - **Program Management (`ProgramManagementPage.jsx`)**: Aligned header layout with `.admin-header-layout` and restored `.admin-filter-btn.active` styling so program filter pills highlight with brand green.
+
 ## [4.0.0] - 2026-09-05
 
 ### Added
