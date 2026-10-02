@@ -34,6 +34,7 @@ from apps.common.core.utils import get_client_ip
 
 from .models import Program, UserProfile
 from apps.common.http.pagination import StandardResultsSetPagination
+from apps.common.http.streaming import stream_csv_response
 
 from .profile_list_filters import apply_profile_list_filters
 from .serializers import (
@@ -1036,19 +1037,15 @@ class ProgramViewSet(viewsets.ModelViewSet):
             if program_type_filter:
                 queryset = queryset.filter(program_type=program_type_filter)
 
-            response = HttpResponse(content_type='text/csv; charset=utf-8')
             filename = f"programs_export{('_' + program_type_filter) if program_type_filter else ''}.csv"
-            response['Content-Disposition'] = f'attachment; filename="{filename}"'
-            response.write('\ufeff')
 
-            writer = csv.writer(response)
-            writer.writerow(['name', 'code', 'program_type', 'department_code'])
+            def generate_program_rows():
+                yield ['name', 'code', 'program_type', 'department_code']
+                for program in queryset.iterator(chunk_size=500):
+                    dept_code = program.department.code if program.department else ''
+                    yield [program.name, program.code, program.program_type, dept_code]
 
-            for program in queryset:
-                dept_code = program.department.code if program.department else ''
-                writer.writerow([program.name, program.code, program.program_type, dept_code])
-
-            return response
+            return stream_csv_response(generate_program_rows(), filename)
         except Exception as exc:
             logger.error('Error exporting program CSV: %s', exc, exc_info=True)
             return Response(

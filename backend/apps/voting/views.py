@@ -13,10 +13,13 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
+from rest_framework.renderers import BrowsableAPIRenderer, JSONRenderer
+
 from apps.accounts.models import Program, UserProfile
 from apps.accounts.profile_list_filters import apply_profile_list_filters
 from apps.accounts.serializers import UserVotingStatusListSerializer
 from apps.common.http.pagination import StandardResultsSetPagination
+from apps.common.http.streaming import CSVRenderer, stream_csv_response
 from apps.common.files.file_urls import absolute_file_url
 from apps.candidates.models import Candidate
 from apps.common.core.algorithms import AggregationAlgorithm, SortingAlgorithm, CryptographicAlgorithm
@@ -324,7 +327,7 @@ class VoteReceiptViewSet(viewsets.ReadOnlyModelViewSet):
     def get_permissions(self):
         if self.action in ['list', 'retrieve', 'my_receipts', 'verify', 'get_votes']:
             return [IsAuthenticated()]
-        if self.action == 'reveal_receipt':
+        if self.action in ['reveal_receipt', 'audit', 'export_csv']:
             return [IsStaffOrSuperUser()]
         # Only superusers can access admin actions on receipts
         return [IsSuperUser()]
@@ -580,10 +583,63 @@ class VoteReceiptViewSet(viewsets.ReadOnlyModelViewSet):
             'receipt_code': receipt.receipt_code,
         })
 
+    @action(detail=False, methods=['get'], url_path='export-csv', permission_classes=[IsStaffOrSuperUser])
+    def export_csv(self, request):
+        """Streaming CSV export of receipt audit trail with flat O(1) memory usage."""
+        election_id = request.query_params.get('election_id')
+        search = (request.query_params.get('search') or '').strip()
+        vote_status = request.query_params.get('vote_status')
+
+        queryset = self.get_queryset()
+        if election_id:
+            queryset = queryset.filter(election_id=election_id)
+        if search:
+            queryset = queryset.filter(
+                Q(user__username__icontains=search)
+                | Q(user__first_name__icontains=search)
+                | Q(user__last_name__icontains=search)
+                | Q(receipt_code__icontains=search)
+                | Q(receipt_hash__icontains=search)
+            )
+
+        filename = f"receipt_audit_{election_id or 'all'}_{timezone.now().strftime('%Y%m%d_%H%M%S')}.csv"
+
+        def generate_audit_rows():
+            yield ['Receipt Code', 'Student ID', 'Student Name', 'Election', 'Timestamp', 'Status']
+            for receipt in queryset.select_related('user', 'election').iterator(chunk_size=1000):
+                user_name = receipt.user.get_full_name() if receipt.user else 'Unknown'
+                student_id = getattr(getattr(receipt.user, 'profile', None), 'student_id', '') or (receipt.user.username if receipt.user else '')
+                election_title = receipt.election.title if receipt.election else 'Unknown'
+                status_label = 'Verified' if hasattr(receipt, 'ballot') and receipt.ballot else 'Missing Ballot'
+
+                if vote_status and vote_status != status_label.lower().replace(' ', '_'):
+                    continue
+
+                yield [
+                    receipt.get_masked_receipt(),
+                    student_id,
+                    user_name,
+                    election_title,
+                    receipt.created_at.strftime('%Y-%m-%d %H:%M:%S') if receipt.created_at else '',
+                    status_label,
+                ]
+
+        ActivityLog.objects.create(
+            user=request.user,
+            action='export',
+            resource_type='VoteReceiptAudit',
+            description='Exported receipt audit trail to CSV',
+            ip_address=get_client_ip(request),
+            metadata={'election_id': election_id, 'search': search, 'vote_status': vote_status},
+        )
+
+        return stream_csv_response(generate_audit_rows(), filename)
+
 
 class ResultsViewSet(viewsets.ViewSet):
     """ViewSet for viewing election results"""
     permission_classes = [AllowAny]
+    renderer_classes = [JSONRenderer, BrowsableAPIRenderer, CSVRenderer]
 
     @action(detail=False, methods=['get'])
     def election_results(self, request):
@@ -1046,15 +1102,14 @@ class ResultsViewSet(viewsets.ViewSet):
         positions = election.election_positions.all().order_by('order')
         
         # Handle case when no positions exist
+        # Handle case when no positions exist
         if not positions.exists():
             if export_format == 'csv':
-                response = HttpResponse(content_type='text/csv')
-                response['Content-Disposition'] = f'attachment; filename="election_results_{election.id}.csv"'
-                writer = csv.writer(response)
-                writer.writerow(['Election', election.title])
-                writer.writerow(['Export Date', timezone.now().strftime('%Y-%m-%d %H:%M:%S')])
-                writer.writerow(['Status', 'No positions configured for this election'])
-                return response
+                def empty_pipeline():
+                    yield ['Election', election.title]
+                    yield ['Export Date', timezone.now().strftime('%Y-%m-%d %H:%M:%S')]
+                    yield ['Status', 'No positions configured for this election']
+                return stream_csv_response(empty_pipeline(), f"election_results_{election.id}.csv", include_bom=False)
             else:
                 return Response({
                     'election_id': election.id,
@@ -1063,7 +1118,59 @@ class ResultsViewSet(viewsets.ViewSet):
                     'total_voters': 0,
                     'positions': []
                 })
-        
+
+        # Lazy streaming pipeline for CSV export
+        if export_format == 'csv':
+            def generate_results_csv():
+                yield ['Election', election.title]
+                yield ['Export Date', timezone.now().strftime('%Y-%m-%d %H:%M:%S')]
+                yield []
+                for election_position in positions:
+                    position = election_position.position
+                    if not position:
+                        continue
+
+                    position_votes = (
+                        VoteChoice.objects.filter(
+                            ballot__election=election,
+                            position=position,
+                            ballot__user__is_active=True,
+                        )
+                        .values('candidate')
+                        .annotate(vote_count=Count('id'))
+                        .order_by('-vote_count')
+                    )
+
+                    total_position_votes = sum(v['vote_count'] for v in position_votes)
+                    yield []
+                    yield ['Position', position.name]
+                    yield ['Total Votes', total_position_votes]
+                    yield []
+                    yield ['Rank', 'Candidate', 'Party', 'Votes', 'Percentage']
+
+                    cand_ids = [v['candidate'] for v in position_votes]
+                    candidates = Candidate.objects.filter(
+                        id__in=cand_ids
+                    ).select_related('user', 'party')
+                    candidates_map = {c.id: c for c in candidates}
+
+                    for rank, vote_data in enumerate(position_votes, 1):
+                        cand = candidates_map.get(vote_data['candidate'])
+                        if not cand or not cand.user:
+                            continue
+                        count = vote_data['vote_count']
+                        pct = round((count / total_position_votes * 100), 2) if total_position_votes > 0 else 0
+                        party = cand.party.name if (cand.party and cand.party.name) else 'Independent'
+                        yield [
+                            rank,
+                            cand.user.get_full_name() or 'Unknown',
+                            party,
+                            count,
+                            f"{pct}%"
+                        ]
+
+            return stream_csv_response(generate_results_csv(), f"election_results_{election.id}.csv", include_bom=False)
+
         for election_position in positions:
             position = election_position.position
             if not position:
@@ -1080,25 +1187,25 @@ class ResultsViewSet(viewsets.ViewSet):
             candidates_data = []
             total_position_votes = sum(v['vote_count'] for v in position_votes)
             
+            cand_ids = [v['candidate'] for v in position_votes]
+            candidates = Candidate.objects.filter(id__in=cand_ids).select_related('user', 'party')
+            candidates_map = {c.id: c for c in candidates}
+
             for vote_data in position_votes:
-                try:
-                    candidate = Candidate.objects.get(id=vote_data['candidate'])
-                    if not candidate or not candidate.user:
-                        continue
-                        
-                    vote_count = vote_data['vote_count']
-                    percentage = round((vote_count / total_position_votes * 100), 2) if total_position_votes > 0 else 0
-                    
-                    candidates_data.append({
-                        'candidate_id': candidate.id,
-                        'candidate_name': candidate.user.get_full_name() or 'Unknown',
-                        'party': candidate.party.name if (candidate.party and candidate.party.name) else 'Independent',
-                        'vote_count': vote_count,
-                        'percentage': percentage
-                    })
-                except Candidate.DoesNotExist:
-                    # Skip if candidate was deleted
+                cand = candidates_map.get(vote_data['candidate'])
+                if not cand or not cand.user:
                     continue
+                    
+                vote_count = vote_data['vote_count']
+                percentage = round((vote_count / total_position_votes * 100), 2) if total_position_votes > 0 else 0
+                
+                candidates_data.append({
+                    'candidate_id': cand.id,
+                    'candidate_name': cand.user.get_full_name() or 'Unknown',
+                    'party': cand.party.name if (cand.party and cand.party.name) else 'Independent',
+                    'vote_count': vote_count,
+                    'percentage': percentage
+                })
             
             positions_data.append({
                 'position_name': position.name,
@@ -1106,35 +1213,7 @@ class ResultsViewSet(viewsets.ViewSet):
                 'candidates': candidates_data
             })
         
-        # Export based on format
-        if export_format == 'csv':
-            response = HttpResponse(content_type='text/csv')
-            response['Content-Disposition'] = f'attachment; filename="election_results_{election.id}.csv"'
-            
-            writer = csv.writer(response)
-            writer.writerow(['Election', election.title])
-            writer.writerow(['Export Date', timezone.now().strftime('%Y-%m-%d %H:%M:%S')])
-            writer.writerow([])
-            
-            for position_data in positions_data:
-                writer.writerow([])
-                writer.writerow(['Position', position_data['position_name']])
-                writer.writerow(['Total Votes', position_data['total_votes']])
-                writer.writerow([])
-                writer.writerow(['Rank', 'Candidate', 'Party', 'Votes', 'Percentage'])
-                
-                for rank, candidate_data in enumerate(position_data['candidates'], 1):
-                    writer.writerow([
-                        rank,
-                        candidate_data['candidate_name'],
-                        candidate_data['party'],
-                        candidate_data['vote_count'],
-                        f"{candidate_data['percentage']}%"
-                    ])
-            
-            return response
-        
-        elif export_format == 'json':
+        if export_format == 'json':
             data = {
                 'election_id': election.id,
                 'election_title': election.title,

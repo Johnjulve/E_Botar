@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { Container } from '../../../components/layout';
 import { LoadingSpinner, Modal, Icon } from '../../../components/common';
 import { electionService, votingService } from '../../../services';
 import { getInitials } from '../../../utils/helpers';
 import { formatDate } from '../../../utils/formatters';
 import { useTableSort } from '../../../hooks/useTableSort';
+import { useSlidingWindowPagination } from '../../../hooks/useSlidingWindowPagination';
 import { SortableHeader } from '../../../components/common/SortableHeader';
 import '../admin.css';
 
@@ -17,20 +18,13 @@ const STATUS_LABELS = {
 const MASKED_VALUE = '••••••••';
 
 const ReceiptAuditPage = () => {
-  const [loading, setLoading] = useState(true);
   const [elections, setElections] = useState([]);
-  const [rows, setRows] = useState([]);
-  const [pagination, setPagination] = useState({
-    page: 1,
-    pageSize: 20,
-    totalPages: 1,
-    totalCount: 0,
-  });
   const [filters, setFilters] = useState({
     election_id: '',
     search: '',
     vote_status: '',
   });
+  const [submittedSearch, setSubmittedSearch] = useState('');
   const [activeDropdown, setActiveDropdown] = useState(null); // 'election' | 'status' | null
   const [revealModal, setRevealModal] = useState({
     show: false,
@@ -38,6 +32,7 @@ const ReceiptAuditPage = () => {
     value: '',
   });
   const [revealingReceiptId, setRevealingReceiptId] = useState(null);
+  const [exporting, setExporting] = useState(false);
   const dropdownRef = useRef(null);
 
   // Close dropdown on click outside
@@ -55,55 +50,53 @@ const ReceiptAuditPage = () => {
     fetchElections();
   }, []);
 
-  useEffect(() => {
-    fetchRows();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.election_id, filters.vote_status, pagination.page, pagination.pageSize]);
-
-  useEffect(() => {
-    setPagination((prev) => ({ ...prev, page: 1 }));
-  }, [filters.election_id, filters.vote_status, pagination.pageSize]);
-
   const fetchElections = async () => {
     try {
-      setLoading(true);
       const res = await electionService.getAll();
       setElections(Array.isArray(res.data) ? res.data : []);
     } catch {
       setElections([]);
-    } finally {
-      setLoading(false);
     }
   };
 
-  const fetchRows = async () => {
-    try {
-      setLoading(true);
-      const params = {};
+  const fetchAuditData = useCallback(
+    async (targetPage, currentSize) => {
+      const params = {
+        page: targetPage,
+        page_size: currentSize,
+      };
       if (filters.election_id) params.election_id = filters.election_id;
       if (filters.vote_status) params.vote_status = filters.vote_status;
-      if (filters.search.trim()) params.search = filters.search.trim();
-      params.page = pagination.page;
-      params.page_size = pagination.pageSize;
+      if (submittedSearch) params.search = submittedSearch;
 
       const res = await votingService.getReceiptAudit(params);
-      setRows(Array.isArray(res.data?.results) ? res.data.results : []);
-      setPagination((prev) => ({
-        ...prev,
-        totalCount: Number(res.data?.count) || 0,
+      return {
+        results: Array.isArray(res.data?.results) ? res.data.results : [],
+        count: Number(res.data?.count) || 0,
         totalPages: Math.max(1, Number(res.data?.total_pages) || 1),
-      }));
-    } catch {
-      setRows([]);
-      setPagination((prev) => ({
-        ...prev,
-        totalCount: 0,
-        totalPages: 1,
-      }));
-    } finally {
-      setLoading(false);
-    }
-  };
+      };
+    },
+    [filters.election_id, filters.vote_status, submittedSearch]
+  );
+
+  const {
+    items: rows,
+    page,
+    pageSize,
+    totalPages,
+    isLoading: loading,
+    goToPage,
+    nextPage,
+    prevPage,
+    setPageSize,
+    refresh: fetchRows,
+    pagesList: paginationPages,
+  } = useSlidingWindowPagination({
+    fetchFn: fetchAuditData,
+    dependencies: [filters.election_id, filters.vote_status, submittedSearch],
+    initialPageSize: 20,
+    windowSize: 4,
+  });
 
   const openRevealModal = (title, value) => {
     setRevealModal({
@@ -125,6 +118,21 @@ const ReceiptAuditPage = () => {
     }
   };
 
+  const handleExportCsv = async () => {
+    try {
+      setExporting(true);
+      const params = {};
+      if (filters.election_id) params.election_id = filters.election_id;
+      if (filters.vote_status) params.vote_status = filters.vote_status;
+      if (submittedSearch) params.search = submittedSearch;
+      await votingService.downloadReceiptAuditCSV(params);
+    } catch {
+      // Export failure handled safely
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const selectedElectionTitle = useMemo(() => {
     if (!filters.election_id) return 'All Elections';
     const found = elections.find((e) => String(e.id) === String(filters.election_id));
@@ -136,14 +144,7 @@ const ReceiptAuditPage = () => {
     return STATUS_LABELS[filters.vote_status] || filters.vote_status;
   }, [filters.vote_status]);
 
-  // Pagination pages array
-  const paginationPages = useMemo(() => {
-    const pages = [];
-    for (let i = 1; i <= Math.min(pagination.totalPages, 5); i++) {
-      pages.push(i);
-    }
-    return pages;
-  }, [pagination.totalPages]);
+
 
 
   const getAuditSortValue = (row, key) => {
@@ -197,8 +198,7 @@ const ReceiptAuditPage = () => {
               onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
-                  setPagination((prev) => ({ ...prev, page: 1 }));
-                  fetchRows();
+                  setSubmittedSearch(filters.search.trim());
                 }
               }}
             />
@@ -208,7 +208,7 @@ const ReceiptAuditPage = () => {
                 className="admin-users-search-clear"
                 onClick={() => {
                   setFilters((prev) => ({ ...prev, search: '' }));
-                  setTimeout(fetchRows, 0);
+                  setSubmittedSearch('');
                 }}
               >
                 ×
@@ -297,6 +297,16 @@ const ReceiptAuditPage = () => {
         </div>
 
         <div className="admin-users-toolbar-right">
+          <button
+            type="button"
+            className="admin-btn-export-csv"
+            onClick={handleExportCsv}
+            disabled={exporting || rows.length === 0}
+            title="Export receipt audit trail as streamed CSV"
+          >
+            <Icon name={exporting ? 'spinner' : 'download'} size={15} />
+            <span>{exporting ? 'Exporting...' : 'Export CSV'}</span>
+          </button>
           <button
             type="button"
             className="admin-btn-export-csv"
@@ -438,14 +448,14 @@ const ReceiptAuditPage = () => {
             </table>
           </div>
 
-          {/* Footer & Pagination */}
+          {/* Modern Table Footer / Pagination */}
           <div className="admin-users-table-footer">
             <div className="admin-users-page-size">
               <span>Show</span>
               <select
                 className="admin-users-page-select"
-                value={String(pagination.pageSize)}
-                onChange={(e) => setPagination((prev) => ({ ...prev, pageSize: Number(e.target.value) }))}
+                value={String(pageSize)}
+                onChange={(e) => setPageSize(Number(e.target.value))}
               >
                 <option value="10">10</option>
                 <option value="20">20</option>
@@ -459,8 +469,8 @@ const ReceiptAuditPage = () => {
               <button
                 type="button"
                 className="admin-users-page-btn"
-                onClick={() => setPagination((prev) => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
-                disabled={pagination.page <= 1}
+                onClick={prevPage}
+                disabled={page <= 1}
               >
                 &lt; Previous
               </button>
@@ -469,8 +479,8 @@ const ReceiptAuditPage = () => {
                 <button
                   key={p}
                   type="button"
-                  className={`admin-users-page-btn ${p === pagination.page ? 'active' : ''}`}
-                  onClick={() => setPagination((prev) => ({ ...prev, page: p }))}
+                  className={`admin-users-page-btn ${p === page ? 'active' : ''}`}
+                  onClick={() => goToPage(p)}
                 >
                   [{p}]
                 </button>
@@ -479,8 +489,8 @@ const ReceiptAuditPage = () => {
               <button
                 type="button"
                 className="admin-users-page-btn"
-                onClick={() => setPagination((prev) => ({ ...prev, page: Math.min(prev.totalPages, prev.page + 1) }))}
-                disabled={pagination.page >= pagination.totalPages}
+                onClick={nextPage}
+                disabled={page >= totalPages}
               >
                 Next &gt;
               </button>

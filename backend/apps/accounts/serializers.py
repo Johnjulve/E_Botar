@@ -298,43 +298,72 @@ class UserProfileListSerializer(serializers.ModelSerializer):
         user = instance.user
         department = instance.department
         course = instance.course
-        return {
+
+        first_name = user.first_name or ''
+        last_name = user.last_name or ''
+        full_name = f"{first_name} {last_name}".strip()
+
+        request = self.context.get('request')
+        is_lean = False
+        if request:
+            lean_param = request.query_params.get('lean', '')
+            is_lean = str(lean_param).lower() in ('1', 'true', 'yes')
+
+        data = {
             'id': instance.id,
+            'user_id': user.id,
+            'first_name': first_name,
+            'last_name': last_name,
+            'full_name': full_name or user.username,
             'middle_name': instance.middle_name or '',
             'student_id': instance.student_id or '',
+            'username': user.username,
+            'email': user.email or '',
             'year_level': instance.year_level or '',
             'section': instance.section or '',
+            'is_active': user.is_active,
             'is_verified': instance.is_verified,
             'must_change_password': instance.must_change_password,
-            'user': {
+            'is_staff': user.is_staff,
+            'is_superuser': user.is_superuser,
+            'department_code': department.code if department else None,
+            'department_name': department.name if department else None,
+            'course_code': course.code if course else None,
+            'course_name': course.name if course else None,
+            'date_joined': user.date_joined,
+            'created_at': instance.created_at,
+        }
+
+        if not is_lean:
+            data['user'] = {
                 'id': user.id,
                 'username': user.username,
                 'email': user.email or '',
-                'first_name': user.first_name or '',
-                'last_name': user.last_name or '',
+                'first_name': first_name,
+                'last_name': last_name,
                 'is_active': user.is_active,
                 'is_staff': user.is_staff,
                 'is_superuser': user.is_superuser,
                 'date_joined': user.date_joined,
-            },
-            'created_at': instance.created_at,
-            'department': (
+            }
+            data['department'] = (
                 {
                     'code': department.code,
                     'name': department.name,
                 }
                 if department
                 else None
-            ),
-            'course': (
+            )
+            data['course'] = (
                 {
                     'code': course.code,
                     'name': course.name,
                 }
                 if course
                 else None
-            ),
-        }
+            )
+
+        return data
 
 
 class UserVotingStatusListSerializer(UserProfileListSerializer):

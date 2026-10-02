@@ -11,4 +11,5 @@ export { default as votingService } from './votingService';
 export { default as programService } from './programService';
 export { default as logService } from './logService';
 export { default as versionService } from './versionService';
+export * from './adapters/userAdapter';
 

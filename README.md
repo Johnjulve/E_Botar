@@ -9,7 +9,7 @@
 [![React](https://img.shields.io/badge/React-19.2-61DAFB.svg?logo=react&logoColor=black)](https://reactjs.org/)
 [![Vite](https://img.shields.io/badge/Vite-7.2-646CFF.svg?logo=vite&logoColor=white)](https://vitejs.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/Status-Active_v4.0.0-success.svg)](#)
+[![Status](https://img.shields.io/badge/Status-Active_v4.1.0-success.svg)](#)
 
 ---
 
@@ -26,7 +26,24 @@
 
 ---
 
-## 🚀 What's New in v4.0.0
+## 🚀 What's New in v4.1.0
+
+E-Botar **v4.1.0** introduces end-to-end **System Efficiency & Architectural Refactoring**, including lazy generator pipelines for data streaming, bounded sliding-window client caching, gateway adapters for schema resilience, and unified admin toolbar controls:
+
+- ⚡ **Lazy Generator Streaming Pipelines (`StreamingHttpResponse`)**:
+  - Replaced in-memory data accumulation with streaming generator pipelines across results CSV exports (`/api/voting/results/export-csv/`), program registry exports (`/api/programs/export_csv/`), and receipt audit log exports (`/api/voting/receipts/audit-log/`).
+  - Guarantees constant $O(1)$ server memory consumption even when streaming large election audits across thousands of ballots.
+- 🗄️ **Headless Sliding-Window Pagination & Bounded Cache (`useSlidingWindowPagination`)**:
+  - Headless React pagination primitive with a FIFO-bounded Map cache (`windowSize = 4`), in-flight request cancellation guard, and dependency reset triggers.
+  - Eliminates page-navigation latency when paging through audit trails and rosters while preventing browser tab memory bloat.
+- 🛡️ **User Gateway Adapter Pattern (`userAdapter.js`)**:
+  - Isolates frontend view components from backend schema migrations, automatically converting both lean (`?lean=1`) and legacy payloads into normalized, immutable ViewModels with synthesized dual-compatible accessors.
+- 🎨 **Unified Admin Design System & Toolbar Standard**:
+  - Unifies `.admin-header` across User Management, Voting Status, and Data Export.
+  - Transforms Voting Status into the gold-standard `.admin-users-toolbar-card` with interactive Election dropdown pills, Vote Status dropdown pills, and instant search.
+  - Modernizes Data Export and Program Management tabs into sleek brand-green rounded pills matching Elections.
+
+## 🚀 Previous Release: What's New in v4.0.0
 
 E-Botar **v4.0.0** transforms the platform into a turnkey **multi-institution electronic voting platform** with dynamic real-time CSS theming, client institutional presets, client-side & server-side media compression, and navbar theme synchronization:
 

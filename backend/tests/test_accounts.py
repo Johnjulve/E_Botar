@@ -228,9 +228,26 @@ class ProfileListPaginationTests(TestCase):
         self.assertEqual(len(body['results']), 2)
         row = body['results'][0]
         self.assertIn('user', row)
+        self.assertIn('first_name', row)
+        self.assertIn('full_name', row)
+        self.assertIn('username', row)
         self.assertNotIn('missing_fields', row)
         self.assertNotIn('avatar_url', row)
         self.assertNotIn('description', row.get('department') or {})
+
+    def test_profile_list_lean_mode_strips_nested_payload(self):
+        response = self.client.get('/api/auth/profiles/', {'page': 1, 'page_size': 2, 'lean': 1})
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(len(body['results']), 2)
+        row = body['results'][0]
+        self.assertIn('first_name', row)
+        self.assertIn('full_name', row)
+        self.assertIn('username', row)
+        self.assertNotIn('user', row)
+        self.assertNotIn('department', row)
+        self.assertNotIn('course', row)
+
 
     def test_voting_status_is_paginated_with_summary(self):
         now = timezone.now()

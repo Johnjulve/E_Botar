@@ -51,12 +51,41 @@ export const votingService = {
 
   // Get per-election voting status for all students (staff/admin only)
   getVotingStatus: (params = {}) => {
-    return api.get('/voting/voting-status/', { params });
+    return api.get('/voting/voting-status/', { params: { lean: 1, ...params } });
   },
 
   // Get receipt audit rows (staff/admin only)
   getReceiptAudit: (params = {}) => {
     return api.get('/voting/receipts/audit/', { params });
+  },
+
+  // Export receipt audit trail as streamed CSV (staff/admin only)
+  exportReceiptAuditCSV: (params = {}) => {
+    return api.get('/voting/receipts/export-csv/', {
+      params,
+      responseType: 'blob',
+    });
+  },
+
+  // Helper: Download exported receipt audit CSV file
+  downloadReceiptAuditCSV: async function(params = {}) {
+    try {
+      const response = await this.exportReceiptAuditCSV(params);
+      const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const electionTag = params.election_id || 'all';
+      link.download = `receipt_audit_${electionTag}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      return true;
+    } catch (error) {
+      console.error('Receipt audit CSV download failed:', error);
+      throw error;
+    }
   },
 
   // Reveal full receipt code for audit row (staff/admin only)

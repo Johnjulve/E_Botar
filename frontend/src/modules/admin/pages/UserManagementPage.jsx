@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Container } from '../../../components/layout';
 import { LoadingSpinner, Modal, Button, SortableHeader, Icon } from '../../../components/common';
-import { authService } from '../../../services';
+import { authService, adaptUserProfileList, adaptUserProfileListItem } from '../../../services';
 import { useAuth } from '../../../hooks/useAuth';
 import { useTableSort } from '../../../hooks/useTableSort';
 import { useDebounce } from '../../../hooks/useDebounce';
@@ -23,8 +23,7 @@ const csvEscape = (val) => {
   return s;
 };
 
-/** Staff may edit only non–staff users at or below their own year level. */
-const canStaffManageStudent = (actorProfile, targetRow) => {
+const _canStaffManageStudent = (actorProfile, targetRow) => {
   if (!actorProfile) return false;
   const staffY = parseYearLevelNumber(actorProfile.year_level);
   if (staffY == null) return false;
@@ -35,18 +34,16 @@ const canStaffManageStudent = (actorProfile, targetRow) => {
 };
 
 const getUserRoleKey = (u) => {
-  if (u.user?.is_superuser) return 'admin';
-  if (u.user?.is_staff) return 'staff';
+  if (u.user?.is_superuser || u.is_superuser) return 'admin';
+  if (u.user?.is_staff || u.is_staff) return 'staff';
   return 'student';
 };
 
 const UserManagementPage = () => {
-  const { isAdmin, isStaffOrAdmin, user: authUser } = useAuth();
-  const isStaffOnly = isStaffOrAdmin && !isAdmin;
+  const { isAdmin, isStaff } = useAuth();
   const [users, setUsers] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
   const [initialLoading, setInitialLoading] = useState(true);
-  const [tableLoading, setTableLoading] = useState(false);
   const [filter, setFilter] = useState('all'); // all, admin, staff, student, verified
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedUserIds, setSelectedUserIds] = useState([]);
@@ -58,7 +55,6 @@ const UserManagementPage = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [showRoleModal, setShowRoleModal] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
 
   const [editDepartments, setEditDepartments] = useState([]);
@@ -92,10 +88,8 @@ const UserManagementPage = () => {
 
   const [generatedPassword, setGeneratedPassword] = useState('');
   const [passwordCopied, setPasswordCopied] = useState(false);
-  const [selectedRole, setSelectedRole] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
-  const [actionUserId, setActionUserId] = useState(null);
   const [modalSubmitting, setModalSubmitting] = useState(false);
   const [showSearchFilters, setShowSearchFilters] = useState(false);
   const [searchFields, setSearchFields] = useState({
@@ -164,12 +158,11 @@ const UserManagementPage = () => {
     try {
       if (isInitial) {
         setInitialLoading(true);
-      } else {
-        setTableLoading(true);
       }
       const response = await authService.getAllProfiles(buildProfileListParams());
       const data = response.data || {};
-      setUsers(Array.isArray(data.results) ? data.results : []);
+      const rawResults = Array.isArray(data.results) ? data.results : [];
+      setUsers(adaptUserProfileList(rawResults));
       setTotalCount(typeof data.count === 'number' ? data.count : 0);
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -177,7 +170,6 @@ const UserManagementPage = () => {
       setTotalCount(0);
     } finally {
       setInitialLoading(false);
-      setTableLoading(false);
     }
   }, [buildProfileListParams]);
 
@@ -519,7 +511,11 @@ const UserManagementPage = () => {
       setUsers((prevUsers) =>
         prevUsers.map((u) =>
           u.id === user.id
-            ? { ...u, user: { ...u.user, is_active: !u.user?.is_active } }
+            ? adaptUserProfileListItem({
+                ...u,
+                is_active: !u.is_active,
+                user: { ...u.user, is_active: !u.user?.is_active },
+              })
             : u
         )
       );
@@ -539,7 +535,10 @@ const UserManagementPage = () => {
       setUsers((prevUsers) =>
         prevUsers.map((u) =>
           u.id === user.id
-            ? { ...u, is_verified: nextVerified }
+            ? adaptUserProfileListItem({
+                ...u,
+                is_verified: nextVerified,
+              })
             : u
         )
       );
@@ -609,6 +608,15 @@ const UserManagementPage = () => {
 
   return (
     <Container>
+      {/* Header */}
+      <div className="admin-header">
+        <h1>
+          <Icon name="users" size={28} className="admin-icon-primary" />
+          User Management
+        </h1>
+        <p>Manage student accounts, staff privileges, and user roster verification.</p>
+      </div>
+
       {/* 5 Top Stat Cards matching user mockup */}
       <div className="admin-users-stats-grid">
         <div
@@ -957,10 +965,9 @@ const UserManagementPage = () => {
               <tbody>
                 {paginatedUsers.map((user) => {
                   const isSelected = selectedUserIds.includes(user.id);
-                  // Clean initials WITHOUT PERIOD as requested
-                  const rawInitials = getInitials(`${user.user?.first_name || ''} ${user.user?.last_name || ''}`);
+                  const fullName = (user.full_name || `${user.user?.first_name || user.first_name || ''} ${user.user?.last_name || user.last_name || ''}`).trim() || user.username || user.user?.username || '-';
+                  const rawInitials = getInitials(fullName !== '-' ? fullName : '');
                   const cleanInitials = (rawInitials || 'U').replace(/\./g, '').toUpperCase();
-                  const fullName = `${user.user?.first_name || ''} ${user.user?.last_name || ''}`.trim() || user.user?.username || '-';
 
                   return (
                     <tr key={user.id} className={isSelected ? 'selected' : ''}>
@@ -982,10 +989,10 @@ const UserManagementPage = () => {
                         </div>
                       </td>
                       <td>
-                        <div className="admin-user-id">{user.student_id || user.user?.username || '-'}</div>
+                        <div className="admin-user-id">{user.student_id || user.studentId || user.user?.username || user.username || '-'}</div>
                       </td>
                       <td>
-                        {user.course?.code || user.course?.name || (
+                        {user.course?.code || user.course_code || user.course?.name || user.course_name || (
                           <span className="admin-user-not-specified text-muted">Not specified</span>
                         )}
                       </td>
@@ -1001,12 +1008,12 @@ const UserManagementPage = () => {
                       
                       {/* Role Pill */}
                       <td>
-                        {user.user?.is_superuser ? (
+                        {user.user?.is_superuser || user.is_superuser ? (
                           <span className="admin-role-badge admin-role-badge-admin">
                             <Icon name="user" size={13} />
                             Administrator
                           </span>
-                        ) : user.user?.is_staff ? (
+                        ) : user.user?.is_staff || user.is_staff ? (
                           <span className="admin-role-badge admin-role-badge-staff">
                             <Icon name="user" size={13} />
                             Staff
@@ -1025,12 +1032,12 @@ const UserManagementPage = () => {
                           type="button"
                           onClick={() => handleToggleActive(user)}
                           className={`admin-status-badge-table ${
-                            user.user?.is_active ? 'admin-status-badge-active-table' : 'admin-status-badge-inactive-table'
+                            user.is_active || user.user?.is_active ? 'admin-status-badge-active-table' : 'admin-status-badge-inactive-table'
                           }`}
-                          title={user.user?.is_active ? "Click to set Inactive" : "Click to set Active"}
+                          title={user.is_active || user.user?.is_active ? "Click to set Inactive" : "Click to set Active"}
                         >
-                          <Icon name={user.user?.is_active ? "checkCircle" : "clock"} size={13} />
-                          {user.user?.is_active ? 'Active' : 'Inactive'}
+                          <Icon name={user.is_active || user.user?.is_active ? "checkCircle" : "clock"} size={13} />
+                          {user.is_active || user.user?.is_active ? 'Active' : 'Inactive'}
                         </button>
                       </td>
 

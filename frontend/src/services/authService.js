@@ -89,12 +89,12 @@ export const authService = {
 
   // Paginated user profiles (admin/staff list; supports page, page_size, role, search, filters)
   getAllProfiles: (params = {}) => {
-    return api.get('/auth/profiles/', { params });
+    return api.get('/auth/profiles/', { params: { lean: 1, ...params } });
   },
 
   // Unified directory: students or staff/admin (admin/staff only)
   getDirectory: (params = {}) => {
-    return api.get('/auth/directory/', { params });
+    return api.get('/auth/directory/', { params: { lean: 1, ...params } });
   },
 
   // Get specific user profile
