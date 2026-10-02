@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Container } from '../../../components/layout';
 import { LoadingSpinner, Icon } from '../../../components/common';
-import { authService, electionService, votingService } from '../../../services';
+import { authService, electionService, votingService, adaptVotingStatusList } from '../../../services';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { formatNumber } from '../../../utils/formatters';
 import { formatYearLevelNumeric, parseYearLevelNumber } from '../../../utils/helpers';
@@ -38,7 +38,7 @@ const VotingStatusPage = () => {
     search: '',
   });
   const debouncedSearch = useDebounce(filters.search, 300);
-  const [tableLoading, setTableLoading] = useState(false);
+  const [, setTableLoading] = useState(false);
   const [showSearchFilters, setShowSearchFilters] = useState(false);
   const [searchFields, setSearchFields] = useState({
     name: true,
@@ -179,7 +179,8 @@ const VotingStatusPage = () => {
       const res = await votingService.getVotingStatus(params);
       const data = res.data || {};
       setSummary(data.summary || null);
-      setRows(Array.isArray(data.results) ? data.results : []);
+      const rawResults = Array.isArray(data.results) ? data.results : [];
+      setRows(adaptVotingStatusList(rawResults));
       setTotalCount(typeof data.count === 'number' ? data.count : 0);
     } catch (error) {
       console.error('Error fetching voting status:', error);

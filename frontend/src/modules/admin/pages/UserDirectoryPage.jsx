@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Container } from '../../../components/layout';
 import { LoadingSpinner, SearchBar, Icon } from '../../../components/common';
-import { authService } from '../../../services';
+import { authService, adaptUserProfileList } from '../../../services';
 import { getInitials, formatYearLevelNumeric, parseYearLevelNumber } from '../../../utils/helpers';
 import { useTableSort } from '../../../hooks/useTableSort';
 import { SortableHeader } from '../../../components/common/SortableHeader';
@@ -53,7 +53,8 @@ const UserDirectoryPage = () => {
         page_size: 100,
       });
       const payload = response.data || {};
-      setUsers(Array.isArray(payload.results) ? payload.results : (Array.isArray(payload) ? payload : []));
+      const rawList = Array.isArray(payload.results) ? payload.results : (Array.isArray(payload) ? payload : []);
+      setUsers(adaptUserProfileList(rawList));
     } catch (error) {
       console.error('Error fetching user directory:', error);
       setUsers([]);
