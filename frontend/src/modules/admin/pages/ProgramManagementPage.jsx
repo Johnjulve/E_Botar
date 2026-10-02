@@ -355,7 +355,7 @@ const ProgramManagementPage = () => {
     <Container>
       {/* Header */}
       <div className="admin-header">
-        <div className="admin-program-header-flex">
+        <div className="admin-header-layout">
           <div>
             <h1>
               <Icon name="building" size={28} className="admin-icon-primary" />
@@ -363,8 +363,9 @@ const ProgramManagementPage = () => {
             </h1>
             <p>Manage colleges and courses</p>
           </div>
-          <div className="admin-program-header-actions">
+          <div className="admin-header-actions-right">
             <button
+              type="button"
               onClick={() => handleExport(filter !== 'all' ? filter : null)}
               className="admin-btn secondary"
             >
@@ -372,6 +373,7 @@ const ProgramManagementPage = () => {
               Export CSV
             </button>
             <button
+              type="button"
               onClick={() => setShowForm(!showForm)}
               className="admin-btn primary"
             >
@@ -611,12 +613,13 @@ const ProgramManagementPage = () => {
       )}
 
       {/* Filter Tabs */}
-      <div className="admin-filter-tabs">
+      <div className="admin-filter-tabs" role="group" aria-label="Filter programs">
         {filterButtons.map(btn => (
           <button
             key={btn.key}
+            type="button"
             onClick={() => setFilter(btn.key)}
-            className={`admin-filter-btn ${filter === btn.key ? 'admin-filter-btn-active' : 'admin-filter-btn-inactive-default'}`}
+            className={`admin-filter-btn ${filter === btn.key ? 'active' : ''}`}
           >
             <Icon name={btn.icon} size={16} />
             {btn.label}

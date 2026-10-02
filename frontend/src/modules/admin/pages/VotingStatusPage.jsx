@@ -3,7 +3,7 @@
  * Admin/staff view of per-election voting status with summary.
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Container } from '../../../components/layout';
 import { LoadingSpinner, Icon } from '../../../components/common';
 import { authService, electionService, votingService, adaptVotingStatusList } from '../../../services';
@@ -11,6 +11,7 @@ import { useDebounce } from '../../../hooks/useDebounce';
 import { formatNumber } from '../../../utils/formatters';
 import { formatYearLevelNumeric, parseYearLevelNumber } from '../../../utils/helpers';
 import { useTableSort } from '../../../hooks/useTableSort';
+import { useSlidingWindowPagination } from '../../../hooks/useSlidingWindowPagination';
 import { SortableHeader } from '../../../components/common/SortableHeader';
 import '../admin.css';
 
@@ -27,18 +28,11 @@ const VotingStatusPage = () => {
   const [elections, setElections] = useState([]);
   const [selectedElectionId, setSelectedElectionId] = useState('');
   const [summary, setSummary] = useState(null);
-  const [rows, setRows] = useState([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [pagination, setPagination] = useState({
-    page: 1,
-    pageSize: 50,
-  });
   const [filters, setFilters] = useState({
     has_voted: '',
     search: '',
   });
   const debouncedSearch = useDebounce(filters.search, 300);
-  const [, setTableLoading] = useState(false);
   const [showSearchFilters, setShowSearchFilters] = useState(false);
   const [searchFields, setSearchFields] = useState({
     name: true,
@@ -51,6 +45,86 @@ const VotingStatusPage = () => {
     courseListSearch: '',
     advancedCourseCodes: [],
     advancedYearLevels: [],
+  });
+  const dropdownRef = useRef(null);
+  const [activeDropdown, setActiveDropdown] = useState(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setActiveDropdown(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const fetchVotingData = useCallback(
+    async (pageNumber, currentSize) => {
+      if (!selectedElectionId) {
+        setSummary(null);
+        return { results: [], count: 0, totalPages: 1 };
+      }
+      const params = {
+        election_id: selectedElectionId,
+        page: pageNumber,
+        page_size: currentSize,
+      };
+      if (filters.has_voted) {
+        params.has_voted = filters.has_voted;
+      }
+      if (debouncedSearch.trim()) {
+        params.search = debouncedSearch.trim();
+      }
+      if (courseFilters.advancedCourseCodes.length > 0) {
+        params.course_codes = courseFilters.advancedCourseCodes.join(',');
+      }
+      if (courseFilters.advancedYearLevels.length > 0) {
+        params.year_levels = courseFilters.advancedYearLevels.join(',');
+      }
+      const res = await votingService.getVotingStatus(params);
+      const data = res.data || {};
+      setSummary(data.summary || null);
+      const rawResults = Array.isArray(data.results) ? data.results : [];
+      const adapted = adaptVotingStatusList(rawResults);
+      const count = typeof data.count === 'number' ? data.count : adapted.length;
+      return {
+        results: adapted,
+        count,
+        totalPages: Math.max(1, Math.ceil(count / currentSize)),
+      };
+    },
+    [
+      selectedElectionId,
+      filters.has_voted,
+      debouncedSearch,
+      courseFilters.advancedCourseCodes,
+      courseFilters.advancedYearLevels,
+    ]
+  );
+
+  const {
+    items: rows,
+    page: safeCurrentPage,
+    pageSize,
+    totalPages,
+    totalCount,
+    nextPage,
+    prevPage,
+    setPageSize,
+  } = useSlidingWindowPagination({
+    fetchFn: fetchVotingData,
+    dependencies: [
+      selectedElectionId,
+      filters.has_voted,
+      debouncedSearch,
+      courseFilters.advancedCourseCodes,
+      courseFilters.advancedYearLevels,
+    ],
+    initialPageSize: 50,
+    windowSize: 4,
   });
 
   useEffect(() => {
@@ -71,36 +145,6 @@ const VotingStatusPage = () => {
       cancelled = true;
     };
   }, []);
-
-  useEffect(() => {
-    if (selectedElectionId) {
-      fetchVotingStatus();
-    } else {
-      setSummary(null);
-      setRows([]);
-      setTotalCount(0);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    selectedElectionId,
-    pagination.page,
-    pagination.pageSize,
-    filters.has_voted,
-    debouncedSearch,
-    courseFilters.advancedCourseCodes,
-    courseFilters.advancedYearLevels,
-  ]);
-
-  useEffect(() => {
-    setPagination((prev) => ({ ...prev, page: 1 }));
-  }, [
-    selectedElectionId,
-    filters.has_voted,
-    debouncedSearch,
-    pagination.pageSize,
-    courseFilters.advancedCourseCodes,
-    courseFilters.advancedYearLevels,
-  ]);
 
   const uniqueYearLevels = useMemo(() => {
     const s = new Set();
@@ -155,43 +199,6 @@ const VotingStatusPage = () => {
     }
   };
 
-  const fetchVotingStatus = async () => {
-    if (!selectedElectionId) return;
-    try {
-      setTableLoading(true);
-      const params = {
-        election_id: selectedElectionId,
-        page: pagination.page,
-        page_size: Number.isFinite(pagination.pageSize) ? pagination.pageSize : 100,
-      };
-      if (filters.has_voted) {
-        params.has_voted = filters.has_voted;
-      }
-      if (debouncedSearch.trim()) {
-        params.search = debouncedSearch.trim();
-      }
-      if (courseFilters.advancedCourseCodes.length > 0) {
-        params.course_codes = courseFilters.advancedCourseCodes.join(',');
-      }
-      if (courseFilters.advancedYearLevels.length > 0) {
-        params.year_levels = courseFilters.advancedYearLevels.join(',');
-      }
-      const res = await votingService.getVotingStatus(params);
-      const data = res.data || {};
-      setSummary(data.summary || null);
-      const rawResults = Array.isArray(data.results) ? data.results : [];
-      setRows(adaptVotingStatusList(rawResults));
-      setTotalCount(typeof data.count === 'number' ? data.count : 0);
-    } catch (error) {
-      console.error('Error fetching voting status:', error);
-      setSummary(null);
-      setRows([]);
-      setTotalCount(0);
-    } finally {
-      setTableLoading(false);
-    }
-  };
-
   const handleFilterChange = (field, value) => {
     setFilters((prev) => ({
       ...prev,
@@ -234,13 +241,8 @@ const VotingStatusPage = () => {
     }));
   };
 
-  const pageSizeEffective = Number.isFinite(pagination.pageSize)
-    ? pagination.pageSize
-    : Math.max(totalCount, 1);
-  const totalPages = Math.max(1, Math.ceil(totalCount / pageSizeEffective));
-  const safeCurrentPage = Math.min(Math.max(1, pagination.page), totalPages);
-  const startIndexDisplay = totalCount === 0 ? 0 : (safeCurrentPage - 1) * pageSizeEffective + 1;
-  const endIndexDisplay = Math.min(safeCurrentPage * pageSizeEffective, totalCount);
+  const startIndexDisplay = totalCount === 0 ? 0 : (safeCurrentPage - 1) * pageSize + 1;
+  const endIndexDisplay = Math.min(safeCurrentPage * pageSize, totalCount);
 
   const getVotingSortValue = (u, key) => {
 
@@ -316,7 +318,7 @@ const VotingStatusPage = () => {
       .replace(/[^\w-]+/g, '_')
       .replace(/^_+|_+$/g, '')
       .slice(0, 72);
-    const scopeLabel = Number.isFinite(pagination.pageSize)
+    const scopeLabel = Number.isFinite(pageSize)
       ? `page${safeCurrentPage}_of${totalPages}`
       : 'all_filtered';
     a.href = url;
@@ -339,30 +341,6 @@ const VotingStatusPage = () => {
           Voting Status
         </h1>
         <p>View who has voted and who has not for a selected election.</p>
-      </div>
-
-      <div className="admin-form-section" style={{ marginBottom: '1.5rem' }}>
-        <h5 className="admin-section-header">
-          <Icon name="users" size={18} className="admin-icon-primary" />
-          Select Election
-        </h5>
-        <div className="admin-form-grid">
-          <div>
-            <label className="admin-form-label">Election</label>
-            <select
-              value={selectedElectionId}
-              onChange={(e) => setSelectedElectionId(e.target.value)}
-              className="admin-form-input"
-            >
-              <option value="">-- Select election --</option>
-              {elections.map((election) => (
-                <option key={election.id} value={election.id}>
-                  {election.title}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
       </div>
 
       {selectedElection && summary && (
@@ -409,60 +387,143 @@ const VotingStatusPage = () => {
         </div>
       )}
 
-      {selectedElectionId && (
-        <div className="admin-users-toolbar-card">
-          <div className="admin-users-toolbar-left">
-            <div className="admin-users-search-pill">
-              <Icon name="search" size={16} className="admin-users-search-icon" />
-              <input
-                type="text"
-                value={filters.search}
-                onChange={(e) => handleFilterChange('search', e.target.value)}
-                placeholder="Search by name, email, username, or student ID..."
-                className="admin-users-search-input"
-              />
-              {filters.search && (
-                <button
-                  type="button"
-                  className="admin-users-search-clear"
-                  onClick={() => handleFilterChange('search', '')}
+      {/* Filter & Action Toolbar */}
+      <div className="admin-users-toolbar-card" ref={dropdownRef}>
+        <div className="admin-users-toolbar-left">
+          {/* Search Input Pill */}
+          <div className="admin-users-search-pill">
+            <Icon name="search" size={16} className="admin-users-search-icon" />
+            <input
+              type="text"
+              value={filters.search}
+              onChange={(e) => handleFilterChange('search', e.target.value)}
+              placeholder="Search by name, email, username, or student ID..."
+              className="admin-users-search-input"
+            />
+            {filters.search && (
+              <button
+                type="button"
+                className="admin-users-search-clear"
+                onClick={() => handleFilterChange('search', '')}
+              >
+                ×
+              </button>
+            )}
+          </div>
+
+          {/* Election Dropdown Pill */}
+          <div className="admin-filter-dropdown-wrapper">
+            <button
+              type="button"
+              className={`admin-filter-dropdown-btn ${selectedElectionId ? 'active' : ''}`}
+              onClick={() => setActiveDropdown((prev) => (prev === 'election' ? null : 'election'))}
+            >
+              <div className="admin-filter-dropdown-title">
+                <span>Election</span>
+                <Icon name="chevronDown" size={12} />
+              </div>
+              <div className="admin-filter-dropdown-sub">
+                {selectedElection ? selectedElection.title : 'Select Election'}
+              </div>
+            </button>
+            {activeDropdown === 'election' && (
+              <div className="admin-dropdown-popover">
+                <div
+                  className={`admin-filter-dropdown-item ${!selectedElectionId ? 'active font-bold' : ''}`}
+                  style={{ padding: '0.4rem 0.6rem', cursor: 'pointer', borderRadius: '6px' }}
+                  onClick={() => {
+                    setSelectedElectionId('');
+                    setActiveDropdown(null);
+                  }}
                 >
-                  ×
-                </button>
-              )}
-            </div>
-
-            <button
-              type="button"
-              className={`admin-advanced-toggle-btn ${showSearchFilters ? 'active' : ''}`}
-              onClick={() => setShowSearchFilters((prev) => !prev)}
-            >
-              <Icon name="sliders" size={15} />
-              <span>Advanced Filters</span>
-              {activeFilterCount > 0 && (
-                <span className="admin-filter-badge">{activeFilterCount}</span>
-              )}
-            </button>
+                  -- Select election --
+                </div>
+                {elections.map((election) => (
+                  <div
+                    key={election.id}
+                    className={`admin-filter-dropdown-item ${String(selectedElectionId) === String(election.id) ? 'active font-bold' : ''}`}
+                    style={{ padding: '0.4rem 0.6rem', cursor: 'pointer', borderRadius: '6px' }}
+                    onClick={() => {
+                      setSelectedElectionId(election.id);
+                      setActiveDropdown(null);
+                    }}
+                  >
+                    {election.title}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          <div className="admin-users-toolbar-right">
+          {/* Vote Status Dropdown Pill */}
+          <div className="admin-filter-dropdown-wrapper">
             <button
               type="button"
-              className="admin-btn-export-csv"
-              onClick={handleExportCsv}
-              disabled={!rows.length}
-              title={
-                Number.isFinite(pagination.pageSize)
-                  ? `Export current page (${paginatedRows.length} rows) as CSV`
-                  : `Export current page (${paginatedRows.length} rows) as CSV`
-              }
+              className={`admin-filter-dropdown-btn ${filters.has_voted !== '' ? 'active' : ''}`}
+              onClick={() => setActiveDropdown((prev) => (prev === 'has_voted' ? null : 'has_voted'))}
             >
-              <Icon name="download" size={16} />
-              <span>Export CSV</span>
+              <div className="admin-filter-dropdown-title">
+                <span>Vote Status</span>
+                <Icon name="chevronDown" size={12} />
+              </div>
+              <div className="admin-filter-dropdown-sub">
+                {filters.has_voted === 'true'
+                  ? 'Voted'
+                  : filters.has_voted === 'false'
+                    ? 'Not Voted'
+                    : 'All Statuses'}
+              </div>
             </button>
+            {activeDropdown === 'has_voted' && (
+              <div className="admin-dropdown-popover">
+                {[
+                  { key: '', label: 'All Statuses' },
+                  { key: 'true', label: 'Voted' },
+                  { key: 'false', label: 'Not Voted' },
+                ].map((st) => (
+                  <div
+                    key={st.key}
+                    className={`admin-filter-dropdown-item ${filters.has_voted === st.key ? 'active font-bold' : ''}`}
+                    style={{ padding: '0.4rem 0.6rem', cursor: 'pointer', borderRadius: '6px' }}
+                    onClick={() => {
+                      handleFilterChange('has_voted', st.key);
+                      setActiveDropdown(null);
+                    }}
+                  >
+                    {st.label}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
+
+          {/* Advanced Filters Button */}
+          <button
+            type="button"
+            className={`admin-advanced-toggle-btn ${showSearchFilters ? 'active' : ''}`}
+            onClick={() => setShowSearchFilters((prev) => !prev)}
+          >
+            <Icon name="sliders" size={15} />
+            <span>Advanced Filters</span>
+            {activeFilterCount > 0 && (
+              <span className="admin-filter-badge">{activeFilterCount}</span>
+            )}
+          </button>
         </div>
-      )}
+
+        <div className="admin-users-toolbar-right">
+          <button
+            type="button"
+            className="admin-btn-export-csv"
+            onClick={handleExportCsv}
+            disabled={!rows.length || !selectedElectionId}
+            title={selectedElectionId ? `Export current page (${paginatedRows.length} rows) as CSV` : 'Select an election to export'}
+          >
+            <Icon name="download" size={16} />
+            <span>Export CSV</span>
+          </button>
+        </div>
+      </div>
 
       {selectedElectionId && showSearchFilters && (
         <div className="admin-search-container">
@@ -702,9 +763,7 @@ const VotingStatusPage = () => {
                 <button
                   type="button"
                   className="admin-btn admin-btn-small"
-                  onClick={() =>
-                    setPagination((prev) => ({ ...prev, page: Math.max(1, prev.page - 1) }))
-                  }
+                  onClick={prevPage}
                   disabled={safeCurrentPage <= 1}
                 >
                   Prev
@@ -712,9 +771,7 @@ const VotingStatusPage = () => {
                 <button
                   type="button"
                   className="admin-btn admin-btn-small"
-                  onClick={() =>
-                    setPagination((prev) => ({ ...prev, page: Math.min(totalPages, prev.page + 1) }))
-                  }
+                  onClick={nextPage}
                   disabled={safeCurrentPage >= totalPages}
                 >
                   Next
@@ -724,13 +781,9 @@ const VotingStatusPage = () => {
                   <label className="admin-pagination-view-label">View</label>
                   <select
                     className="admin-pagination-view-select"
-                    value={String(pagination.pageSize)}
+                    value={String(pageSize)}
                     onChange={(e) => {
-                      setPagination((prev) => ({
-                        ...prev,
-                        pageSize: Number(e.target.value),
-                        page: 1,
-                      }));
+                      setPageSize(Number(e.target.value));
                     }}
                   >
                     <option value="20">20</option>

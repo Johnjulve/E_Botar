@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Container } from '../../../components/layout';
-import { Card, Button, LoadingSpinner } from '../../../components/common';
+import { Card, Button, LoadingSpinner, Icon } from '../../../components/common';
 import { programService, electionService, votingService } from '../../../services';
 import { useAuth } from '../../../hooks/useAuth';
 import { useBranding } from '../../../hooks/useBranding';
@@ -1409,32 +1409,34 @@ const DataExportPage = () => {
   }, 0);
 
   return (
-    <div className="student-export-page">
-      <Container>
-        <div className="admin-export-header">
-          <h1 className="admin-export-title">
-            Data Export
-          </h1>
-          <p className="admin-export-subtitle">
-            Export election results and student data in PDF format
-          </p>
-        </div>
+    <Container>
+      <div className="admin-header">
+        <h1>
+          <Icon name="download" size={28} className="admin-icon-primary" />
+          Data Export
+        </h1>
+        <p>Export election results and student data in PDF format.</p>
+      </div>
 
-        {/* Tabs */}
-        <div className="admin-export-tabs">
-          <button
-            onClick={() => setActiveTab('results')}
-            className={`admin-export-tab ${activeTab === 'results' ? 'admin-export-tab-active' : 'admin-export-tab-inactive'}`}
-          >
-            Election Results
-          </button>
-          <button
-            onClick={() => setActiveTab('students')}
-            className={`admin-export-tab ${activeTab === 'students' ? 'admin-export-tab-active' : 'admin-export-tab-inactive'}`}
-          >
-            Student Data
-          </button>
-        </div>
+      {/* Tabs */}
+      <div className="admin-filter-tabs" role="group" aria-label="Export categories">
+        <button
+          type="button"
+          onClick={() => setActiveTab('results')}
+          className={`admin-filter-btn ${activeTab === 'results' ? 'active' : ''}`}
+        >
+          <Icon name="trendingUp" size={16} />
+          Election Results
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('students')}
+          className={`admin-filter-btn ${activeTab === 'students' ? 'active' : ''}`}
+        >
+          <Icon name="users" size={16} />
+          Student Data
+        </button>
+      </div>
 
         {/* Election Results Tab */}
         {activeTab === 'results' && (
@@ -1756,7 +1758,6 @@ const DataExportPage = () => {
           </Card>
         )}
       </Container>
-    </div>
   );
 };
 
