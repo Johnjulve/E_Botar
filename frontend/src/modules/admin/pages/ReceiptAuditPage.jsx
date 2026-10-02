@@ -38,6 +38,7 @@ const ReceiptAuditPage = () => {
     value: '',
   });
   const [revealingReceiptId, setRevealingReceiptId] = useState(null);
+  const [exporting, setExporting] = useState(false);
   const dropdownRef = useRef(null);
 
   // Close dropdown on click outside
@@ -122,6 +123,21 @@ const ReceiptAuditPage = () => {
       openRevealModal('Receipt Code', row.full_receipt_code || row.masked_receipt_code || 'N/A');
     } finally {
       setRevealingReceiptId(null);
+    }
+  };
+
+  const handleExportCsv = async () => {
+    try {
+      setExporting(true);
+      const params = {};
+      if (filters.election_id) params.election_id = filters.election_id;
+      if (filters.vote_status) params.vote_status = filters.vote_status;
+      if (filters.search.trim()) params.search = filters.search.trim();
+      await votingService.downloadReceiptAuditCSV(params);
+    } catch {
+      // Export failure handled safely
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -297,6 +313,16 @@ const ReceiptAuditPage = () => {
         </div>
 
         <div className="admin-users-toolbar-right">
+          <button
+            type="button"
+            className="admin-btn-export-csv"
+            onClick={handleExportCsv}
+            disabled={exporting || rows.length === 0}
+            title="Export receipt audit trail as streamed CSV"
+          >
+            <Icon name={exporting ? 'spinner' : 'download'} size={15} />
+            <span>{exporting ? 'Exporting...' : 'Export CSV'}</span>
+          </button>
           <button
             type="button"
             className="admin-btn-export-csv"
