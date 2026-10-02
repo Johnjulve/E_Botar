@@ -324,10 +324,13 @@ class UserProfileListSerializer(serializers.ModelSerializer):
             'is_active': user.is_active,
             'is_verified': instance.is_verified,
             'must_change_password': instance.must_change_password,
+            'is_staff': user.is_staff,
+            'is_superuser': user.is_superuser,
             'department_code': department.code if department else None,
             'department_name': department.name if department else None,
             'course_code': course.code if course else None,
             'course_name': course.name if course else None,
+            'date_joined': user.date_joined,
             'created_at': instance.created_at,
         }
 

@@ -36,13 +36,14 @@ export const adaptUserProfileListItem = (raw = {}) => {
   const isActive = Boolean(raw.is_active ?? userObj.is_active ?? true);
   const isVerified = Boolean(raw.is_verified);
   const mustChangePassword = Boolean(raw.must_change_password);
-  const isStaff = Boolean(userObj.is_staff);
-  const isSuperuser = Boolean(userObj.is_superuser);
+  const isStaff = Boolean(raw.is_staff ?? userObj.is_staff);
+  const isSuperuser = Boolean(raw.is_superuser ?? userObj.is_superuser);
 
-  const deptCode = raw.department_code ?? deptObj.code ?? '';
-  const deptName = raw.department_name ?? deptObj.name ?? '';
-  const courseCode = raw.course_code ?? courseObj.code ?? '';
-  const courseName = raw.course_name ?? courseObj.name ?? '';
+  const deptCode = raw.department_code ?? (typeof deptObj === 'object' ? deptObj.code : deptObj) ?? '';
+  const deptName = raw.department_name ?? (typeof deptObj === 'object' ? deptObj.name : deptObj) ?? '';
+  const courseCode = raw.course_code ?? (typeof courseObj === 'object' ? courseObj.code : courseObj) ?? '';
+  const courseName = raw.course_name ?? (typeof courseObj === 'object' ? courseObj.name : courseObj) ?? '';
+  const dateJoined = raw.date_joined || userObj.date_joined || raw.created_at || '';
 
   return {
     id,
@@ -66,10 +67,16 @@ export const adaptUserProfileListItem = (raw = {}) => {
     is_verified: isVerified,
     mustChangePassword,
     must_change_password: mustChangePassword,
+    isStaff,
+    is_staff: isStaff,
+    isSuperuser,
+    is_superuser: isSuperuser,
     departmentCode: deptCode,
     departmentName: deptName,
     courseCode,
     courseName,
+    dateJoined,
+    date_joined: dateJoined,
     createdAt: raw.created_at,
     created_at: raw.created_at,
     // Dual-compatibility: preserve nested accessors so legacy components continue functioning
@@ -82,9 +89,10 @@ export const adaptUserProfileListItem = (raw = {}) => {
       is_active: isActive,
       is_staff: isStaff,
       is_superuser: isSuperuser,
+      date_joined: dateJoined,
     },
-    department: (deptCode || deptName) ? { code: deptCode, name: deptName } : null,
-    course: (courseCode || courseName) ? { code: courseCode, name: courseName } : null,
+    department: (deptCode || deptName) ? { code: deptCode, name: deptName || deptCode } : null,
+    course: (courseCode || courseName) ? { code: courseCode, name: courseName || courseCode } : null,
   };
 };
 
