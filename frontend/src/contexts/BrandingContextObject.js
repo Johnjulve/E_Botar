@@ -6,6 +6,9 @@ const BrandingContext = createContext({
   loading: true,
   error: null,
   refreshBranding: async () => {},
+  applyPreviewTheme: () => {},
+  revertPreviewTheme: () => {},
 });
 
 export default BrandingContext;
+

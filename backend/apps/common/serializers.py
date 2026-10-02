@@ -50,3 +50,36 @@ class AcademicYearSerializer(serializers.Serializer):
         
         return value
 
+
+import re
+
+HEX_COLOR_PATTERN = re.compile(r'^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$')
+
+
+class InstitutionBrandingUpdateSerializer(serializers.Serializer):
+    """Serializer for updating institutional branding and theming configuration."""
+    institution_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    institution_name_line2 = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    institution_acronym = serializers.CharField(max_length=30, required=False, allow_blank=True)
+    app_name = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    tagline = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    support_email = serializers.EmailField(required=False, allow_blank=True)
+    website_url = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    primary_color = serializers.CharField(max_length=7, required=False, allow_blank=True)
+    secondary_color = serializers.CharField(max_length=7, required=False, allow_blank=True)
+    institution_logo = serializers.CharField(required=False, allow_blank=True)
+    institution_favicon = serializers.CharField(required=False, allow_blank=True)
+    institution_seal = serializers.CharField(required=False, allow_blank=True)
+    is_custom_branded = serializers.BooleanField(required=False)
+
+    def validate_primary_color(self, value):
+        if value and not HEX_COLOR_PATTERN.match(value.strip()):
+            raise serializers.ValidationError("Primary color must be a valid hex code (e.g. #0b6e3b).")
+        return value.strip() if value else '#0b6e3b'
+
+    def validate_secondary_color(self, value):
+        if value and not HEX_COLOR_PATTERN.match(value.strip()):
+            raise serializers.ValidationError("Secondary color must be a valid hex code (e.g. #f4cc5c).")
+        return value.strip() if value else '#f4cc5c'
+
+

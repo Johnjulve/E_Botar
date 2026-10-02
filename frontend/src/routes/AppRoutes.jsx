@@ -52,6 +52,8 @@ const UserDirectoryPage = lazy(() => import('../modules/admin/pages/UserDirector
 const VotingStatusPage = lazy(() => import('../modules/admin/pages/VotingStatusPage'));
 const ReceiptAuditPage = lazy(() => import('../modules/admin/pages/ReceiptAuditPage'));
 const MaintenanceFeaturesPage = lazy(() => import('../modules/admin/pages/MaintenanceFeaturesPage'));
+const BrandingSettingsPage = lazy(() => import('../modules/admin/pages/BrandingSettingsPage'));
+
 
 const AppRoutes = () => {
   return (
@@ -234,6 +236,15 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/admin/branding"
+          element={
+            <ProtectedRoute requireAdmin>
+              <BrandingSettingsPage />
+            </ProtectedRoute>
+          }
+        />
+
         <Route 
           path="/admin/programs" 
           element={
