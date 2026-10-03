@@ -473,7 +473,7 @@ def sort_by(
 ) -> List[Any]:
     if algorithm == "mergesort":
         return SortingAlgorithm.mergesort(items, key_func, reverse)
-        return SortingAlgorithm.quicksort(items, key_func, reverse)
+    return SortingAlgorithm.quicksort(items, key_func, reverse)
 
 
 def search(
@@ -484,4 +484,5 @@ def search(
 ) -> int:
     if sorted_list:
         return SearchingAlgorithm.binary_search(items, target, key_func)
-        return SearchingAlgorithm.linear_search(items, target, key_func)
+    return SearchingAlgorithm.linear_search(items, target, key_func)
+

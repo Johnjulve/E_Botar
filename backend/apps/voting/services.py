@@ -8,10 +8,20 @@ from django.db.models import Count, F, Q, Prefetch
 from functools import wraps
 import hashlib
 
-from .models import Ballot, VoteChoice, VoteReceipt
-from apps.elections.models import SchoolElection, SchoolPosition
+from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
+from django.utils import timezone
+
+from apps.accounts.models import UserProfile
 from apps.candidates.models import Candidate
 from apps.common.core.algorithms import CryptographicAlgorithm, MemoizationAlgorithm, AggregationAlgorithm
+from apps.common.models import ActivityLog
+from apps.elections.models import SchoolElection, SchoolPosition
+
+from .models import Ballot, VoteChoice, VoteReceipt, AnonVote
+from .vote_ledger import append_vote_blocks_for_ballot
+
 
 
 def _make_service_cache_key(func_name, *args, **kwargs):
@@ -459,3 +469,142 @@ class VotingDataService:
             if candidate_id:
                 aggregated[candidate_id] += vote_count
         return dict(aggregated)
+
+
+class BallotSubmissionService:
+    """Encapsulates transactional ballot submission, concurrency locking, and vote chain ledger appending."""
+
+    @classmethod
+    @transaction.atomic
+    def submit_ballot(cls, user, election, votes, client_ip=None, user_agent=""):
+        """Atomically record ballot, choices, receipts, anonymous hash, and vote blocks.
+
+        Guarantees:
+        1. Serialization via SELECT FOR UPDATE on the voter User record.
+        2. Strict validation of active election and candidate/position validity.
+        3. Double-voting prevention (both database constraints and preemptive checks).
+        4. Atomic creation of Ballot, VoteReceipt, VoteChoice, AnonVote, and VoteBlock.
+        5. Synchronized cache invalidation and immutable audit trail logging.
+        """
+        # 1. Acquire row lock on voter record to serialize concurrent requests by the same user
+        User.objects.select_for_update().get(id=user.id)
+
+        # 2. Check duplicate voting
+        if Ballot.objects.filter(user=user, election=election).exists():
+            raise DjangoValidationError("You have already submitted a ballot for this election.")
+        if VoteReceipt.objects.filter(user=user, election=election).exists():
+            raise DjangoValidationError("A vote receipt already exists for this election.")
+
+        # 3. Check election active status
+        if not election.is_active_now():
+            raise DjangoValidationError("This election is not currently active.")
+
+        # 4. Bulk fetch and validate positions and candidates
+        position_ids = [v['position_id'] for v in votes]
+        candidate_ids = [v['candidate_id'] for v in votes]
+
+        positions_by_id = {
+            p.id: p for p in SchoolPosition.objects.filter(id__in=position_ids)
+        }
+        candidates_by_id = {
+            c.id: c for c in Candidate.objects.filter(
+                id__in=candidate_ids,
+                election=election,
+                is_active=True
+            ).select_related('user', 'position')
+        }
+
+        for vote_data in votes:
+            p_id = vote_data['position_id']
+            c_id = vote_data['candidate_id']
+            if p_id not in positions_by_id:
+                raise DjangoValidationError(f"Position with ID {p_id} not found.")
+            if c_id not in candidates_by_id:
+                raise DjangoValidationError(f"Candidate with ID {c_id} not found or inactive in this election.")
+            candidate = candidates_by_id[c_id]
+            if candidate.position_id != p_id:
+                pos_name = positions_by_id[p_id].name
+                raise DjangoValidationError(
+                    f"Candidate {candidate.user.get_full_name()} does not run for position {pos_name}."
+                )
+
+        # 5. Create receipt and ballot
+        receipt = VoteReceipt.objects.create(
+            user=user,
+            election=election,
+            ip_address=client_ip,
+        )
+
+        ballot = Ballot.objects.create(
+            user=user,
+            election=election,
+            receipt=receipt,
+            ip_address=client_ip,
+            user_agent=user_agent[:255] if user_agent else '',
+        )
+
+        # 6. Bulk create VoteChoice records
+        vote_choices_to_create = [
+            VoteChoice(
+                ballot=ballot,
+                position=positions_by_id[v['position_id']],
+                candidate=candidates_by_id[v['candidate_id']],
+                anonymized=True,
+            )
+            for v in votes
+        ]
+        choices_saved = VoteChoice.objects.bulk_create(vote_choices_to_create)
+
+        # 7. Bulk create AnonVote records with pre-generated hashes
+        now_str = timezone.now().isoformat()
+        anon_votes_to_create = [
+            AnonVote(
+                election=election,
+                position=positions_by_id[v['position_id']],
+                candidate=candidates_by_id[v['candidate_id']],
+                vote_hash=CryptographicAlgorithm.sha256_hash(
+                    f"{election.id}:{v['position_id']}:{v['candidate_id']}:{now_str}"
+                )
+            )
+            for v in votes
+        ]
+        AnonVote.objects.bulk_create(anon_votes_to_create)
+
+        # 8. Cryptographic ledger append
+        append_vote_blocks_for_ballot(
+            election_id=election.id,
+            ballot_identifier=str(ballot.pk),
+            receipt_secret=receipt.receipt_hash,
+            user_id=user.id,
+            choices=choices_saved,
+        )
+
+        # 9. Invalidate caches
+        VotingDataService.invalidate_voting_cache(election.id)
+        VotingDataService.invalidate_user_voting_cache(user.id, election.id)
+
+        # 10. Audit log
+        try:
+            student_id = getattr(user.profile, 'student_id', None)
+        except UserProfile.DoesNotExist:
+            student_id = None
+        voter_identifier = student_id if student_id else user.username
+
+        ActivityLog.objects.create(
+            user=user,
+            action='vote',
+            resource_type='Election',
+            resource_id=election.id,
+            description=f"Student {voter_identifier} cast vote in election '{election.title}'",
+            ip_address=client_ip,
+            metadata={
+                'election_id': election.id,
+                'election_title': election.title,
+                'student_id': student_id,
+                'receipt_code': receipt.get_masked_receipt(),
+                'positions_voted': len(votes)
+            }
+        )
+
+        return ballot, receipt
+
