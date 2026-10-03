@@ -365,8 +365,8 @@ SESSION_ENGINE = os.getenv('SESSION_ENGINE', 'django.contrib.sessions.backends.d
 # ---------------------------------------------------------------------------
 BACKEND_BASE_URL = os.getenv('BACKEND_BASE_URL', None)
 API_VERSION = os.getenv('API_VERSION', 'v1')
-BACKEND_VERSION = os.getenv('BACKEND_VERSION', '3.2.0')
-MIN_FRONTEND_VERSION = os.getenv('MIN_FRONTEND_VERSION', '3.2.0')
+BACKEND_VERSION = os.getenv('BACKEND_VERSION', '5.0.0')
+MIN_FRONTEND_VERSION = os.getenv('MIN_FRONTEND_VERSION', '5.0.0')
 
 # ---------------------------------------------------------------------------
 # DEFAULT PRIMARY KEY
