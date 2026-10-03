@@ -8,7 +8,7 @@ import { useParams, Link } from 'react-router-dom';
 import { Container } from '../../../components/layout';
 import { LoadingSpinner } from '../../../components/common';
 import { candidateService } from '../../../services';
-import { getInitials, formatYearLevelNumeric, parseYearLevelNumber } from '../../../utils/helpers';
+import { getInitials } from '../../../utils/helpers';
 import '../candidates.css';
 
 const CandidateProfilePage = () => {
