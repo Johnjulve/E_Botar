@@ -78,6 +78,8 @@ def _resolve_institution_logo_url(raw_value, request):
 
     return None
 
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
+from django.db import connection
 from django.core.cache import cache
 from django.core.files.storage import default_storage
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -90,13 +92,42 @@ from .serializers import AcademicYearSerializer, FeatureFlagsPatchSerializer, In
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
+@throttle_classes([])
 def health_check(request):
-    """Public health check for load balancers and monitoring (single monolith process)."""
+    """Public unthrottled health check verifying database and cache connectivity."""
+    checks = {
+        'database': 'unknown',
+        'cache': 'unknown',
+    }
+    healthy = True
+
+    # 1. Database Connectivity Check
+    try:
+        connection.ensure_connection()
+        checks['database'] = 'connected'
+    except Exception as exc:
+        checks['database'] = f'error: {str(exc)}'
+        healthy = False
+
+    # 2. Cache Responsiveness Check
+    try:
+        cache.set('_health_test', 'ok', timeout=10)
+        cached_val = cache.get('_health_test')
+        if cached_val == 'ok':
+            checks['cache'] = 'connected'
+        else:
+            checks['cache'] = 'failed to retrieve cached value'
+            healthy = False
+    except Exception as exc:
+        checks['cache'] = f'error: {str(exc)}'
+        healthy = False
+
+    status_code = status.HTTP_200_OK if healthy else status.HTTP_503_SERVICE_UNAVAILABLE
     return Response({
-        'status': 'healthy',
+        'status': 'healthy' if healthy else 'unhealthy',
         'service': 'ebotar-api',
-        'message': 'E-Botar API is running',
-    })
+        'checks': checks,
+    }, status=status_code)
 
 
 def parse_datetime_filter(value):

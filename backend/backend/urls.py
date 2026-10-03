@@ -19,6 +19,8 @@ api_v1_patterns = [
 ]
 
 urlpatterns = [
+    # Top-level health probe for container orchestrators & load balancers
+    path('health/', health_check, name='root-health'),
     path('admin/', admin.site.urls),
     path('accounts/', include('allauth.urls')),
     # HTML guide for backend-only access
