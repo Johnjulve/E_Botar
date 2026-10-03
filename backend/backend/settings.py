@@ -71,6 +71,7 @@ REST_FRAMEWORK = {
         "profile_update": os.getenv('THROTTLE_PROFILE_UPDATE', '20/minute'),
         "roster_preview": os.getenv('THROTTLE_ROSTER_PREVIEW', '20/minute'),
         "roster_import": os.getenv('THROTTLE_ROSTER_IMPORT', '5/minute'),
+        "integration_api": os.getenv('THROTTLE_INTEGRATION_API', '60/minute'),
     },
 }
 
@@ -405,7 +406,11 @@ elif IS_PRODUCTION and BACKEND_BASE_URL:
     CSRF_TRUSTED_ORIGINS = [BACKEND_BASE_URL]
 
 # ---------------------------------------------------------------------------
-# TEST RUNNER
+# TEST RUNNER & SYSTEM CHECKS
 # ---------------------------------------------------------------------------
 TEST_RUNNER = 'tests.runner.VerboseTestRunner'
+# Silence duplicate URL namespace warning caused by mounting /api/ as a legacy alias alongside /api/v1/
+SILENCED_SYSTEM_CHECKS = ['urls.W005']
+
+
 
