@@ -16,7 +16,6 @@ api_v1_patterns = [
     path('candidates/', include('apps.candidates.urls')),
     path('voting/', include('apps.voting.urls')),
     path('common/', include('apps.common.urls')),
-    path('integration/', include('apps.common.integration_urls')),
 ]
 
 urlpatterns = [

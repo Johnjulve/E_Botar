@@ -71,7 +71,6 @@ REST_FRAMEWORK = {
         "profile_update": os.getenv('THROTTLE_PROFILE_UPDATE', '20/minute'),
         "roster_preview": os.getenv('THROTTLE_ROSTER_PREVIEW', '20/minute'),
         "roster_import": os.getenv('THROTTLE_ROSTER_IMPORT', '5/minute'),
-        "integration_api": os.getenv('THROTTLE_INTEGRATION_API', '60/minute'),
     },
 }
 

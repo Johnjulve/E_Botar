@@ -94,3 +94,17 @@ class SchoolElectionListAnnotatedCountsTests(TestCase):
         match = next(r for r in rows if r['id'] == self.election.id)
         self.assertEqual(match['total_positions'], 2)
         self.assertEqual(match['total_votes'], 2)
+
+    def test_election_status_query_param_filter(self):
+        response_active = self.client.get('/api/v1/elections/elections/?status=active')
+        self.assertEqual(response_active.status_code, 200)
+        results = response_active.json()
+        rows = results if isinstance(results, list) else results.get('results', results)
+        self.assertTrue(any(r['id'] == self.election.id for r in rows))
+
+        response_upcoming = self.client.get('/api/v1/elections/elections/?status=upcoming')
+        self.assertEqual(response_upcoming.status_code, 200)
+        results_upcoming = response_upcoming.json()
+        rows_upcoming = results_upcoming if isinstance(results_upcoming, list) else results_upcoming.get('results', results_upcoming)
+        self.assertFalse(any(r['id'] == self.election.id for r in rows_upcoming))
+
