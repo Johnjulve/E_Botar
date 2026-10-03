@@ -9,6 +9,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { BrandingProvider } from './contexts/BrandingContext';
 import { Navbar, Footer } from './components/layout';
 import { FirstLoginPasswordModal } from './modules/auth/components/FirstLoginPasswordModal';
+import { ErrorBoundary } from './components/common';
 import AppRoutes from './routes/AppRoutes';
 /* Note: Global styles are now loaded in main.jsx at app level */
 
@@ -20,7 +21,9 @@ function App() {
           <div className="app-shell d-flex flex-column">
             <Navbar />
             <main className="main-content flex-grow-1">
-              <AppRoutes />
+              <ErrorBoundary>
+                <AppRoutes />
+              </ErrorBoundary>
             </main>
             <Footer />
           </div>

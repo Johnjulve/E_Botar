@@ -676,7 +676,8 @@ class BrandingAssetDeleteView(APIView):
         # 3. Check if active logo/favicon matches this asset
         active_logo = (SystemSettings.get_value('institution_logo', default='') or '').strip()
         reverted_to_default = False
-        if active_logo and active_logo == target_path:
+        target_url = (target.get('url') or '').strip()
+        if active_logo and (active_logo == target_path or (target_url and active_logo == target_url)):
             SystemSettings.set_value('institution_logo', '', user=request.user)
             SystemSettings.set_value('institution_favicon', '', user=request.user)
             reverted_to_default = True

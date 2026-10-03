@@ -240,3 +240,35 @@
   border-top: 1px solid var(--border-color);
   background-color: var(--gray-50);
 }
+
+/* ==================== Floating Toast Notifications ==================== */
+.app-toast-container {
+  position: fixed !important;
+  top: 1.5rem !important;
+  right: 1.5rem !important;
+  z-index: 9999 !important;
+  pointer-events: none;
+}
+
+.app-toast-card {
+  min-width: 320px;
+  max-width: 420px;
+  border-radius: 10px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  pointer-events: auto;
+  animation: appToastSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes appToastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+

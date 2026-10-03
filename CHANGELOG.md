@@ -19,6 +19,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Upgraded `/health/` and `/api/v1/health/` endpoints with `@throttle_classes([])` and active connectivity checks for PostgreSQL database (`connection.ensure_connection()`) and cache responsiveness (`cache.set`/`cache.get`).
 - **Comprehensive Security & Integrity Test Matrix**:
   - Added dedicated test suites `test_health_and_infrastructure.py` and `test_security_and_integrity.py` covering Auth/RBAC, election lifecycles, atomic rollback, constant-time verification, and SQL injection protections (73/73 tests passing).
+- **Application Error Boundary & Crash Protection**:
+  - Implemented application-level `ErrorBoundary` in `components/common/ErrorBoundary.jsx` around `AppRoutes` in `App.jsx` to gracefully recover from runtime display exceptions and prevent whole-page whiteout unmounting.
+- **Unified Floating Toast Notifications (`ToastNotification.jsx`)**:
+  - Centralized floating toast notification UI in `components/common/ToastNotification.jsx` with shared global animations in `assets/styles/global/components.css`.
+  - Upgraded `MaintenanceFeaturesPage.jsx` and `BrandingSettingsPage.jsx` to use the unified floating toast, eliminating layout shift and providing consistent auto-dismiss timers.
+- **Active Brand Asset Deletion Hardening**:
+  - Fixed missing `Alert` import in `BrandingSettingsPage.jsx` when confirming active logo deletion.
+  - Hardened `BrandingAssetDeleteView` in `apps/common/views.py` to match active logo by both relative storage path and resolved media URL.
 
 ### Changed & Hardened
 - **Framework-First Architecture**:
