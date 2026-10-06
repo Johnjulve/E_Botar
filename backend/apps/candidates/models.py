@@ -123,6 +123,9 @@ class CandidateApplication(models.Model):
         ordering = ['-submitted_at']
         verbose_name = 'Candidate Application'
         verbose_name_plural = 'Candidate Applications'
+        indexes = [
+            models.Index(fields=['election', 'status'], name='cand_app_election_status_idx'),
+        ]
 
 
 class Candidate(models.Model):
@@ -169,3 +172,7 @@ class Candidate(models.Model):
         unique_together = ['user', 'election', 'position']
         verbose_name = 'Candidate'
         verbose_name_plural = 'Candidates'
+        indexes = [
+            models.Index(fields=['election', 'is_active', 'position'], name='cand_election_active_pos_idx'),
+        ]
+

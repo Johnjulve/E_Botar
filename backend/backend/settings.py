@@ -24,16 +24,18 @@ load_dotenv(BASE_DIR / '.env', override=True)
 IS_PRODUCTION = os.getenv('IS_PRODUCTION', 'False').lower() == 'true'
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
-# SECRET KEY
+# SECRET KEY - Fail-fast enforcement in production or when DEBUG=False
+_DEFAULT_INSECURE_SECRET = 'django-insecure-c^hu1q77a4tnn$dil=sboisr6kk78)&w^99*6l#(_+z^!t&))6'
 SECRET_KEY = os.getenv('SECRET_KEY')
-if not SECRET_KEY:
-    if IS_PRODUCTION:
+if not SECRET_KEY or SECRET_KEY == _DEFAULT_INSECURE_SECRET:
+    if IS_PRODUCTION or not DEBUG:
         raise ValueError(
-            "SECRET_KEY environment variable must be set in production! "
+            "Insecure or missing SECRET_KEY in production mode (DEBUG=False or IS_PRODUCTION=True)! "
+            "A cryptographically secure SECRET_KEY must be provided via environment variable. "
             "Generate one with: python -c \"from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())\""
         )
     # Fallback for local development only
-    SECRET_KEY = 'django-insecure-c^hu1q77a4tnn$dil=sboisr6kk78)&w^99*6l#(_+z^!t&))6'
+    SECRET_KEY = _DEFAULT_INSECURE_SECRET
     warnings.warn(
         "Using insecure default SECRET_KEY. Set SECRET_KEY environment variable for production!",
         UserWarning
@@ -126,9 +128,9 @@ if USE_CLOUDINARY_MEDIA:
 # ---------------------------------------------------------------------------
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'django.middleware.gzip.GZipMiddleware',
-    'apps.common.http.middleware.DynamicAllowedHostsMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
+    'apps.common.http.middleware.DynamicAllowedHostsMiddleware',
+    'django.middleware.gzip.GZipMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     "corsheaders.middleware.CorsMiddleware",
     'django.middleware.common.CommonMiddleware',
@@ -337,6 +339,13 @@ if USE_CLOUDINARY_MEDIA:
     _DEFAULT_FILE_STORAGE_BACKEND = 'apps.common.files.storage.ResilientMediaCloudinaryStorage'
 else:
     _DEFAULT_FILE_STORAGE_BACKEND = 'django.core.files.storage.FileSystemStorage'
+    if IS_PRODUCTION or not DEBUG:
+        warnings.warn(
+            "Production environment detected without remote media storage (Cloudinary). "
+            "Uploaded media files on ephemeral disks will not persist across container restarts. "
+            "Set CLOUDINARY_URL or CLOUDINARY_CLOUD_NAME to enable persistent cloud storage.",
+            UserWarning
+        )
 
 STORAGES = {
     'default': {
@@ -346,14 +355,18 @@ STORAGES = {
         'BACKEND': os.getenv('STATICFILES_STORAGE', 'whitenoise.storage.CompressedManifestStaticFilesStorage'),
     },
 }
+WHITENOISE_MANIFEST_STRICT = os.getenv('WHITENOISE_MANIFEST_STRICT', 'False').lower() == 'true'
+
+# Stateless application architecture - sessions stored in database
+SESSION_ENGINE = os.getenv('SESSION_ENGINE', 'django.contrib.sessions.backends.db')
 
 # ---------------------------------------------------------------------------
 # VERSIONING
 # ---------------------------------------------------------------------------
 BACKEND_BASE_URL = os.getenv('BACKEND_BASE_URL', None)
 API_VERSION = os.getenv('API_VERSION', 'v1')
-BACKEND_VERSION = os.getenv('BACKEND_VERSION', '3.2.0')
-MIN_FRONTEND_VERSION = os.getenv('MIN_FRONTEND_VERSION', '3.2.0')
+BACKEND_VERSION = os.getenv('BACKEND_VERSION', '5.0.0')
+MIN_FRONTEND_VERSION = os.getenv('MIN_FRONTEND_VERSION', '5.0.0')
 
 # ---------------------------------------------------------------------------
 # DEFAULT PRIMARY KEY
@@ -363,10 +376,18 @@ DEFAULT_AUTO_FIELD = os.getenv('DEFAULT_AUTO_FIELD', 'django.db.models.BigAutoFi
 # ---------------------------------------------------------------------------
 # CORS CONFIGURATION
 # ---------------------------------------------------------------------------
-CORS_ALLOW_ALL_ORIGINS = os.getenv('CORS_ALLOW_ALL_ORIGINS', 'True').lower() == 'true'
+# In production, default CORS_ALLOW_ALL_ORIGINS to False unless explicitly set to True
+_default_cors_allow_all = 'False' if (IS_PRODUCTION or not DEBUG) else 'True'
+CORS_ALLOW_ALL_ORIGINS = os.getenv('CORS_ALLOW_ALL_ORIGINS', _default_cors_allow_all).lower() == 'true'
 
-if not CORS_ALLOW_ALL_ORIGINS:
-    CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', '').split(',')
+_cors_origins_raw = os.getenv('CORS_ALLOWED_ORIGINS', '')
+if _cors_origins_raw:
+    CORS_ALLOWED_ORIGINS = [origin.strip() for origin in _cors_origins_raw.split(',') if origin.strip()]
+elif not CORS_ALLOW_ALL_ORIGINS:
+    CORS_ALLOWED_ORIGINS = [
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
+    ]
 
 CORS_ALLOW_CREDENTIALS = os.getenv('CORS_ALLOW_CREDENTIALS', 'True').lower() == 'true'
 CORS_ALLOW_HEADERS = list(default_headers) + ['x-frontend-version']
@@ -405,7 +426,11 @@ elif IS_PRODUCTION and BACKEND_BASE_URL:
     CSRF_TRUSTED_ORIGINS = [BACKEND_BASE_URL]
 
 # ---------------------------------------------------------------------------
-# TEST RUNNER
+# TEST RUNNER & SYSTEM CHECKS
 # ---------------------------------------------------------------------------
 TEST_RUNNER = 'tests.runner.VerboseTestRunner'
+# Silence duplicate URL namespace warning caused by mounting /api/ as a legacy alias alongside /api/v1/
+SILENCED_SYSTEM_CHECKS = ['urls.W005']
+
+
 

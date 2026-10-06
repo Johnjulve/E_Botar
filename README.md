@@ -9,7 +9,7 @@
 [![React](https://img.shields.io/badge/React-19.2-61DAFB.svg?logo=react&logoColor=black)](https://reactjs.org/)
 [![Vite](https://img.shields.io/badge/Vite-7.2-646CFF.svg?logo=vite&logoColor=white)](https://vitejs.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/Status-Active_v4.1.0-success.svg)](#)
+[![Status](https://img.shields.io/badge/Status-Active_v5.0.0-success.svg)](#)
 
 ---
 
@@ -26,7 +26,24 @@
 
 ---
 
-## 🚀 What's New in v4.1.0
+## 🚀 What's New in v5.0.0
+
+E-Botar **v5.0.0** is a major milestone release delivering comprehensive **Architecture Simplification, Gateway Modernization & Production Infrastructure Hardening**:
+
+- 🌐 **Canonical Versioned API Gateway (`/api/v1/`)**:
+  - Unified versioned API routing prefix across all domain services while guaranteeing 100% backward-compatibility via `/api/` alias preservation.
+- 🔒 **ACID Voting Transaction & Concurrency Isolation (`BallotSubmissionService`)**:
+  - Encapsulated ballot submission logic into a dedicated service layer with row-level locks (`User.objects.select_for_update()`), preventing double-voting race conditions and guaranteeing complete transaction rollbacks on failure.
+- ⏱️ **Constant-Time Cryptographic Hardening**:
+  - Enforced `hmac.compare_digest` across vote receipt verification and append-only blockchain ledger chain verification (`verify_election_vote_chain`), eliminating side-channel timing attack surfaces.
+- 🏥 **Unthrottled Active Platform Health Probe (`/health/`, `/api/v1/health/`)**:
+  - Implemented unthrottled health probe actively verifying PostgreSQL database connectivity and cache responsiveness for platform orchestrators.
+- 📦 **Stateless Production Hosting & Secret Protection**:
+  - Enforced fail-fast secret validation, database session engines, WhiteNoise static delivery, and optimized Gunicorn concurrency (`WEB_CONCURRENCY:-3`).
+- 🧪 **Full Test Suite & Zero-Defect Baseline**:
+  - 73/73 tests passing with 100% pass rate. 0 frontend lint errors and clean production bundles.
+
+## 🚀 Previous Release: What's New in v4.1.0
 
 E-Botar **v4.1.0** introduces end-to-end **System Efficiency & Architectural Refactoring**, including lazy generator pipelines for data streaming, bounded sliding-window client caching, gateway adapters for schema resilience, and unified admin toolbar controls:
 

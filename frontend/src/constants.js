@@ -3,7 +3,7 @@
  * Central location for all app constants
  */
 // App version (single source of truth for UI; bump on release)
-export const APP_VERSION = '4.1.0';
+export const APP_VERSION = '5.0.0';
 
 
 

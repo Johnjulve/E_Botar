@@ -437,7 +437,8 @@ export const Icon = ({
   strokeWidth = 2,
   ...rest
 }) => {
-  const iconContent = ICONS[name];
+  const camelKey = typeof name === 'string' ? name.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()) : name;
+  const iconContent = ICONS[name] || ICONS[camelKey];
   if (!iconContent) return null;
 
   return (

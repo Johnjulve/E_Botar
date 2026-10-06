@@ -13,16 +13,16 @@ const getBaseURL = () => {
   // In development, use relative URL to leverage Vite proxy (see vite.config.js)
   const isDevelopment = import.meta.env.DEV;
   if (isDevelopment) {
-    return '/api';
+    return '/api/v1';
   }
   
   // In production, VITE_API_BASE_URL MUST be set
   // This is set during build time via environment variables
   const envURL = import.meta.env.VITE_API_BASE_URL;
   if (envURL) {
-    // Ensure it ends with /api if not already
-    const baseURL = envURL.endsWith('/api') ? envURL : envURL.replace(/\/api\/?$/, '') + '/api';
-    return baseURL;
+    // Ensure canonical /api/v1 suffix
+    const cleanURL = envURL.replace(/\/api(\/v1)?\/?$/, '');
+    return `${cleanURL}/api/v1`;
   }
   
   // Production fallback - warn if not set
@@ -35,7 +35,7 @@ const getBaseURL = () => {
   }
   
   // Fallback (only works if backend is on same domain)
-  return '/api';
+  return '/api/v1';
 };
 
 const api = axios.create({

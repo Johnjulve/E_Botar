@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.0.0] - 2026-10-03
+
+### Added
+- **Canonical Versioned API Gateway (`/api/v1/`)**:
+  - Established canonical `/api/v1/` route prefix across all domain services in `backend/urls.py` while maintaining a 100% backward-compatible `/api/` alias.
+  - Updated frontend default `getBaseURL()` in `api.js` to automatically target `/api/v1`.
+- **Domain Service Isolation (`BallotSubmissionService`)**:
+  - Extracted business logic from views into dedicated service layer (`apps/voting/services.py`).
+  - Enforced strict row-level lock `User.objects.select_for_update().get(id=user.id)` inside `transaction.atomic()` to eliminate double-voting race conditions.
+  - Shrunk `BallotViewSet.submit()` from 150 lines of database transactions to 25 lines of HTTP coordination.
+- **Unthrottled Active Platform Health Probe**:
+  - Upgraded `/health/` and `/api/v1/health/` endpoints with `@throttle_classes([])` and active connectivity checks for PostgreSQL database (`connection.ensure_connection()`) and cache responsiveness (`cache.set`/`cache.get`).
+- **Comprehensive Security & Integrity Test Matrix**:
+  - Added dedicated test suites `test_health_and_infrastructure.py` and `test_security_and_integrity.py` covering Auth/RBAC, election lifecycles, atomic rollback, constant-time verification, and SQL injection protections (73/73 tests passing).
+- **Application Error Boundary & Crash Protection**:
+  - Implemented application-level `ErrorBoundary` in `components/common/ErrorBoundary.jsx` around `AppRoutes` in `App.jsx` to gracefully recover from runtime display exceptions and prevent whole-page whiteout unmounting.
+- **Unified Floating Toast Notifications (`ToastNotification.jsx`)**:
+  - Centralized floating toast notification UI in `components/common/ToastNotification.jsx` with shared global animations in `assets/styles/global/components.css`.
+  - Upgraded `MaintenanceFeaturesPage.jsx` and `BrandingSettingsPage.jsx` to use the unified floating toast, eliminating layout shift and providing consistent auto-dismiss timers.
+- **Active Brand Asset Deletion Hardening**:
+  - Fixed missing `Alert` import in `BrandingSettingsPage.jsx` when confirming active logo deletion.
+  - Hardened `BrandingAssetDeleteView` in `apps/common/views.py` to match active logo by both relative storage path and resolved media URL.
+
+### Changed & Hardened
+- **Framework-First Architecture**:
+  - Pruned bespoke integration views and serializers in favor of DRF native `ModelViewSet`, `ReadOnlyModelViewSet`, scoped throttling, and query parameter filtering (`?status=active`, `?compact=true`).
+- **Cryptographic & Side-Channel Protections**:
+  - Enforced constant-time hash comparisons (`hmac.compare_digest`) across both receipt code verification and blockchain ledger chain validation (`verify_election_vote_chain`), eliminating timing attack surfaces.
+- **Production Infrastructure & Stateless Guarantees**:
+  - Enforced fail-fast secret key checking in `settings.py` (raises `ValueError` if `SECRET_KEY` is missing or default insecure key when `IS_PRODUCTION=True` or `DEBUG=False`).
+  - Explicitly configured database session engine (`SESSION_ENGINE = 'django.contrib.sessions.backends.db'`) for zero local disk dependency.
+  - Repositioned `WhiteNoiseMiddleware` immediately following `SecurityMiddleware` per official specifications and configured `WHITENOISE_MANIFEST_STRICT` fallback.
+  - Updated `Procfile` with configurable workers (`WEB_CONCURRENCY:-3`), timeout (`GUNICORN_TIMEOUT:-120`), and stdout/stderr log streaming.
+- **Database Composite Indexes**:
+  - Added composite indexes `election_schedule_idx` on `SchoolElection`, `cand_election_active_pos_idx` on `Candidate`, and `cand_app_election_status_idx` on `CandidateApplication`.
+
 ## [4.1.0] - 2026-10-03
 
 ### Added

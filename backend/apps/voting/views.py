@@ -40,7 +40,7 @@ from .serializers import (
     VoteReceiptVerifySerializer,
     VoteStatisticsSerializer,
 )
-from .services import VotingDataService
+from .services import BallotSubmissionService, VotingDataService
 from .vote_ledger import append_vote_blocks_for_ballot, verify_election_vote_chain
 
 logger = logging.getLogger(__name__)
@@ -106,129 +106,22 @@ class BallotViewSet(viewsets.ReadOnlyModelViewSet):
         votes = serializer.validated_data['votes']
         user = request.user
         client_ip_address = get_client_ip(request)
-
-        # Pre-fetch positions and candidates in 2 bulk queries
-        position_ids = [v['position_id'] for v in votes]
-        candidate_ids = [v['candidate_id'] for v in votes]
-
-        positions_by_id = {
-            p.id: p for p in SchoolPosition.objects.filter(id__in=position_ids)
-        }
-        candidates_by_id = {
-            c.id: c for c in Candidate.objects.filter(
-                id__in=candidate_ids,
-                election=election,
-                is_active=True
-            ).select_related('user', 'position')
-        }
-
-        # Validate that all requested positions and candidates exist
-        for vote_data in votes:
-            p_id = vote_data['position_id']
-            c_id = vote_data['candidate_id']
-            if p_id not in positions_by_id:
-                return Response(
-                    {'detail': f'Position with ID {p_id} not found.'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            if c_id not in candidates_by_id:
-                return Response(
-                    {'detail': f'Candidate with ID {c_id} not found or inactive in this election.'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            candidate = candidates_by_id[c_id]
-            if candidate.position_id != p_id:
-                return Response(
-                    {'detail': f'Candidate {candidate.user.get_full_name()} does not run for position {positions_by_id[p_id].name}.'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+        user_agent = request.META.get('HTTP_USER_AGENT', '')
 
         try:
-            with transaction.atomic():
-                receipt = VoteReceipt.objects.create(
-                    user=user,
-                    election=election,
-                    ip_address=client_ip_address,
-                )
-
-                ballot = Ballot.objects.create(
-                    user=user,
-                    election=election,
-                    receipt=receipt,
-                    ip_address=client_ip_address,
-                    user_agent=request.META.get('HTTP_USER_AGENT', '')[:255],
-                )
-                
-                # Batch create VoteChoice records
-                vote_choices_to_create = [
-                    VoteChoice(
-                        ballot=ballot,
-                        position=positions_by_id[v['position_id']],
-                        candidate=candidates_by_id[v['candidate_id']],
-                        anonymized=True,
-                    )
-                    for v in votes
-                ]
-                choices_saved = VoteChoice.objects.bulk_create(vote_choices_to_create)
-
-                # Batch create AnonVote records with pre-generated hashes
-                now_str = timezone.now().isoformat()
-                anon_votes_to_create = [
-                    AnonVote(
-                        election=election,
-                        position=positions_by_id[v['position_id']],
-                        candidate=candidates_by_id[v['candidate_id']],
-                        vote_hash=CryptographicAlgorithm.sha256_hash(
-                            f"{election.id}:{v['position_id']}:{v['candidate_id']}:{now_str}"
-                        )
-                    )
-                    for v in votes
-                ]
-                AnonVote.objects.bulk_create(anon_votes_to_create)
-
-                append_vote_blocks_for_ballot(
-                    election_id=election.id,
-                    ballot_identifier=str(ballot.pk),
-                    receipt_secret=receipt.receipt_hash,
-                    user_id=user.id,
-                    choices=choices_saved,
-                )
-
-                # Invalidate voting and user status cache for this election
-                VotingDataService.invalidate_voting_cache(election.id)
-                VotingDataService.invalidate_user_voting_cache(user.id, election.id)
-                
-                # Log the vote activity
-                try:
-                    student_id = getattr(user.profile, 'student_id', None)
-                except UserProfile.DoesNotExist:
-                    student_id = None
-                voter_identifier = student_id if student_id else user.username
-                
-                ActivityLog.objects.create(
-                    user=user,
-                    action='vote',
-                    resource_type='Election',
-                    resource_id=election.id,
-                    description=f"Student {voter_identifier} cast vote in election '{election.title}'",
-                    ip_address=client_ip_address,
-                    metadata={
-                        'election_id': election.id,
-                        'election_title': election.title,
-                        'student_id': student_id,
-                        'receipt_code': receipt.get_masked_receipt(),
-                        'positions_voted': len(votes)
-                    }
-                )
-                
-                # Return ballot with receipt
-                ballot_serializer = BallotSerializer(ballot)
-                return Response({
-                    'message': 'Ballot submitted successfully',
-                    'ballot': ballot_serializer.data,
-                    'receipt_code': receipt.receipt_code
-                }, status=status.HTTP_201_CREATED)
-        
+            ballot, receipt = BallotSubmissionService.submit_ballot(
+                user=user,
+                election=election,
+                votes=votes,
+                client_ip=client_ip_address,
+                user_agent=user_agent,
+            )
+            ballot_serializer = BallotSerializer(ballot)
+            return Response({
+                'message': 'Ballot submitted successfully',
+                'ballot': ballot_serializer.data,
+                'receipt_code': receipt.receipt_code,
+            }, status=status.HTTP_201_CREATED)
         except (SchoolPosition.DoesNotExist, Candidate.DoesNotExist) as e:
             return Response(
                 {'detail': f'Invalid position or candidate: {str(e)}'},

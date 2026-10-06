@@ -196,7 +196,6 @@ const ProfileEditPage = () => {
       const submitData = new FormData();
       const {
         normalizedCurrent: normalizedCurrentData,
-        normalizedInitial: normalizedInitialData,
         changedFields,
         hasChanges: hasFieldChanges,
       } = getChangedFields({

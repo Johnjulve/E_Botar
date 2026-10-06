@@ -6,9 +6,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Alert, Button, Form } from 'react-bootstrap';
+import { Button, Form } from 'react-bootstrap';
 import { Container } from '../../../components/layout';
-import { LoadingSpinner } from '../../../components/common';
+import { LoadingSpinner, ToastNotification } from '../../../components/common';
 import systemService, { DEFAULT_FEATURE_FLAGS } from '../../../services/systemService';
 import { useAuth } from '../../../hooks/useAuth';
 import { useBranding } from '../../../hooks/useBranding';
@@ -126,17 +126,20 @@ const MaintenanceFeaturesPage = () => {
           </p>
         </header>
 
-        {message && (
-          <Alert variant="success" dismissible onClose={() => setMessage(null)}>
-            {message}
-          </Alert>
-        )}
+        <ToastNotification
+          show={Boolean(message)}
+          message={message}
+          variant="success"
+          onClose={() => setMessage(null)}
+        />
 
-        {errorDetail && (
-          <Alert variant="danger" dismissible onClose={() => setErrorDetail(null)}>
-            {errorDetail}
-          </Alert>
-        )}
+        <ToastNotification
+          show={Boolean(errorDetail)}
+          message={errorDetail}
+          variant="danger"
+          delay={5000}
+          onClose={() => setErrorDetail(null)}
+        />
 
         <Form className="maintenance-features-form shadow-sm rounded-3 bg-white border p-3 p-md-4" onSubmit={handleSave}>
           {TOGGLE_ROWS.map((item) => (

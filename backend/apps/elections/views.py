@@ -96,7 +96,16 @@ class SchoolElectionViewSet(viewsets.ModelViewSet):
     queryset = SchoolElection.objects.all()
 
     def get_queryset(self):
-        return annotate_election_list_metrics(SchoolElection.objects.all())
+        qs = annotate_election_list_metrics(SchoolElection.objects.all())
+        status_param = self.request.query_params.get('status', '').strip().lower()
+        now = timezone.now()
+        if status_param == 'active':
+            qs = qs.filter(start_date__lte=now, end_date__gte=now, is_active=True)
+        elif status_param == 'upcoming':
+            qs = qs.filter(start_date__gt=now, is_active=True)
+        elif status_param == 'finished':
+            qs = qs.filter(end_date__lt=now)
+        return qs
     
     def get_permissions(self):
         if self.action in ['list', 'retrieve', 'active', 'upcoming', 'finished']:

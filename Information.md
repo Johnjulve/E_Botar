@@ -1,6 +1,6 @@
 # E-Botar - System Information
 
-**Version 4.1.0** | Complete system documentation and technical details
+**Version 5.0.0** | Complete system documentation and technical details
 
 [![Django](https://img.shields.io/badge/Django-5.2.8-green.svg)](https://www.djangoproject.com/)
 [![DRF](https://img.shields.io/badge/DRF-3.16.1-red.svg)](https://www.django-rest-framework.org/)
@@ -11,6 +11,7 @@
 
 ## 📖 Table of Contents
 
+- [Release Highlights (5.0.0)](#-release-highlights-500)
 - [Release Highlights (4.1.0)](#-release-highlights-410)
 - [Release Highlights (4.0.0)](#-release-highlights-400)
 - [Release Highlights (3.4.0)](#-release-highlights-340)
@@ -27,6 +28,18 @@
 - [Development](#development)
 - [Documentation](#documentation)
 - [Roadmap](#roadmap)
+
+---
+
+## 🚀 Release Highlights (5.0.0)
+
+- **Architecture Simplification & Production-Hardened Release**:
+  - **Canonical Versioned Gateway (`/api/v1/`)**: Introduced clean, versioned API routing prefix with 100% backward-compatible `/api/` alias preservation.
+  - **Domain Service Isolation (`BallotSubmissionService`)**: Extracted database transactions into a dedicated service layer with row-level locks (`select_for_update`) to prevent double-voting race conditions and ensure zero orphaned records on rollbacks.
+  - **Framework-First Architecture**: Pruned redundant bespoke wrappers in favor of DRF native viewsets, serializers, permissions, throttles, and query parameter filtering (`?status=active`, `?compact=true`).
+  - **Cryptographic & Side-Channel Protections**: Enforced constant-time hash comparisons (`hmac.compare_digest`) across receipt verification and append-only blockchain ledger chain traversal (`verify_election_vote_chain`).
+  - **Production Infrastructure Hardening**: Configured fail-fast secret validation, database session engines, WhiteNoise positioning, and unthrottled active platform health checks (`/health/`, `/api/v1/health/`).
+  - **Automated Verification**: Comprehensive regression suite with 73/73 tests passing and clean frontend production builds (0 lint errors).
 
 ---
 

@@ -182,6 +182,9 @@ class SchoolElection(models.Model):
         ordering = ['-start_date']
         verbose_name = 'School Election'
         verbose_name_plural = 'School Elections'
+        indexes = [
+            models.Index(fields=['is_active', 'start_date', 'end_date'], name='election_schedule_idx'),
+        ]
 
 
 class ElectionPosition(models.Model):

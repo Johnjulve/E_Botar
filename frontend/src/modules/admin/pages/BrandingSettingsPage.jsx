@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Form, Row, Col, Spinner, Toast, ToastContainer } from 'react-bootstrap';
+import { Form, Row, Col, Spinner } from 'react-bootstrap';
 import { Container } from '../../../components/layout';
-import { Button, Modal, Icon, LoadingSpinner } from '../../../components/common';
+import { Button, Modal, Icon, LoadingSpinner, Alert, ToastNotification } from '../../../components/common';
 import { useAuth } from '../../../hooks/useAuth';
 import { useBranding } from '../../../hooks/useBranding';
 import systemService from '../../../services/systemService';
@@ -386,41 +386,20 @@ const BrandingSettingsPage = () => {
       </div>
 
       {/* Floating Popup Toast Notifications */}
-      <ToastContainer className="branding-toast-container" position="top-end">
-        <Toast
-          show={Boolean(statusMessage)}
-          onClose={() => setStatusMessage(null)}
-          delay={3500}
-          autohide
-          className="branding-toast-card border-success"
-        >
-          <Toast.Header className="bg-success text-white py-2">
-            <Icon name="check-circle" size={16} className="me-2 text-white" />
-            <strong className="me-auto text-white">Success</strong>
-            <small className="text-white-50">Just now</small>
-          </Toast.Header>
-          <Toast.Body className="bg-white text-dark py-3 fw-medium">
-            {statusMessage}
-          </Toast.Body>
-        </Toast>
+      <ToastNotification
+        show={Boolean(statusMessage)}
+        message={statusMessage}
+        variant="success"
+        onClose={() => setStatusMessage(null)}
+      />
 
-        <Toast
-          show={Boolean(errorMessage)}
-          onClose={() => setErrorMessage(null)}
-          delay={5000}
-          autohide
-          className="branding-toast-card border-danger"
-        >
-          <Toast.Header className="bg-danger text-white py-2">
-            <Icon name="alert-triangle" size={16} className="me-2 text-white" />
-            <strong className="me-auto text-white">Attention</strong>
-            <small className="text-white-50">Notice</small>
-          </Toast.Header>
-          <Toast.Body className="bg-white text-dark py-3 fw-medium">
-            {errorMessage}
-          </Toast.Body>
-        </Toast>
-      </ToastContainer>
+      <ToastNotification
+        show={Boolean(errorMessage)}
+        message={errorMessage}
+        variant="danger"
+        delay={5000}
+        onClose={() => setErrorMessage(null)}
+      />
 
       {/* Live Viewport Preview Bar */}
       <div className="branding-preview-container">

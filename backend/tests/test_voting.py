@@ -11,10 +11,13 @@ from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from apps.candidates.models import Candidate
 from apps.elections.models import ElectionPosition, SchoolElection, SchoolPosition
 from apps.voting.models import VoteBlock, VoteReceipt
+from apps.voting.services import BallotSubmissionService
 from apps.voting.vote_ledger import verify_election_vote_chain
+
 
 
 class ResultsStatisticsPositionStatsTests(TestCase):
@@ -260,3 +263,80 @@ class VoteReceiptCodeFormatTests(TestCase):
         row = response.json()[0]
         self.assertIn('masked_receipt_code', row)
         self.assertNotIn('receipt_code', row)
+
+
+class BallotSubmissionServiceTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='service_voter', password='x')
+        now = timezone.now()
+        self.election = SchoolElection.objects.create(
+            election_type='university',
+            start_year=2024,
+            end_year=2025,
+            start_date=now - timedelta(days=1),
+            end_date=now + timedelta(days=1),
+            is_active=True,
+        )
+        self.position = SchoolPosition.objects.create(name='Senator')
+        ElectionPosition.objects.create(
+            election=self.election,
+            position=self.position,
+            order=1,
+        )
+        cand_user = User.objects.create_user(username='cand_service', password='x')
+        self.candidate = Candidate.objects.create(
+            user=cand_user,
+            position=self.position,
+            election=self.election,
+            manifesto='Transparency for all.',
+            is_active=True,
+        )
+
+    def test_service_submits_ballot_successfully(self):
+        votes = [{'position_id': self.position.id, 'candidate_id': self.candidate.id}]
+        ballot, receipt = BallotSubmissionService.submit_ballot(
+            user=self.user,
+            election=self.election,
+            votes=votes,
+            client_ip='127.0.0.1',
+            user_agent='TestRunner',
+        )
+        self.assertIsNotNone(ballot.id)
+        self.assertIsNotNone(receipt.id)
+        self.assertEqual(ballot.user, self.user)
+        self.assertEqual(ballot.election, self.election)
+        self.assertEqual(ballot.receipt, receipt)
+
+    def test_service_rejects_duplicate_vote(self):
+        votes = [{'position_id': self.position.id, 'candidate_id': self.candidate.id}]
+        BallotSubmissionService.submit_ballot(
+            user=self.user,
+            election=self.election,
+            votes=votes,
+        )
+        # Attempting second vote must raise DjangoValidationError
+        with self.assertRaises(DjangoValidationError):
+            BallotSubmissionService.submit_ballot(
+                user=self.user,
+                election=self.election,
+                votes=votes,
+            )
+
+    def test_service_rejects_inactive_election(self):
+        now = timezone.now()
+        past_election = SchoolElection.objects.create(
+            election_type='university',
+            start_year=2024,
+            end_year=2025,
+            start_date=now - timedelta(days=10),
+            end_date=now - timedelta(days=5),
+            is_active=True,
+        )
+        votes = [{'position_id': self.position.id, 'candidate_id': self.candidate.id}]
+        with self.assertRaises(DjangoValidationError):
+            BallotSubmissionService.submit_ballot(
+                user=self.user,
+                election=past_election,
+                votes=votes,
+            )
+
