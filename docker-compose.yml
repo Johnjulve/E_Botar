@@ -1,0 +1,49 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: ebotar_db
+      POSTGRES_USER: ebotar_user
+      POSTGRES_PASSWORD: ebotar_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  backend:
+    image: e_botar-backend:${APP_VERSION:-5.0.0}
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: always
+    depends_on:
+      - db
+    env_file: 
+      - .env
+    environment:
+      - DEBUG=False
+      - IS_PRODUCTION=True
+      - SECRET_KEY=ebotar-production-secret-key-change-me
+      - DATABASE_URL=postgresql://ebotar_user:ebotar_password@db:5432/ebotar_db
+      - ALLOWED_HOSTS=*
+      - CORS_ALLOW_ALL_ORIGINS=True
+      - DATABASE_SSLMODE=disable
+    ports:
+      - "8000:8000"
+
+  frontend:
+    image: e_botar-frontend:${APP_VERSION:-5.0.0}
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID}
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+
+volumes:
+  postgres_data:

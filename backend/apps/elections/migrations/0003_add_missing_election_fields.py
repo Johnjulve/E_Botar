@@ -9,6 +9,9 @@ def add_missing_fields(apps, schema_editor):
     """Add fields only if they don't exist"""
     from django.db import connection
     
+    if connection.vendor != 'sqlite':
+        return
+    
     with connection.cursor() as cursor:
         # Check what columns exist
         cursor.execute("PRAGMA table_info(elections_schoolelection)")
