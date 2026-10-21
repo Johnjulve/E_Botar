@@ -12,7 +12,7 @@ services:
       - "5432:5432"
 
   backend:
-    image: e_botar-backend:${APP_VERSION:-5.0.0}
+    image: e_botar-backend:${APP_VERSION:-5.0.1}
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -33,7 +33,7 @@ services:
       - "8000:8000"
 
   frontend:
-    image: e_botar-frontend:${APP_VERSION:-5.0.0}
+    image: e_botar-frontend:${APP_VERSION:-5.0.1}
     build:
       context: ./frontend
       dockerfile: Dockerfile
