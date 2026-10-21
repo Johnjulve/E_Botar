@@ -18,6 +18,8 @@ services:
     restart: always
     depends_on:
       - db
+    env_file: 
+      - .env
     environment:
       - DEBUG=False
       - IS_PRODUCTION=True
@@ -33,6 +35,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID}
     restart: always
     depends_on:
       - backend
