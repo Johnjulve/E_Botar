@@ -171,45 +171,19 @@ DATABASE_ENGINE = os.getenv('DATABASE_ENGINE')
 
 if DATABASE_URL:
     parsed = urlparse(DATABASE_URL)
-
-    if DATABASE_ENGINE:
-        engine = DATABASE_ENGINE
-    else:
-        scheme_to_engine = {
-            'postgresql': 'django.db.backends.postgresql',
-            'postgres': 'django.db.backends.postgresql',
-            'mysql': 'django.db.backends.mysql',
-            'sqlite': 'django.db.backends.sqlite3',
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': parsed.path.lstrip('/'),
+            'USER': parsed.username or '',
+            'PASSWORD': parsed.password or '',
+            'HOST': parsed.hostname or '',
+            'PORT': parsed.port or '',
+            'OPTIONS': {
+                'sslmode': os.getenv('DATABASE_SSL_MODE', 'require'),
+            }
         }
-        engine = scheme_to_engine.get(parsed.scheme, 'django.db.backends.postgresql')
-
-    database_config = {
-        'ENGINE': engine,
-        'NAME': parsed.path[1:] if parsed.path else os.getenv('DATABASE_NAME', ''),
-        'USER': parsed.username or os.getenv('DATABASE_USER', ''),
-        'PASSWORD': parsed.password or os.getenv('DATABASE_PASSWORD', ''),
-        'HOST': parsed.hostname or os.getenv('DATABASE_HOST', ''),
-        'PORT': parsed.port or os.getenv('DATABASE_PORT', ''),
     }
-
-    if 'postgresql' in engine:
-        database_config['OPTIONS'] = {
-            'sslmode': os.getenv('DATABASE_SSLMODE', 'require'),
-        }
-
-    if 'mysql' in engine:
-        database_config['OPTIONS'] = {
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-        }
-
-    if 'sqlite' in engine:
-        database_config['NAME'] = parsed.path[1:] or str(BASE_DIR / 'db.sqlite3')
-        database_config.pop('USER', None)
-        database_config.pop('PASSWORD', None)
-        database_config.pop('HOST', None)
-        database_config.pop('PORT', None)
-
-    DATABASES = {'default': database_config}
 else:
     DATABASES = {
         'default': {
@@ -217,6 +191,7 @@ else:
             'NAME': BASE_DIR / 'db.sqlite3',
         }
     }
+
 
 # ---------------------------------------------------------------------------
 # CACHE
