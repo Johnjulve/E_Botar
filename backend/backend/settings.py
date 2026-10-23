@@ -167,7 +167,6 @@ TEMPLATES = [
 # DATABASE - Universal configuration
 # ---------------------------------------------------------------------------
 DATABASE_URL = os.getenv('DATABASE_URL')
-DATABASE_ENGINE = os.getenv('DATABASE_ENGINE')
 
 if DATABASE_URL:
     parsed = urlparse(DATABASE_URL)
