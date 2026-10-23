@@ -60,19 +60,19 @@ REST_FRAMEWORK = {
         "rest_framework.throttling.UserRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
-        "user": os.getenv('THROTTLE_USER', '1000/hour'),
-        "vote_submit": os.getenv('THROTTLE_VOTE_SUBMIT', '3/minute'),
-        "registration_submit": os.getenv('THROTTLE_REGISTRATION_SUBMIT', '2/minute'),
-        "google_auth_submit": os.getenv('THROTTLE_GOOGLE_AUTH_SUBMIT', '10/minute'),
-        "application_submit": os.getenv('THROTTLE_APPLICATION_SUBMIT', '6/minute'),
-        "program_submit": os.getenv('THROTTLE_PROGRAM_SUBMIT', '15/minute'),
-        "program_import": os.getenv('THROTTLE_PROGRAM_IMPORT', '3/minute'),
-        "login_submit": os.getenv('THROTTLE_LOGIN_SUBMIT', '10/minute'),
-        "receipt_verify": os.getenv('THROTTLE_RECEIPT_VERIFY', '15/minute'),
-        "admin_action": os.getenv('THROTTLE_ADMIN_ACTION', '60/minute'),
-        "profile_update": os.getenv('THROTTLE_PROFILE_UPDATE', '20/minute'),
-        "roster_preview": os.getenv('THROTTLE_ROSTER_PREVIEW', '20/minute'),
-        "roster_import": os.getenv('THROTTLE_ROSTER_IMPORT', '5/minute'),
+        "user": "1000/hour",
+        "vote_submit": "3/minute",
+        "registration_submit": "2/minute",
+        "google_auth_submit": "10/minute",
+        "application_submit": "6/minute",
+        "program_submit": "15/minute",
+        "program_import": "3/minute",
+        "login_submit": "10/minute",
+        "receipt_verify": "15/minute",
+        "admin_action": "60/minute",
+        "profile_update": "20/minute",
+        "roster_preview": "20/minute",
+        "roster_import": "5/minute",
     },
 }
 
@@ -167,49 +167,22 @@ TEMPLATES = [
 # DATABASE - Universal configuration
 # ---------------------------------------------------------------------------
 DATABASE_URL = os.getenv('DATABASE_URL')
-DATABASE_ENGINE = os.getenv('DATABASE_ENGINE')
 
 if DATABASE_URL:
     parsed = urlparse(DATABASE_URL)
-
-    if DATABASE_ENGINE:
-        engine = DATABASE_ENGINE
-    else:
-        scheme_to_engine = {
-            'postgresql': 'django.db.backends.postgresql',
-            'postgres': 'django.db.backends.postgresql',
-            'mysql': 'django.db.backends.mysql',
-            'sqlite': 'django.db.backends.sqlite3',
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': parsed.path.lstrip('/'),
+            'USER': parsed.username or '',
+            'PASSWORD': parsed.password or '',
+            'HOST': parsed.hostname or '',
+            'PORT': parsed.port or '',
+            'OPTIONS': {
+                'sslmode': os.getenv('DATABASE_SSLMODE', 'require'),
+            }
         }
-        engine = scheme_to_engine.get(parsed.scheme, 'django.db.backends.postgresql')
-
-    database_config = {
-        'ENGINE': engine,
-        'NAME': parsed.path[1:] if parsed.path else os.getenv('DATABASE_NAME', ''),
-        'USER': parsed.username or os.getenv('DATABASE_USER', ''),
-        'PASSWORD': parsed.password or os.getenv('DATABASE_PASSWORD', ''),
-        'HOST': parsed.hostname or os.getenv('DATABASE_HOST', ''),
-        'PORT': parsed.port or os.getenv('DATABASE_PORT', ''),
     }
-
-    if 'postgresql' in engine:
-        database_config['OPTIONS'] = {
-            'sslmode': os.getenv('DATABASE_SSLMODE', 'require'),
-        }
-
-    if 'mysql' in engine:
-        database_config['OPTIONS'] = {
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-        }
-
-    if 'sqlite' in engine:
-        database_config['NAME'] = parsed.path[1:] or str(BASE_DIR / 'db.sqlite3')
-        database_config.pop('USER', None)
-        database_config.pop('PASSWORD', None)
-        database_config.pop('HOST', None)
-        database_config.pop('PORT', None)
-
-    DATABASES = {'default': database_config}
 else:
     DATABASES = {
         'default': {
@@ -217,6 +190,7 @@ else:
             'NAME': BASE_DIR / 'db.sqlite3',
         }
     }
+
 
 # ---------------------------------------------------------------------------
 # CACHE
