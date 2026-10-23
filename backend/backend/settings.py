@@ -179,7 +179,7 @@ if DATABASE_URL:
             'HOST': parsed.hostname or '',
             'PORT': parsed.port or '',
             'OPTIONS': {
-                'sslmode': os.getenv('DATABASE_SSL_MODE', 'require'),
+                'sslmode': os.getenv('DATABASE_SSLMODE', 'require'),
             }
         }
     }
